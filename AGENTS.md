@@ -1,0 +1,224 @@
+# Local Agent Guidance
+
+This repository is a research monorepo. It contains a local Marimo environment
+backed by sibling GammaLoop and Symbolica Community working copies, the
+standalone `ludy-kira` package, and an independently locked DY Python
+application. Keep changes focused on this repository unless the user explicitly
+asks to modify a sibling repository.
+
+## Repository Layout
+
+- LUDY: `/Users/lcnbr/dev/work/bern/LUDY`
+- Kira wrapper: `packages/ludy-kira`
+- DY calculation overview: `calculations/dy`
+- Portable DY/Kira application: `calculations/dy/python`
+- Mathematica source snapshot: `calculations/dy/mathematica`
+- Local GammaLoop/Spenso notebook: `notebooks/ludy.py`
+- General cone notebook: `notebooks/collinear-cone.py`
+- GammaLoop: `/Users/lcnbr/dev/work/bern/gammaloop/main`
+- Symbolica Community: `/Users/lcnbr/dev/work/bern/symbolica-community`
+
+`packages/ludy-kira` is a self-contained uv/Nix subproject intended to work
+after cloning only this repository. Do not introduce sibling checkout paths or
+the notebook dependency graph into its package metadata, lock, or flake.
+
+`calculations/dy/python` is a separately locked application environment. It may
+depend on `../../../packages/ludy-kira`, but must not inherit the root notebook
+dependency graph or reference the sibling GammaLoop and Symbolica Community
+working copies. Keep application-only dependencies such as Marimo there rather
+than adding them to the reusable wrapper.
+
+The root uv sources intentionally use the relative sibling paths
+`../gammaloop/main` and `../symbolica-community`. The root Nix flake uses a
+public, exact GammaLoop revision while uv overlays the editable local source.
+If the working copies move, update the uv paths. This root environment serves
+only the general notebooks. The DY/Kira application uses its own environment
+and requires neither sibling.
+
+The Mathematica directory is a curated source snapshot. Preserve the complete
+notebook, first-party packages, `tools/trace_form.log`, and historical FIRE
+fixtures. Do not vendor nested version-control metadata, generated databases,
+or the large third-party FIRE source/build tree. The fixture files retain
+historical paths intentionally and serve as golden evidence, not launchers.
+
+## Version Control
+
+Use Jujutsu for every version-control operation. Do not run Git commands.
+
+```console
+$ jj status
+$ jj diff
+$ jj log --no-pager
+$ jj describe -m "<description>"
+```
+
+Inspect the current change before editing and preserve unrelated work. In
+particular, Symbolica Community may already contain user-owned working-copy
+changes; never clean, restore, or fold those into a LUDY change.
+
+## Development Environment
+
+Run project commands inside the Nix development shell. Host-level uv and
+Marimo are not assumed to exist.
+
+```console
+$ nix develop
+$ uv sync --locked
+$ uv run --locked marimo edit notebooks/ludy.py
+```
+
+The equivalent one-shot launch is:
+
+```console
+$ nix develop --command uv run --locked marimo edit notebooks/ludy.py
+```
+
+The shell inherits GammaLoop's Rust, Python, Maturin, compiler, and native
+library toolchain and adds Node.js for Marimo's language-server bridge. It pins
+uv to Nix Python 3.13, disables uv-managed Python downloads, and sets
+`NO_SYMBOLICA_OEM_LICENSE=1` while compiling local native extensions. Ty is a
+locked uv development dependency. Never place a Symbolica license or other
+secret in the repository; provide it through the external environment or the
+ignored `.envrc.local` file when needed.
+
+For the standalone Kira wrapper, use its own shell and lock instead:
+
+```console
+$ cd packages/ludy-kira
+$ nix develop
+$ uv sync --locked
+$ uv run --locked pytest
+```
+
+The wrapper wheel contains no Kira or Fermat binaries. Its Nix shell supplies
+the pinned runtime and `FERMATPATH`; Fermat's restrictive license must remain
+explicit in its derivation and documentation.
+
+For the portable DY application, use its application shell and lock:
+
+```console
+$ cd calculations/dy/python
+$ nix develop
+$ uv sync --locked
+$ uv run --locked marimo edit notebook.py
+```
+
+Opening or checking `notebook.py` must not launch Kira. Preserve the explicit
+run control and resumable, ignored work directory.
+
+## uv Dependency Wiring
+
+LUDY is a virtual uv project. Its two native dependencies are editable local
+sources:
+
+- the Python distribution `gammaloop` comes from `../gammaloop/main`;
+- the Python distribution `symbolica` comes from
+  `../symbolica-community`.
+
+Both source projects declare `tool.uv.package = false` for their own workflows,
+so LUDY must retain `package = true` on both `tool.uv.sources` entries. Removing
+that override can produce a successful sync without installing the native
+module.
+
+GammaLoop's root Cargo manifest is a virtual workspace. The
+`config-settings-package` entry in `pyproject.toml` therefore directs Maturin to
+`crates/gammaloop-api/Cargo.toml`; keep that override unless GammaLoop's own
+packaging layout changes.
+
+Editable installs expose Python changes immediately, but native Rust changes
+require a rebuild:
+
+```console
+$ uv sync --reinstall-package gammaloop
+$ uv sync --reinstall-package symbolica
+```
+
+The initial native build is slow. Preserve and reuse the sibling repositories'
+ignored Cargo `target/` directories and uv's cache.
+
+## Symbolica Community Cargo Wiring
+
+Symbolica Community's Rust manifest intentionally resolves its Community
+extensions from the local GammaLoop workspace:
+
+- `idenso` comes from `../gammaloop/main/crates/idenso`;
+- the Python-facing Spenso module, whose Rust package is named `spynso3`, comes
+  from `../gammaloop/main/crates/spynso3`;
+- `vakint` comes from `../gammaloop/main/crates/vakint`.
+
+The local `spynso3` dependency pulls the sibling workspace's local `spenso`,
+`spenso-hep-lib`, and supporting crates transitively. Do not replace it with a
+direct `spenso` dependency: `spynso3::SpensoModule` is the Community module
+registered by Symbolica.
+
+These crates exchange Symbolica and PyO3 types across crate boundaries. Keep
+Symbolica Community and its `example_extension` aligned with GammaLoop's
+Symbolica 2.1 and PyO3 0.28 dependency families. Its crates.io patches use the
+same Symbolica Git `main` source identity as GammaLoop, while the Community
+`Cargo.lock` pins that source to GammaLoop's current commit
+`9135b4091505276baa11ef262fe1165f2b95ea33`. When GammaLoop deliberately moves
+that pin, update the Community lock to the same revision and verify the graph:
+
+```console
+$ cargo update -p symbolica --precise <gammaloop-symbolica-revision>
+$ cargo check --locked
+$ cargo tree --locked -i symbolica
+$ cargo tree --locked -i pyo3
+```
+
+Run those commands from the Symbolica Community working copy inside LUDY's Nix
+shell. The trees should contain one Symbolica source identity and one PyO3
+version.
+
+## Symbolica Runtime Constraint
+
+GammaLoop and Symbolica Community contain separately linked native Symbolica
+engines. A restricted or unlicensed Symbolica build permits only one active
+engine, so importing both `gammaloop` and `symbolica.core` in the same process
+can abort that process.
+
+`notebooks/ludy.py` uses both the GammaLoop and Community/Spenso APIs and
+therefore requires a license that permits the two engines in one process. The
+portable `calculations/dy/python/notebook.py` application imports only the
+standalone Symbolica distribution. Under a restricted license, use that
+application and test GammaLoop separately.
+
+## Verification
+
+After changing the environment or notebook, run:
+
+```console
+$ nix flake check
+$ nix develop --command uv lock --check
+$ nix develop --command uv run --locked marimo check --strict notebooks/ludy.py
+$ nix develop --command uv run --locked marimo check --strict notebooks/collinear-cone.py
+```
+
+After changing `packages/ludy-kira`, also run from that directory:
+
+```console
+$ nix flake check
+$ nix develop --command uv lock --check
+$ nix develop --command uv run --locked pytest
+$ nix develop --command uv run --locked ty check src tests
+```
+
+After changing the DY Python application, also run from
+`calculations/dy/python`:
+
+```console
+$ nix flake check
+$ nix develop --command uv lock --check
+$ nix develop --command uv run --locked marimo check --strict notebook.py
+```
+
+For runtime checks, execute GammaLoop and direct Symbolica imports sequentially,
+not concurrently, under a restricted license. A full notebook execution can be
+checked without starting the editor:
+
+```console
+$ nix develop --command uv run --locked marimo export html notebooks/ludy.py -o /tmp/ludy-notebook-validation.html --force
+```
+
+Do not commit `.venv/`, `.direnv/`, `.marimo/`, `__marimo__/`, Cargo build
+outputs, or generated validation exports.

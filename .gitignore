@@ -1,0 +1,13 @@
+.DS_Store
+.envrc.local
+.direnv/
+.marimo/
+.venv/
+__marimo__/
+__pycache__/
+*.py[cod]
+*.log
+!calculations/dy/mathematica/tools/trace_form.log
+/runs/
+/test_expression.cpp
+/test_expression.so

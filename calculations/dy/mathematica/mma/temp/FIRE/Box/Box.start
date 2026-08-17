@@ -1,0 +1,156 @@
+Null
+ExampleDimension[0] = 4
+ 
+ProblemNumber = 0
+ 
+SBasisL[0, {-1, -1, -1, -1}] = 0
+ 
+SBasisL[0, {-1, -1, -1, 1}] = 0
+ 
+SBasisL[0, {-1, -1, 1, -1}] = 0
+ 
+SBasisL[0, {-1, -1, 1, 1}] = 0
+ 
+SBasisL[0, {-1, 1, -1, -1}] = 0
+ 
+SBasisL[0, {-1, 1, -1, 1}] = 0
+ 
+SBasisL[0, {-1, 1, 1, -1}] = 0
+ 
+SBasisL[0, {-1, 1, 1, 1}] = 0
+ 
+SBasisL[0, {1, -1, -1, -1}] = 0
+ 
+SBasisL[0, {1, -1, -1, 1}] = 0
+ 
+SBasisL[0, {1, -1, 1, -1}] = 0
+ 
+SBasisL[0, {1, -1, 1, 1}] = 0
+ 
+SBasisL[0, {1, 1, -1, -1}] = 0
+ 
+SBasisL[0, {1, 1, -1, 1}] = 0
+ 
+SBasisL[0, {1, 1, 1, -1}] = 0
+ 
+SBasisL[0, {1, 1, 1, 1}] = 0
+ 
+SBasis0L[0] = 6
+ 
+SBasis0D[0, 1] = {{{-1}, {1}, {1}, {1}}}
+ 
+SBasis0D[0, 2] = {{{-1}, {1}, {1}, {1}}}
+ 
+SBasis0D[0, 3] = {{{-1}, {1}, {1}, {1}}}
+ 
+SBasis0D[0, 4] = {{{-1}, {1}, {1}, {1}}}
+ 
+SBasis0D[0, 5] = {{{-1}, {1}, {1}, {1}}}
+ 
+SBasis0D[0, 6] = {{{-1}, {1}, {1}, {1}}}
+ 
+SBasis0C[0, 1, {{-1}, {1}, {1}, {1}}] = 
+    {{-(FIRE`Private`BackMatrix*(ipk1k1 /. rep)) + FIRE`Private`BackMatrix*
+        (ipqk1 /. rep), 3}, {FIRE`Private`BackMatrix*(ipk1k1 /. rep) - 
+       FIRE`Private`BackMatrix*(ipqq /. rep), 4}, 
+     {-(FIRE`Private`BackMatrix*(ipk1k1 /. rep)) - FIRE`Private`BackMatrix*
+        (ipk1u1 /. rep) + FIRE`Private`BackMatrix*(ipqk1 /. rep) + 
+       FIRE`Private`BackMatrix*(ipqu1 /. rep), 1}, 
+     {3*FIRE`Private`BackMatrix*(ipk1k1 /. rep) + 3*FIRE`Private`BackMatrix*
+        (ipk1u2 /. rep) - 3*FIRE`Private`BackMatrix*(ipqk1 /. rep) - 
+       3*FIRE`Private`BackMatrix*(ipqu2 /. rep), 2}}
+ 
+SBasis0C[0, 2, {{-1}, {1}, {1}, {1}}] = 
+    {{-(FIRE`Private`BackMatrix*(ipk1u1 /. rep)) + FIRE`Private`BackMatrix*
+        (ipqk1 /. rep), 3}, {FIRE`Private`BackMatrix*(ipk1u1 /. rep) - 
+       FIRE`Private`BackMatrix*(ipqk1 /. rep) - FIRE`Private`BackMatrix*
+        (ipqq /. rep) + FIRE`Private`BackMatrix*(ipqu1 /. rep), 4}, 
+     {-(FIRE`Private`BackMatrix*(ipk1u1 /. rep)) + FIRE`Private`BackMatrix*
+        (ipqk1 /. rep) + FIRE`Private`BackMatrix*(ipqu1 /. rep) - 
+       FIRE`Private`BackMatrix*(ipu1u1 /. rep), 1}, 
+     {3*FIRE`Private`BackMatrix*(ipk1u1 /. rep) - 3*FIRE`Private`BackMatrix*
+        (ipqk1 /. rep) - 3*FIRE`Private`BackMatrix*(ipqu2 /. rep) + 
+       3*FIRE`Private`BackMatrix*(ipu1u2 /. rep), 2}}
+ 
+SBasis0C[0, 3, {{-1}, {1}, {1}, {1}}] = 
+    {{-(FIRE`Private`BackMatrix*(ipk1u2 /. rep)) + FIRE`Private`BackMatrix*
+        (ipqk1 /. rep), 3}, {FIRE`Private`BackMatrix*(ipk1u2 /. rep) - 
+       FIRE`Private`BackMatrix*(ipqk1 /. rep) - FIRE`Private`BackMatrix*
+        (ipqq /. rep) + FIRE`Private`BackMatrix*(ipqu2 /. rep), 4}, 
+     {-(FIRE`Private`BackMatrix*(ipk1u2 /. rep)) + FIRE`Private`BackMatrix*
+        (ipqk1 /. rep) + FIRE`Private`BackMatrix*(ipqu1 /. rep) - 
+       FIRE`Private`BackMatrix*(ipu1u2 /. rep), 1}, 
+     {3*FIRE`Private`BackMatrix*(ipk1u2 /. rep) - 3*FIRE`Private`BackMatrix*
+        (ipqk1 /. rep) - 3*FIRE`Private`BackMatrix*(ipqu2 /. rep) + 
+       3*FIRE`Private`BackMatrix*(ipu2u2 /. rep), 2}}
+ 
+SBasis0C[0, 4, {{-1}, {1}, {1}, {1}}] = 
+    {{FIRE`Private`BackMatrix*(ipk1k1 /. rep) - FIRE`Private`BackMatrix*
+        (ipk1u1 /. rep), 3}, {-(FIRE`Private`BackMatrix*(ipk1k1 /. rep)) + 
+       FIRE`Private`BackMatrix*(ipk1u1 /. rep) - FIRE`Private`BackMatrix*
+        (ipqk1 /. rep) + FIRE`Private`BackMatrix*(ipqu1 /. rep), 4}, 
+     {FIRE`Private`BackMatrix*(ipk1k1 /. rep) - FIRE`Private`BackMatrix*
+        (ipu1u1 /. rep), 1}, {-3*FIRE`Private`BackMatrix*(ipk1k1 /. rep) + 
+       3*FIRE`Private`BackMatrix*(ipk1u1 /. rep) - 3*FIRE`Private`BackMatrix*
+        (ipk1u2 /. rep) + 3*FIRE`Private`BackMatrix*(ipu1u2 /. rep), 2}}
+ 
+SBasis0C[0, 5, {{-1}, {1}, {1}, {1}}] = 
+    {{FIRE`Private`BackMatrix*(ipk1k1 /. rep) - FIRE`Private`BackMatrix*
+        (ipk1u2 /. rep), 3}, {-(FIRE`Private`BackMatrix*(ipk1k1 /. rep)) + 
+       FIRE`Private`BackMatrix*(ipk1u2 /. rep) - FIRE`Private`BackMatrix*
+        (ipqk1 /. rep) + FIRE`Private`BackMatrix*(ipqu2 /. rep), 4}, 
+     {FIRE`Private`BackMatrix*(ipk1k1 /. rep) + FIRE`Private`BackMatrix*
+        (ipk1u1 /. rep) - FIRE`Private`BackMatrix*(ipk1u2 /. rep) - 
+       FIRE`Private`BackMatrix*(ipu1u2 /. rep), 1}, 
+     {-3*FIRE`Private`BackMatrix*(ipk1k1 /. rep) + 3*FIRE`Private`BackMatrix*
+        (ipu2u2 /. rep), 2}}
+ 
+SBasis0C[0, 6, {{-1}, {1}, {1}, {1}}] = 
+    {{FIRE`Private`BackMatrix*(ipk1u1 /. rep) - FIRE`Private`BackMatrix*
+        (ipk1u2 /. rep), 3}, {-(FIRE`Private`BackMatrix*(ipk1u1 /. rep)) + 
+       FIRE`Private`BackMatrix*(ipk1u2 /. rep) - FIRE`Private`BackMatrix*
+        (ipqu1 /. rep) + FIRE`Private`BackMatrix*(ipqu2 /. rep), 4}, 
+     {FIRE`Private`BackMatrix*(ipk1u1 /. rep) - FIRE`Private`BackMatrix*
+        (ipk1u2 /. rep) + FIRE`Private`BackMatrix*(ipu1u1 /. rep) - 
+       FIRE`Private`BackMatrix*(ipu1u2 /. rep), 1}, 
+     {-3*FIRE`Private`BackMatrix*(ipk1u1 /. rep) + 3*FIRE`Private`BackMatrix*
+        (ipk1u2 /. rep) - 3*FIRE`Private`BackMatrix*(ipu1u2 /. rep) + 
+       3*FIRE`Private`BackMatrix*(ipu2u2 /. rep), 2}}
+ 
+SBasisS[0] = {{{1, 2, 3, 4}, {1, 1, 1, 1}, {0, 0, 0, 0}}}
+ 
+SBasisR[0, {-1, -1, -1, -1}] = True
+ 
+SBasisR[0, {-1, -1, -1, 1}] = True
+ 
+SBasisR[0, {-1, -1, 1, -1}] = True
+ 
+SBasisR[0, {-1, -1, 1, 1}] = True
+ 
+SBasisR[0, {-1, 1, -1, -1}] = True
+ 
+SBasisR[0, {-1, 1, -1, 1}] = True
+ 
+SBasisR[0, {-1, 1, 1, -1}] = True
+ 
+SBasisR[0, {-1, 1, 1, 1}] = True
+ 
+SBasisR[0, {1, -1, -1, -1}] = True
+ 
+SBasisR[0, {1, -1, -1, 1}] = True
+ 
+SBasisR[0, {1, -1, 1, -1}] = True
+ 
+SBasisR[0, {1, -1, 1, 1}] = True
+ 
+SBasisR[0, {1, 1, -1, -1}] = True
+ 
+SBasisR[0, {1, 1, -1, 1}] = True
+ 
+SBasisR[0, {1, 1, 1, -1}] = True
+ 
+SBasisR[0, {1, 1, 1, 1}] = True
+ 
+SBasisRL[0] = 0
+ 
+HPI[0] = {}
