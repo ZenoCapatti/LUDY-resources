@@ -11,15 +11,46 @@ dy/
     mma/, tools/               local Wolfram packages and trace data
     temp/FIRE/                 historical topology 1--8 FIRE fixtures
   python/
-    notebook.py                portable topology-1 Kira workflow
+    notebook.py                portable selectable-topology Kira workflow
     pyproject.toml, uv.lock    application dependencies
     flake.nix, flake.lock      Kira/Fermat development runtime
 ```
 
-The Mathematica notebook is the scientific source context. Its topology-1 FIRE
-input and table are retained as golden evidence. The Python notebook expresses
-that topology through `packages/ludy-kira`, requests the same 27 target
-integrals, and parses the Kira result as exact Symbolica expressions.
+The Mathematica notebook is the scientific source context. Its retained FIRE
+inputs and tables are golden evidence. The portable Python notebook expresses
+the selectable topology through `packages/ludy-kira` and parses the Kira result
+as exact Symbolica expressions.
+
+The cross-box algebra before IBP is defined and presented directly in
+`notebooks/ludy.py`. Its sole graph input is the ordered six-tuple of
+`(momentum, mass_squared)` pairs
+`p1, p2, k, k-p1, p2-k, p1+p2-k`, with mass squared `q**2` on the final line.
+The Symbolica head `k` carries a `ludy::loop_momentum` tag, so the four
+loop-dependent propagators are inferred rather than listed separately. The
+four full graph masks are named `11`, `10`, `01`, and `00` by their two
+external-line bits.
+
+The notebook solves the affine linear system `sum(c_i D_i) = 1`, constructs
+the partial-fraction terms, and rewrites each numerator. A visible checked
+adapter maps graph order `(D3,D4,D5,D6)` to the historical FIRE order
+`(D3,D4,D6,D5)`. It then constructs the twelve complete Kira projects
+`topo20`--`topo31`, applies the exact reductions for cuts `11`, `10`, and
+`01`, filters masters in global graph space, and evaluates the surviving
+`Bcutm`/`Tcutm` masters. Cut `00` requires all four loop lines and is therefore
+shown as a direct branch rather than incorrectly represented by a
+three-propagator IBP child. The affine solver accepts any number of propagators
+when the system is unique; an explicit coefficient tuple can select a relation
+for an overcomplete set. Each scientific helper is isolated in its own
+notebook cell and exercised by a showcase or an exact derivation assertion.
+
+The corresponding Mathematica section is a semantic validation oracle rather
+than an implementation template: the editable Python numerator differs, while
+the independent validation path uses Mathematica's active scalar numerator
+`1` and validates the routed cut-`11` bubble result. This is deliberately not
+a claim that the later historical `xboxNumContr` calculation (whose notebook
+also carries a projector warning) has been ported in full. Because it uses
+Community/Spenso, run it from the repository-root environment rather than the
+portable Kira app.
 
 ## Python/Kira implementation
 
@@ -63,11 +94,22 @@ The three environments are intentionally checked independently:
 $ cd packages/ludy-kira
 $ nix develop --command uv run --locked pytest
 
-$ cd ../../calculations/dy/python
+$ cd ../..
+$ direnv exec . uv run --locked marimo check --strict notebooks/ludy.py
+$ direnv exec . uv run --locked marimo export html notebooks/ludy.py -o /tmp/ludy-validation.html --force
+
+$ cd calculations/dy/python
 $ nix flake check
 $ nix develop --command uv lock --check
 $ nix develop --command uv run --locked marimo check --strict notebook.py
 ```
 
-The package tests own the exact FIRE/Kira parity oracle; the application check
-ensures the complete notebook remains structurally runnable.
+The package tests own the exact FIRE/Kira parity oracle. Executing the root
+notebook export runs the native Symbolica/Spenso linear-system decomposition,
+all inline tooling showcases, generic-arity checks, and scalar pre-IBP oracle;
+it then runs or exactly resumes the twelve manifest-checked Kira projects,
+checks all three reducible cut survivor sets, and verifies the routed scalar
+cut-`11` `Bcutm` result and epsilon expansion against Mathematica/FIRE. The
+independently locked portable application keeps its explicit run button, and
+its static check ensures that workflow remains structurally runnable without
+launching Kira.

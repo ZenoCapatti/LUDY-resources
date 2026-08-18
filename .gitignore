@@ -1,5 +1,5 @@
 .DS_Store
-.envrc.local
+.envrc
 .direnv/
 .marimo/
 .venv/

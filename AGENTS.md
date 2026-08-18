@@ -79,7 +79,7 @@ uv to Nix Python 3.13, disables uv-managed Python downloads, and sets
 `NO_SYMBOLICA_OEM_LICENSE=1` while compiling local native extensions. Ty is a
 locked uv development dependency. Never place a Symbolica license or other
 secret in the repository; provide it through the external environment or the
-ignored `.envrc.local` file when needed.
+ignored `.envrc` file when needed.
 
 For the standalone Kira wrapper, use its own shell and lock instead:
 
@@ -153,10 +153,10 @@ registered by Symbolica.
 
 These crates exchange Symbolica and PyO3 types across crate boundaries. Keep
 Symbolica Community and its `example_extension` aligned with GammaLoop's
-Symbolica 2.1 and PyO3 0.28 dependency families. Its crates.io patches use the
-same Symbolica Git `main` source identity as GammaLoop, while the Community
-`Cargo.lock` pins that source to GammaLoop's current commit
-`9135b4091505276baa11ef262fe1165f2b95ea33`. When GammaLoop deliberately moves
+Symbolica 2.2 and PyO3 0.28 dependency families. Its crates.io patches use the
+same Symbolica Git `dev` source identity as GammaLoop, while the Community
+`Cargo.lock` pins that source to Symbolica revision
+`0441bd7a511209dce2ca99925fe87f8b18e4bf03`. When GammaLoop deliberately moves
 that pin, update the Community lock to the same revision and verify the graph:
 
 ```console
@@ -182,6 +182,13 @@ therefore requires a license that permits the two engines in one process. The
 portable `calculations/dy/python/notebook.py` application imports only the
 standalone Symbolica distribution. Under a restricted license, use that
 application and test GammaLoop separately.
+
+This checkout uses the user's active multi-core license from its ignored
+`.envrc`, so combined GammaLoop and Community/Spenso runtime checks are allowed.
+Launch non-interactive checks as `direnv exec . nix develop --command ...`;
+invoking `nix develop --command` directly does not load `.envrc`. Never print or
+commit the license value. On clones without that license, the restricted-build
+constraint above still applies.
 
 ## Verification
 

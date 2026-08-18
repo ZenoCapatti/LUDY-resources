@@ -658,8 +658,7 @@ def _(bounds, family, kira_workdir, mo, preferred_masters, targets):
         )
     else:
         _invariant_note = "This family is massless and needs no composite invariant alias."
-    mo.md(
-        f"""
+    mo.md(f"""
     | project item | value |
     | --- | --- |
     | family | `{family.name}` with `{family.arity}` propagators |
@@ -669,8 +668,7 @@ def _(bounds, family, kira_workdir, mo, preferred_masters, targets):
     | persistent workdir | `{kira_workdir}` |
 
     {_invariant_note} The historical notebook later identifies `ipp1p2 = s/2`.
-    """
-    )
+    """)
     return
 
 

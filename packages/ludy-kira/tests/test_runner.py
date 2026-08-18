@@ -118,14 +118,41 @@ def test_resume_rejects_changed_project_and_changed_generated_input(
         topo1_project,
         bounds=replace(topo1_project.bounds, r=topo1_project.bounds.r + 1),
     )
-    with pytest.raises(KiraWorkdirError, match="does not match"):
+    with pytest.raises(KiraWorkdirError, match="does not match") as caught:
         runner.prepare(changed, project_workdir, resume=True)
+    assert str(project_workdir.resolve()) in str(caught.value)
+    assert "project.input_hashes.jobs.yaml" in str(caught.value)
+    assert "project_fingerprint" not in str(caught.value)
+    assert "Existing workdir was not modified" in str(caught.value)
 
     input_workdir = tmp_path / "input-change"
     runner.prepare(topo1_project, input_workdir)
     (input_workdir / "targets").write_text("topo1[1,1,1]\n", encoding="utf-8")
     with pytest.raises(KiraWorkdirError, match="differs from its manifest"):
         runner.prepare(topo1_project, input_workdir, resume=True)
+
+
+def test_resume_reports_changed_runner_field(
+    tmp_path: Path,
+    topo1_project: KiraProject,
+    fake_kira: Path,
+) -> None:
+    first_fermat = tmp_path / "first-fermat"
+    first_fermat.write_text("fake", encoding="utf-8")
+    second_fermat = tmp_path / "second-fermat"
+    second_fermat.write_text("fake", encoding="utf-8")
+    workdir = tmp_path / "runner-change"
+
+    KiraRunner(fake_kira, fermat_path=first_fermat).prepare(
+        topo1_project, workdir
+    )
+    with pytest.raises(KiraWorkdirError, match="does not match") as caught:
+        KiraRunner(fake_kira, fermat_path=second_fermat).prepare(
+            topo1_project, workdir, resume=True
+        )
+
+    assert "runner.fermat_path" in str(caught.value)
+    assert "project_fingerprint" not in str(caught.value)
 
 
 def test_fake_runner_constructs_command_forwards_environment_and_loads(

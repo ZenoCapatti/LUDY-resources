@@ -171,6 +171,37 @@ class WorkdirManifest:
         return manifest
 
 
+def _manifest_difference_fields(
+    actual: WorkdirManifest,
+    expected: WorkdirManifest,
+) -> tuple[str, ...]:
+    """Return stable dotted paths for fields that prevent safe resumption."""
+
+    differences: list[str] = []
+
+    def compare(path: tuple[str, ...], left: object, right: object) -> None:
+        if isinstance(left, Mapping) and isinstance(right, Mapping):
+            for key in sorted(set(left) | set(right), key=str):
+                key_string = str(key)
+                if key not in left or key not in right:
+                    differences.append(".".join((*path, key_string)))
+                else:
+                    compare((*path, key_string), left[key], right[key])
+            return
+        if left != right:
+            differences.append(".".join(path))
+
+    compare((), actual.to_dict(), expected.to_dict())
+
+    # The fingerprint is derived from the concrete project fields below it.
+    # Reporting both obscures the useful cause without adding information.
+    if any(field.startswith("project.") for field in differences):
+        differences = [
+            field for field in differences if field != "project_fingerprint"
+        ]
+    return tuple(differences)
+
+
 @dataclass(frozen=True, slots=True)
 class PreparedRun:
     project: KiraProject
@@ -397,8 +428,14 @@ class KiraRunner:
                 )
             actual_manifest = _read_manifest(path)
             if actual_manifest.to_dict() != expected_manifest.to_dict():
+                differing_fields = _manifest_difference_fields(
+                    actual_manifest, expected_manifest
+                )
+                details = ", ".join(differing_fields) or "unknown"
                 raise KiraWorkdirError(
-                    "Workdir manifest does not match the requested project and runner",
+                    f"Workdir manifest at {path} does not match the requested "
+                    f"project and runner; differing fields: {details}. "
+                    "Existing workdir was not modified",
                     workdir=path,
                 )
             if not resume:
