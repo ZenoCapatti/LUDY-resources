@@ -97,7 +97,8 @@
               --ignore=tests/test_topo10_integration.py \
               --ignore=tests/test_topo11_integration.py \
               --ignore=tests/test_topo20_integration.py \
-              --ignore=tests/test_topo21_integration.py
+              --ignore=tests/test_topo21_integration.py \
+              --ignore=tests/test_crossed_box_integration.py
             touch "$out"
           '';
           topo1Integration =
@@ -316,6 +317,36 @@
                 pytest -q -p no:cacheprovider tests/test_topo21_integration.py
                 touch "$out"
               '';
+          crossedBoxIntegration =
+            topologyId: previousIntegration:
+            pkgs.runCommand "ludy-kira-topo${toString topologyId}-integration"
+              {
+                nativeBuildInputs = [
+                  testEnvironment
+                  runtime.kira
+                ];
+                # Serialize restricted Symbolica and native Kira checks.
+                previousIntegrationResults = previousIntegration;
+              }
+              ''
+                ${commonTestSetup}
+                export LUDY_KIRA_RUN_INTEGRATION=1
+                export KIRA_BIN="${runtime.kira}/bin/kira"
+                export FERMATPATH="${runtime.fermat}/bin/fer64"
+                pytest -q -p no:cacheprovider \
+                  "tests/test_crossed_box_integration.py::test_real_kira_matches_regenerated_fire_crossed_box[topo${toString topologyId}]"
+                touch "$out"
+              '';
+          topo22Integration = crossedBoxIntegration 22 topo21Integration;
+          topo23Integration = crossedBoxIntegration 23 topo22Integration;
+          topo24Integration = crossedBoxIntegration 24 topo23Integration;
+          topo25Integration = crossedBoxIntegration 25 topo24Integration;
+          topo26Integration = crossedBoxIntegration 26 topo25Integration;
+          topo27Integration = crossedBoxIntegration 27 topo26Integration;
+          topo28Integration = crossedBoxIntegration 28 topo27Integration;
+          topo29Integration = crossedBoxIntegration 29 topo28Integration;
+          topo30Integration = crossedBoxIntegration 30 topo29Integration;
+          topo31Integration = crossedBoxIntegration 31 topo30Integration;
         in
         {
           unit-tests = unitTests;
@@ -331,6 +362,16 @@
           topo11-integration = topo11Integration;
           topo20-integration = topo20Integration;
           topo21-integration = topo21Integration;
+          topo22-integration = topo22Integration;
+          topo23-integration = topo23Integration;
+          topo24-integration = topo24Integration;
+          topo25-integration = topo25Integration;
+          topo26-integration = topo26Integration;
+          topo27-integration = topo27Integration;
+          topo28-integration = topo28Integration;
+          topo29-integration = topo29Integration;
+          topo30-integration = topo30Integration;
+          topo31-integration = topo31Integration;
         };
     in
     {

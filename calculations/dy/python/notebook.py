@@ -38,7 +38,7 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # DY topologies 1–8, 10–11, and 20–21: FIRE to Kira
+    # DY topologies 1–8, 10–11, and 20–31: FIRE to Kira
 
     This is the portable Python counterpart of the validated IBP-reduction jobs in
     [`DY_calculation.nb`](../mathematica/DY_calculation.nb).
@@ -68,6 +68,16 @@ def _(mo):
             "topo11",
             "topo20",
             "topo21",
+            "topo22",
+            "topo23",
+            "topo24",
+            "topo25",
+            "topo26",
+            "topo27",
+            "topo28",
+            "topo29",
+            "topo30",
+            "topo31",
         ],
         value="topo1",
         label="Topology",
@@ -214,6 +224,106 @@ def _(
             ),
             top_level_sectors=(7,),
         ),
+        "topo22": IntegralFamily(
+            name="topo22",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1),
+                Propagator(q1 - p1 - p2, msq),
+                Propagator(q1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo23": IntegralFamily(
+            name="topo23",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1 - p1),
+                Propagator(q1 - p1 - p2, msq),
+                Propagator(q1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo24": IntegralFamily(
+            name="topo24",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1),
+                Propagator(q1 - p1),
+                Propagator(q1 - p1 - p2, msq),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo25": IntegralFamily(
+            name="topo25",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1),
+                Propagator(q1 - p1),
+                Propagator(q1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo26": IntegralFamily(
+            name="topo26",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1),
+                Propagator(q1 - p1 - p2, msq),
+                Propagator(q1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo27": IntegralFamily(
+            name="topo27",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1 - p1),
+                Propagator(q1 - p1 - p2, msq),
+                Propagator(q1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo28": IntegralFamily(
+            name="topo28",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1),
+                Propagator(q1 - p1),
+                Propagator(q1 - p1 - p2, msq),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo29": IntegralFamily(
+            name="topo29",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1),
+                Propagator(q1 - p1),
+                Propagator(q1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo30": IntegralFamily(
+            name="topo30",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1),
+                Propagator(q1 - p1 - p2, msq),
+                Propagator(q1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo31": IntegralFamily(
+            name="topo31",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1 - p1),
+                Propagator(q1 - p1 - p2, msq),
+                Propagator(q1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
     }
     family = families[topology_choice.value]
     massive_kinematics = Kinematics(
@@ -262,6 +372,34 @@ def _(
             ScalarProductRule(p1, p2, ipp1p2),
         ),
     )
+    p2_massive_internal_kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(msq, 2),
+            KinematicInvariant(ipp1p2, 2),
+            KinematicInvariant(ipp2p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, ipp2p2),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+        symbol_to_replace_by_one=msq,
+    )
+    p1_massive_internal_kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(msq, 2),
+            KinematicInvariant(ipp1p1, 2),
+            KinematicInvariant(ipp1p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, ipp1p1),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+        symbol_to_replace_by_one=msq,
+    )
     fully_off_shell_kinematics = Kinematics(
         incoming_momenta=(p1, p2),
         kinematic_invariants=(
@@ -304,13 +442,17 @@ def _(
     )
     if family.name == "topo11":
         kinematics = topo11_kinematics
-    elif family.name in {"topo10", "topo20"}:
+    elif family.name in {"topo28", "topo30", "topo31"}:
+        kinematics = p1_massive_internal_kinematics
+    elif family.name in {"topo24", "topo26", "topo27"}:
+        kinematics = p2_massive_internal_kinematics
+    elif family.name in {"topo10", "topo20", "topo22", "topo23"}:
         kinematics = topo10_kinematics
     elif family.name == "topo8":
         kinematics = fully_off_shell_kinematics
-    elif family.name == "topo6":
+    elif family.name in {"topo6", "topo25"}:
         kinematics = p2_massive_kinematics
-    elif family.name == "topo7":
+    elif family.name in {"topo7", "topo29"}:
         kinematics = p1_massive_kinematics
     elif family.name in {"topo4", "topo5", "topo21"}:
         kinematics = massless_kinematics
@@ -442,6 +584,16 @@ def _(
         "topo11": ((0, 0, 1), (1, 0, 1), (1, 1, 0), (1, 1, 1)),
         "topo20": ((0, 0, 1), (1, 0, 1)),
         "topo21": ((0, 1, 1),),
+        "topo22": ((0, 1, 0), (1, 1, 0)),
+        "topo23": ((0, 1, 0), (1, 0, 1), (1, 1, 1)),
+        "topo24": ((0, 0, 1), (0, 1, 1), (1, 0, 1)),
+        "topo25": ((0, 1, 1), (1, 0, 1)),
+        "topo26": ((0, 1, 0), (1, 0, 1), (1, 1, 0), (1, 1, 1)),
+        "topo27": ((0, 1, 0), (1, 0, 1), (1, 1, 0), (1, 1, 1)),
+        "topo28": ((0, 0, 1), (1, 0, 1), (1, 1, 0), (1, 1, 1)),
+        "topo29": ((0, 1, 1), (1, 1, 0)),
+        "topo30": ((0, 1, 0), (0, 1, 1), (1, 1, 0)),
+        "topo31": ((0, 1, 0), (0, 1, 1), (1, 0, 1), (1, 1, 1)),
     }
     preferred_masters = tuple(
         family(*indices) for indices in master_indices[family.name]
@@ -475,24 +627,29 @@ def _(bounds, family, kira_workdir, mo, preferred_masters, targets):
             "The composite invariant `m**2` is serialized as Kira's safe symbol "
             "`m2` and restored exactly on every parsed right-hand side."
         )
-    elif family.name == "topo6":
+    elif family.name in {"topo6", "topo25"}:
         _invariant_note = "The external invariant `p2**2 = ipp2p2` remains exact."
-    elif family.name == "topo7":
+    elif family.name in {"topo7", "topo29"}:
         _invariant_note = "The external invariant `p1**2 = ipp1p1` remains exact."
     elif family.name == "topo8":
         _invariant_note = (
             "The external invariants `p1**2 = ipp1p1`, `p1*p2 = ipp1p2`, "
             "and `p2**2 = ipp2p2` remain exact."
         )
-    elif family.name == "topo10":
+    elif family.name in {"topo10", "topo20", "topo22", "topo23"}:
         _invariant_note = (
             "The internal mass-squared invariant `msq` and external invariant "
             "`p1*p2 = ipp1p2` remain exact."
         )
-    elif family.name == "topo20":
+    elif family.name in {"topo24", "topo26", "topo27"}:
         _invariant_note = (
-            "The internal mass-squared invariant `msq` and external invariant "
-            "`p1*p2 = ipp1p2` remain exact."
+            "The internal mass-squared invariant `msq`, external invariant "
+            "`p2**2 = ipp2p2`, and `p1*p2 = ipp1p2` remain exact."
+        )
+    elif family.name in {"topo28", "topo30", "topo31"}:
+        _invariant_note = (
+            "The internal mass-squared invariant `msq`, external invariant "
+            "`p1**2 = ipp1p1`, and `p1*p2 = ipp1p2` remain exact."
         )
     elif family.name == "topo11":
         _invariant_note = (
