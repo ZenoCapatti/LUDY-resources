@@ -1,0 +1,86 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import pytest
+import yaml
+from symbolica import E, Replacement
+
+from ludy_kira import Kira
+from ludy_kira.models import KiraProject
+from ludy_kira.parser import parse_masters_file
+from topo20_oracle import (
+    EXPECTED_RHS,
+    MASTER_INDICES,
+    TARGET_INDICES,
+    ZERO_INDICES,
+)
+
+
+def _assert_exact_equal(actual, expected, *, indices) -> None:
+    delta = (actual - expected).together().cancel()
+    assert delta == E("0"), (
+        f"topo20{indices} differs after exact normalization:\n"
+        f"actual   = {actual}\nexpected = {expected}\ndelta    = {delta}"
+    )
+
+
+def test_real_kira_matches_regenerated_fire_topo20(
+    tmp_path: Path,
+    topo20_project: KiraProject,
+) -> None:
+    if os.environ.get("LUDY_KIRA_RUN_INTEGRATION") != "1":
+        pytest.skip("set LUDY_KIRA_RUN_INTEGRATION=1 to run the native Kira parity test")
+
+    kira = Kira(executable=os.environ.get("KIRA_BIN", "kira"))
+    kira.doctor().raise_for_errors()
+    workdir = tmp_path / "topo20"
+    result = kira.reduce(
+        family=topo20_project.family,
+        kinematics=topo20_project.kinematics,
+        targets=topo20_project.targets,
+        bounds=topo20_project.bounds,
+        preferred_masters=topo20_project.preferred_masters,
+        check_masters=True,
+        workdir=workdir,
+        timeout=120,
+    )
+
+    jobs = yaml.safe_load((workdir / "jobs.yaml").read_text(encoding="utf-8"))
+    assert jobs["jobs"][0]["reduce_sectors"]["reduce"] == [
+        {"sectors": ["b111"], "r": 9, "s": 4, "d": 2}
+    ]
+    assert jobs["jobs"][0]["reduce_sectors"]["preferred_masters"] == (
+        "preferred_masters"
+    )
+    assert jobs["jobs"][0]["reduce_sectors"]["check_masters"] is True
+    assert jobs["jobs"][1]["kira2math"]["reconstruct_mass"] is True
+
+    requested = {topo20_project.family(*indices) for indices in TARGET_INDICES}
+    fire_masters = {
+        topo20_project.family(*indices) for indices in MASTER_INDICES
+    }
+    assert set(result.requested_targets) == requested
+    assert set(result.rules) == requested
+    assert result.complete
+    assert result.missing_targets == ()
+    assert result.unresolved_integrals == ()
+    assert dict(result.invariant_aliases) == {}
+    assert set(result.zero_integrals) == {
+        topo20_project.family(*indices) for indices in ZERO_INDICES
+    }
+
+    bridge = [Replacement(master, result.rules[master]) for master in fire_masters]
+    for indices in TARGET_INDICES:
+        target = topo20_project.family(*indices)
+        expected = EXPECTED_RHS[indices].replace_multiple(bridge, repeat=False)
+        _assert_exact_equal(result.rules[target], expected, indices=indices)
+
+    assert set(result.masters) == fire_masters
+    final_masters = parse_masters_file(
+        workdir / "results" / "topo20" / "masters.final",
+        family_name="topo20",
+        arity=3,
+    )
+    assert set(final_masters) == fire_masters

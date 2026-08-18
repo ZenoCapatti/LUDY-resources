@@ -1,7 +1,7 @@
 [project]
 name = "ludy-dy"
 version = "0.1.0"
-description = "Portable Marimo application for the Drell-Yan topology-1 Kira reduction"
+description = "Portable Marimo application for Drell-Yan Kira reductions"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "ludy-kira",

@@ -6,7 +6,6 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
-    from itertools import product
     from pathlib import Path
 
     import marimo as mo
@@ -33,25 +32,49 @@ def _():
         S,
         ScalarProductRule,
         mo,
-        product,
     )
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # DY topology 1: FIRE to Kira
+    # DY topologies 1–8, 10–11, and 20–21: FIRE to Kira
 
-    This is the portable Python counterpart of the first IBP-reduction job in
+    This is the portable Python counterpart of the validated IBP-reduction jobs in
     [`DY_calculation.nb`](../mathematica/DY_calculation.nb).
-    It recreates the topology and all 27 requested integrals from the retained
-    FIRE fixture, asks Kira for a complete reduction, and parses the result into
-    exact Symbolica expressions.
+    It recreates the selected topology and its complete requested target set from the
+    retained FIRE fixture, asks Kira for a complete reduction, and parses the
+    result into exact Symbolica expressions.
 
     Kira is never launched merely by opening the notebook. Inspect the complete
     project below, then use the run button when ready.
     """)
     return
+
+
+@app.cell
+def _(mo):
+    topology_choice = mo.ui.radio(
+        options=[
+            "topo1",
+            "topo2",
+            "topo3",
+            "topo4",
+            "topo5",
+            "topo6",
+            "topo7",
+            "topo8",
+            "topo10",
+            "topo11",
+            "topo20",
+            "topo21",
+        ],
+        value="topo1",
+        label="Topology",
+        inline=True,
+    )
+    topology_choice
+    return (topology_choice,)
 
 
 @app.cell
@@ -64,21 +87,136 @@ def _(
     ReductionBounds,
     S,
     ScalarProductRule,
-    product,
+    topology_choice,
 ):
-    q1, p1, p2, m, ipp1p2 = S("q1", "p1", "p2", "m", "ipp1p2")
-
-    family = IntegralFamily(
-        name="topo1",
-        loop_momenta=(q1,),
-        propagators=(
-            Propagator(q1, m**2),
-            Propagator(q1 - p1),
-            Propagator(q1 - p2),
-        ),
-        top_level_sectors=(7,),
+    q1, k1, p1, p2, m, msq, ipp1p1, ipp1p2, ipp2p2 = S(
+        "q1", "k1", "p1", "p2", "m", "msq", "ipp1p1", "ipp1p2", "ipp2p2"
     )
-    kinematics = Kinematics(
+
+    families = {
+        "topo1": IntegralFamily(
+            name="topo1",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1, m**2),
+                Propagator(q1 - p1),
+                Propagator(q1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo2": IntegralFamily(
+            name="topo2",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1, m**2),
+                Propagator(q1 - p1),
+                Propagator(q1 - p1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo3": IntegralFamily(
+            name="topo3",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1, m**2),
+                Propagator(q1 - p2),
+                Propagator(q1 - p1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo4": IntegralFamily(
+            name="topo4",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1 - p1),
+                Propagator(q1 - p2),
+                Propagator(q1 - p1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo5": IntegralFamily(
+            name="topo5",
+            loop_momenta=(k1,),
+            propagators=(
+                Propagator(k1),
+                Propagator(k1 - p1),
+                Propagator(k1 + p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo6": IntegralFamily(
+            name="topo6",
+            loop_momenta=(k1,),
+            propagators=(
+                Propagator(k1),
+                Propagator(k1 - p1),
+                Propagator(k1 + p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo7": IntegralFamily(
+            name="topo7",
+            loop_momenta=(k1,),
+            propagators=(
+                Propagator(k1),
+                Propagator(k1 - p1),
+                Propagator(k1 + p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo8": IntegralFamily(
+            name="topo8",
+            loop_momenta=(k1,),
+            propagators=(
+                Propagator(k1),
+                Propagator(k1 - p1),
+                Propagator(k1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo10": IntegralFamily(
+            name="topo10",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1),
+                Propagator(q1 - p1),
+                Propagator(q1 - p1 - p2, msq),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo11": IntegralFamily(
+            name="topo11",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1),
+                Propagator(q1 - p1),
+                Propagator(q1 - p1 - p2, msq),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo20": IntegralFamily(
+            name="topo20",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1),
+                Propagator(q1 - p1),
+                Propagator(q1 - p1 - p2, msq),
+            ),
+            top_level_sectors=(7,),
+        ),
+        "topo21": IntegralFamily(
+            name="topo21",
+            loop_momenta=(q1,),
+            propagators=(
+                Propagator(q1),
+                Propagator(q1 - p1),
+                Propagator(q1 - p2),
+            ),
+            top_level_sectors=(7,),
+        ),
+    }
+    family = families[topology_choice.value]
+    massive_kinematics = Kinematics(
         incoming_momenta=(p1, p2),
         kinematic_invariants=(
             KinematicInvariant(m**2, 2, kira_name="m2"),
@@ -91,16 +229,225 @@ def _(
         ),
         symbol_to_replace_by_one=m**2,
     )
-    targets = tuple(
-        family(*indices) for indices in product((1, 0, -1), repeat=3)
+    massless_kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(KinematicInvariant(ipp1p2, 2),),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
     )
-    bounds = ReductionBounds(sectors=(7,), r=9, s=4, d=2)
+    p2_massive_kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(ipp1p2, 2),
+            KinematicInvariant(ipp2p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, ipp2p2),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+    )
+    p1_massive_kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(ipp1p1, 2),
+            KinematicInvariant(ipp1p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, ipp1p1),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+    )
+    fully_off_shell_kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(ipp1p1, 2),
+            KinematicInvariant(ipp1p2, 2),
+            KinematicInvariant(ipp2p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, ipp1p1),
+            ScalarProductRule(p2, p2, ipp2p2),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+    )
+    topo10_kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(msq, 2),
+            KinematicInvariant(ipp1p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+        symbol_to_replace_by_one=msq,
+    )
+    topo11_kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(msq, 2),
+            KinematicInvariant(ipp1p1, 2),
+            KinematicInvariant(ipp1p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, ipp1p1),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+        symbol_to_replace_by_one=msq,
+    )
+    if family.name == "topo11":
+        kinematics = topo11_kinematics
+    elif family.name in {"topo10", "topo20"}:
+        kinematics = topo10_kinematics
+    elif family.name == "topo8":
+        kinematics = fully_off_shell_kinematics
+    elif family.name == "topo6":
+        kinematics = p2_massive_kinematics
+    elif family.name == "topo7":
+        kinematics = p1_massive_kinematics
+    elif family.name in {"topo4", "topo5", "topo21"}:
+        kinematics = massless_kinematics
+    else:
+        kinematics = massive_kinematics
+    topology_1_to_4_target_indices = (
+        (1, 1, 1),
+        (1, 1, 0),
+        (1, 1, -1),
+        (1, 0, 1),
+        (1, 0, 0),
+        (1, 0, -1),
+        (1, -1, 1),
+        (1, -1, 0),
+        (1, -1, -1),
+        (0, 1, 1),
+        (0, 1, 0),
+        (0, 1, -1),
+        (0, 0, 1),
+        (0, 0, 0),
+        (0, 0, -1),
+        (0, -1, 1),
+        (0, -1, 0),
+        (0, -1, -1),
+        (-1, 1, 1),
+        (-1, 1, 0),
+        (-1, 1, -1),
+        (-1, 0, 1),
+        (-1, 0, 0),
+        (-1, 0, -1),
+        (-1, -1, 1),
+        (-1, -1, 0),
+        (-1, -1, -1),
+    )
+    topology_5_to_8_target_indices = (
+        (1, 1, 1),
+        (1, 1, 0),
+        (1, 1, -1),
+        (1, 1, -2),
+        (1, 0, 1),
+        (1, 0, 0),
+        (1, 0, -1),
+        (1, 0, -2),
+        (1, -1, 1),
+        (1, -1, 0),
+        (1, -1, -1),
+        (1, -1, -2),
+        (1, -2, 1),
+        (1, -2, 0),
+        (1, -2, -1),
+        (1, -2, -2),
+        (0, 1, 1),
+        (0, 1, 0),
+        (0, 1, -1),
+        (0, 1, -2),
+        (0, 0, 1),
+        (0, 0, 0),
+        (0, 0, -1),
+        (0, 0, -2),
+        (0, -1, 1),
+        (0, -1, 0),
+        (0, -1, -1),
+        (0, -1, -2),
+        (0, -2, 1),
+        (0, -2, 0),
+        (0, -2, -1),
+        (0, -2, -2),
+        (-1, 1, 1),
+        (-1, 1, 0),
+        (-1, 1, -1),
+        (-1, 1, -2),
+        (-1, 0, 1),
+        (-1, 0, 0),
+        (-1, 0, -1),
+        (-1, 0, -2),
+        (-1, -1, 1),
+        (-1, -1, 0),
+        (-1, -1, -1),
+        (-1, -1, -2),
+        (-1, -2, 1),
+        (-1, -2, 0),
+        (-1, -2, -1),
+        (-1, -2, -2),
+        (-2, 1, 1),
+        (-2, 1, 0),
+        (-2, 1, -1),
+        (-2, 1, -2),
+        (-2, 0, 1),
+        (-2, 0, 0),
+        (-2, 0, -1),
+        (-2, 0, -2),
+        (-2, -1, 1),
+        (-2, -1, 0),
+        (-2, -1, -1),
+        (-2, -1, -2),
+        (-2, -2, 1),
+        (-2, -2, 0),
+        (-2, -2, -1),
+        (-2, -2, -2),
+    )
+    topology_10_target_indices = tuple(
+        (first, second, third)
+        for first in (2, 1, 0, -1, -2)
+        for second in (2, 1, 0, -1, -2)
+        for third in (2, 1, 0, -1, -2)
+    )
+    if family.name in {"topo10", "topo11"}:
+        target_indices = topology_10_target_indices
+    elif family.name in {"topo5", "topo6", "topo7", "topo8"}:
+        target_indices = topology_5_to_8_target_indices
+    else:
+        target_indices = topology_1_to_4_target_indices
+    targets = tuple(family(*indices) for indices in target_indices)
+    bounds = (
+        ReductionBounds(sectors=(7,), r=9, s=6, d=3)
+        if family.name in {"topo10", "topo11"}
+        else ReductionBounds(sectors=(7,), r=9, s=4, d=2)
+    )
+    master_indices = {
+        "topo1": ((1, 1, 1), (0, 1, 1), (1, 0, 0)),
+        "topo2": ((1, 0, 1), (1, 0, 0)),
+        "topo3": ((1, 0, 1), (1, 0, 0)),
+        "topo4": ((1, 1, 0),),
+        "topo5": ((0, 1, 1),),
+        "topo6": ((0, 1, 1), (1, 0, 1)),
+        "topo7": ((0, 1, 1), (1, 1, 0)),
+        "topo8": ((1, 1, 1), (1, 1, 0), (1, 0, 1), (0, 1, 1)),
+        "topo10": ((0, 0, 1), (1, 0, 1)),
+        "topo11": ((0, 0, 1), (1, 0, 1), (1, 1, 0), (1, 1, 1)),
+        "topo20": ((0, 0, 1), (1, 0, 1)),
+        "topo21": ((0, 1, 1),),
+    }
     preferred_masters = tuple(
-        family(*indices)
-        for indices in ((1, 1, 1), (0, 1, 1), (1, 0, 0))
+        family(*indices) for indices in master_indices[family.name]
     )
     application_root = Path(__file__).resolve().parent
-    kira_workdir = application_root / "runs" / "dy-topo1"
+    kira_workdir = application_root / "runs" / f"dy-{family.name}"
     return (
         bounds,
         family,
@@ -114,27 +461,67 @@ def _(
 
 @app.cell(hide_code=True)
 def _(bounds, family, kira_workdir, mo, preferred_masters, targets):
+    _target_domain = (
+        "{2, 1, 0, -1, -2}^3"
+        if family.name in {"topo10", "topo11"}
+        else (
+            "{1, 0, -1, -2}^3"
+            if family.name in {"topo5", "topo6", "topo7", "topo8"}
+            else "{1, 0, -1}^3"
+        )
+    )
+    if family.name in {"topo1", "topo2", "topo3"}:
+        _invariant_note = (
+            "The composite invariant `m**2` is serialized as Kira's safe symbol "
+            "`m2` and restored exactly on every parsed right-hand side."
+        )
+    elif family.name == "topo6":
+        _invariant_note = "The external invariant `p2**2 = ipp2p2` remains exact."
+    elif family.name == "topo7":
+        _invariant_note = "The external invariant `p1**2 = ipp1p1` remains exact."
+    elif family.name == "topo8":
+        _invariant_note = (
+            "The external invariants `p1**2 = ipp1p1`, `p1*p2 = ipp1p2`, "
+            "and `p2**2 = ipp2p2` remain exact."
+        )
+    elif family.name == "topo10":
+        _invariant_note = (
+            "The internal mass-squared invariant `msq` and external invariant "
+            "`p1*p2 = ipp1p2` remain exact."
+        )
+    elif family.name == "topo20":
+        _invariant_note = (
+            "The internal mass-squared invariant `msq` and external invariant "
+            "`p1*p2 = ipp1p2` remain exact."
+        )
+    elif family.name == "topo11":
+        _invariant_note = (
+            "The internal mass-squared invariant `msq`, external invariant "
+            "`p1**2 = ipp1p1`, and `p1*p2 = ipp1p2` remain exact."
+        )
+    else:
+        _invariant_note = "This family is massless and needs no composite invariant alias."
     mo.md(
         f"""
     | project item | value |
     | --- | --- |
     | family | `{family.name}` with `{family.arity}` propagators |
-    | targets | `{len(targets)}` (`{{1, 0, -1}}^3`) |
+    | targets | `{len(targets)}` (`{_target_domain}`) |
     | reduction seed | sector `{bounds.sectors[0]}`, `r={bounds.r}`, `s={bounds.s}`, `d={bounds.d}` |
     | preferred masters | `{len(preferred_masters)}` with `check_masters=True` |
     | persistent workdir | `{kira_workdir}` |
 
-    The composite invariant `m**2` is serialized as Kira's safe symbol `m2`
-    and restored exactly on every parsed right-hand side. The historical
-    notebook later identifies `ipp1p2 = s/2`.
+    {_invariant_note} The historical notebook later identifies `ipp1p2 = s/2`.
     """
     )
     return
 
 
 @app.cell
-def _(mo):
-    run_kira = mo.ui.run_button(label="Run the complete Kira reduction")
+def _(family, mo):
+    run_kira = mo.ui.run_button(
+        label=f"Run the complete Kira reduction for {family.name}"
+    )
     run_kira
     return (run_kira,)
 
@@ -212,7 +599,7 @@ def _(mo, reduction):
 
 
 @app.cell(hide_code=True)
-def _(ipp1p2, mo, reduction):
+def _(family, ipp1p2, mo, reduction):
     if reduction is None:
         _physical_rules = mo.md(
             "The downstream substitution `ipp1p2 -> s/2` will be shown here."
@@ -220,8 +607,8 @@ def _(ipp1p2, mo, reduction):
     else:
         _physical_rules = mo.md(
             "The result remains exact and can now enter the downstream DY "
-            f"calculation. For example, the rule for `topo1(1, -1, 1)` is "
-            f"`{reduction.rules[next(target for target in reduction.requested_targets if target.format_plain() == 'topo1(1,-1,1)')].format_plain()}` "
+            f"calculation. For example, the rule for `{family.name}(1, -1, 1)` is "
+            f"`{reduction.rules[next(target for target in reduction.requested_targets if target.format_plain() == f'{family.name}(1,-1,1)')].format_plain()}` "
             f"before applying `{ipp1p2.format_plain()} -> s/2`."
         )
     _physical_rules

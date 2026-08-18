@@ -25,7 +25,15 @@ The snapshot includes:
 - the first-party Wolfram packages under `mma/` and `tools/`;
 - `tools/trace_form.log`, which `ampTools2.1.m` needs for gamma traces;
 - the historical topology 1--8 FIRE inputs and tables under `temp/FIRE/`, used
-  as semantic golden data for the Python/Kira parity test.
+  as semantic golden data for the Python/Kira parity tests.
+
+Topologies 10, 11, 20, and 21 were absent from that historical FIRE directory.
+Their curated oracles were regenerated from the pinned notebook and FIRE
+revisions with `regenerate_fire_topo10.wls`, `regenerate_fire_topo11.wls`, and
+`regenerate_fire_crossed_box.wls`. The reviewed artifacts, hashes, and exact
+tool versions are recorded under the corresponding
+`packages/ludy-kira/tests/fixtures/fire_topoN/` directories; generated
+databases remain external to the repository.
 
 Generated databases, temporary files, nested version-control metadata, and the
 roughly 195 MB third-party FIRE source/build tree are intentionally excluded.

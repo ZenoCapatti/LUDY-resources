@@ -64,6 +64,7 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   postPatch = ''
+    patchShebangs tests/run.sh
     substituteInPlace src/pyred/meson.build \
       --replace-fail "fallback : 'no'" \
                      "fallback : '${rev}'"
