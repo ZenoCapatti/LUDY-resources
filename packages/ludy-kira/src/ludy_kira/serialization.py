@@ -13,26 +13,41 @@ from .errors import KiraConfigurationError
 from .models import KiraProject
 
 
+def _symbolica_atom(expression: Expression) -> Expression:
+    """Unwrap structured Expression subclasses before atom introspection."""
+
+    converter = getattr(expression, "to_expression", None)
+    if not callable(converter):
+        return expression
+    converted = converter()
+    return converted if isinstance(converted, Expression) else expression
+
+
 def _basename(name: str) -> str:
     return name.rsplit("::", 1)[-1]
 
 
 def _tags(expression: Expression) -> frozenset[str]:
     try:
-        return frozenset(str(tag) for tag in expression.get_tags())
+        return frozenset(
+            str(tag) for tag in _symbolica_atom(expression).get_tags()
+        )
     except (TypeError, ValueError):
         return frozenset()
 
 
 def _arguments(expression: Expression) -> tuple[Expression, ...]:
     try:
-        return tuple(expression)
+        return tuple(_symbolica_atom(expression))
     except (TypeError, ValueError):
         return ()
 
 
 def _is_variable(expression: Expression) -> bool:
-    return str(expression.get_type()).rsplit(".", 1)[-1] == "Var"
+    return (
+        str(_symbolica_atom(expression).get_type()).rsplit(".", 1)[-1]
+        == "Var"
+    )
 
 
 def _integer(expression: Expression, *, context: str) -> int:
@@ -87,20 +102,21 @@ class _MomentumAdapter:
 
     @staticmethod
     def _inspect(expression: Expression) -> _Momentum:
-        if _is_variable(expression):
-            name = _basename(str(expression.get_name()))
+        atom = _symbolica_atom(expression)
+        if _is_variable(atom):
+            name = _basename(str(atom.get_name()))
             _validate_identifier(name, context="momentum")
             return _Momentum(expression, name, None)
 
-        expression_name = str(expression.get_name())
-        if "spenso::tensor" not in _tags(expression) and not expression_name.startswith(
+        expression_name = str(atom.get_name())
+        if "spenso::tensor" not in _tags(atom) and not expression_name.startswith(
             "spenso_python::"
         ):
             raise KiraConfigurationError(
                 "A momentum must be a bare Symbolica symbol or a rank-one Spenso tensor placeholder"
             )
 
-        arguments = _arguments(expression)
+        arguments = _arguments(atom)
         representations = []
         for argument in arguments:
             try:

@@ -138,24 +138,24 @@ ignored Cargo `target/` directories and uv's cache.
 
 ## Symbolica Community Cargo Wiring
 
-Symbolica Community's Rust manifest intentionally resolves its Community
-extensions from the local GammaLoop workspace:
+The root Python environment still installs the editable sibling checkout at
+`../symbolica-community`. That checkout is expected to track the
+`simplify-spenso-api` branch. Its Cargo manifest pins `idenso`, `spynso3`,
+`spenso`, `spenso-hep-lib`, and `vakint` to GammaLoop revision
+`092811c505463cca1f1ec9aa9ee90fe51b56a87f`; it does not resolve those crates
+from the separate editable GammaLoop checkout.
 
-- `idenso` comes from `../gammaloop/main/crates/idenso`;
-- the Python-facing Spenso module, whose Rust package is named `spynso3`, comes
-  from `../gammaloop/main/crates/spynso3`;
-- `vakint` comes from `../gammaloop/main/crates/vakint`.
-
-The local `spynso3` dependency pulls the sibling workspace's local `spenso`,
-`spenso-hep-lib`, and supporting crates transitively. Do not replace it with a
-direct `spenso` dependency: `spynso3::SpensoModule` is the Community module
-registered by Symbolica.
+Do not reapply the older `codex/ludy-spenso-integration` path overrides on top
+of this branch. They target the pre-simplification API and would replace the
+branch's coherent dependency set. If local Rust development across both
+siblings becomes necessary, first move the GammaLoop checkout to the same API
+revision and then update every Spenso/Idenso/Vakint path together.
 
 These crates exchange Symbolica and PyO3 types across crate boundaries. Keep
 Symbolica Community and its `example_extension` aligned with GammaLoop's
 Symbolica 2.2 and PyO3 0.28 dependency families. Its crates.io patches use the
-same Symbolica Git `dev` source identity as GammaLoop, while the Community
-`Cargo.lock` pins that source to Symbolica revision
+same Symbolica Git `dev` source identity as its pinned GammaLoop revision,
+while the Community `Cargo.lock` pins that source to Symbolica revision
 `0441bd7a511209dce2ca99925fe87f8b18e4bf03`. When GammaLoop deliberately moves
 that pin, update the Community lock to the same revision and verify the graph:
 

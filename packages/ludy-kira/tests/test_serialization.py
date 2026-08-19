@@ -1,15 +1,45 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import cast
 
 import pytest
 import yaml
-from symbolica import S
+from symbolica import E, Expression, S
 
 from ludy_kira.errors import KiraConfigurationError
 from ludy_kira.models import IntegralFamily, KiraProject
-from ludy_kira.serialization import serialize_project
+from ludy_kira.serialization import _MomentumAdapter, serialize_project
 from topo1_oracle import PREFERRED_MASTERS, TARGET_INDICES, wolfram_integral
+
+
+def test_momentum_adapter_unwraps_structured_expression_subclasses() -> None:
+    inner_by_id: dict[int, Expression] = {}
+
+    class StructuredExpression(Expression):
+        def __new__(cls, inner: Expression) -> StructuredExpression:
+            value = cast(StructuredExpression, super().__new__(cls))
+            inner_by_id[id(value)] = inner
+            return value
+
+        def to_expression(self) -> Expression:
+            return inner_by_id[id(self)]
+
+        def __iter__(self):
+            return iter(())
+
+    representation = S("spenso::wrapped_test_representation")(S("D"))
+    atom = S("spenso_python::wrapped_test_p")(7, representation)
+    structured = StructuredExpression(atom)
+
+    momentum = _MomentumAdapter._inspect(structured)
+    adapter = _MomentumAdapter((structured,))
+
+    assert momentum.expression is structured
+    assert momentum.name == "wrapped_test_p7"
+    assert momentum.representation is not None
+    assert adapter.name(structured) == "wrapped_test_p7"
+    assert adapter.linear(structured) == "wrapped_test_p7"
 
 
 def test_topo1_serialization_matches_kira_schema(topo1_project: KiraProject) -> None:

@@ -12,6 +12,7 @@ dy/
     temp/FIRE/                 historical topology 1--8 FIRE fixtures
   python/
     notebook.py                portable selectable-topology Kira workflow
+    masters.py                 analytic master derivations and evaluation
     pyproject.toml, uv.lock    application dependencies
     flake.nix, flake.lock      Kira/Fermat development runtime
 ```
@@ -19,7 +20,12 @@ dy/
 The Mathematica notebook is the scientific source context. Its retained FIRE
 inputs and tables are golden evidence. The portable Python notebook expresses
 the selectable topology through `packages/ludy-kira` and parses the Kira result
-as exact Symbolica expressions.
+as exact Symbolica expressions. The companion `masters.py` notebook derives
+the closed-form bubble and triangle basis used by the historical substitutions,
+checks it in both radial and light-cone coordinates, audits the supplied PDF's
+normalization ambiguities, expands it around `d = 4 - 2 epsilon`, performs the
+leading virtuality and soft plus-distribution bookkeeping, and exposes a
+positive-kinematics numerical evaluator with rich Typst/MathML display.
 
 The cross-box algebra before IBP is defined and presented directly in
 `notebooks/ludy.py`. Its sole graph input is the ordered six-tuple of
@@ -65,12 +71,20 @@ $ cd calculations/dy/python
 $ nix develop
 $ uv sync --locked
 $ uv run --locked marimo edit notebook.py
+$ uv run --locked marimo edit masters.py
 ```
 
 Opening or statically checking the notebook does not start a reduction. Press
 the run button to create or resume its ignored Kira work directory. The Nix
 shell supplies the pinned Kira/Fermat executables and `FERMATPATH`; alternatively
 configure compatible executables outside Nix.
+
+The master notebook is independent of Kira and of ignored `runs/` state. It
+reconstructs the formula factors in the retained Mathematica normalization and
+catalogues only the explicit topology-to-analytic-master identifications. Its
+normalization ledger separately tracks loop measures, real cut deltas,
+virtuality measures, the DIS prefactor, and historical Cutkosky signs; it does
+not imply that every preferred Kira master has an analytic value.
 
 Fermat is distributed under an official non-business-use restriction. Review
 the terms linked from the repository and package READMEs before using the
@@ -102,6 +116,9 @@ $ cd calculations/dy/python
 $ nix flake check
 $ nix develop --command uv lock --check
 $ nix develop --command uv run --locked marimo check --strict notebook.py
+$ nix develop --command uv run --locked marimo check --strict masters.py
+$ nix develop --command uv run --locked marimo export html masters.py \
+    -o /tmp/ludy-dy-masters-validation.html --force
 ```
 
 The package tests own the exact FIRE/Kira parity oracle. Executing the root
@@ -111,5 +128,6 @@ it then runs or exactly resumes the twelve manifest-checked Kira projects,
 checks all three reducible cut survivor sets, and verifies the routed scalar
 cut-`11` `Bcutm` result and epsilon expansion against Mathematica/FIRE. The
 independently locked portable application keeps its explicit run button, and
-its static check ensures that workflow remains structurally runnable without
-launching Kira.
+its static checks ensure both notebooks remain structurally runnable without
+launching Kira. Exporting `masters.py` executes its exact derivation, dimension,
+finite-term, series, and numerical-evaluation cells.

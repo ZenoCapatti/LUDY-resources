@@ -33,7 +33,9 @@ $ uv sync --locked
 $ uv run --locked marimo edit notebooks/ludy.py
 ```
 
-The root project uses `../gammaloop/main` and `../symbolica-community`.
+The root project uses `../gammaloop/main` and `../symbolica-community`; the
+Symbolica Community checkout should track its latest `simplify-spenso-api`
+bookmark.
 GammaLoop and Symbolica Community contain separately linked Symbolica engines,
 so `ludy.py` requires a license that permits both engines in one process. For
 the clone-ready DY reduction that has no sibling-checkout dependency, use

@@ -1,11 +1,13 @@
 [project]
 name = "ludy-dy"
 version = "0.1.0"
-description = "Portable Marimo application for Drell-Yan Kira reductions"
+description = "Portable Marimo application for Drell-Yan reductions and analytic masters"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "ludy-kira",
     "marimo>=0.23.15",
+    "symbolica>=2.2.0",
+    "typst>=0.15,<0.16",
 ]
 
 [tool.uv]

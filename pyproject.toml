@@ -8,6 +8,7 @@ dependencies = [
     "ludy-kira",
     "marimo",
     "symbolica",
+    "typst>=0.15,<0.16",
     "wigglystuff>=0.5.23",
 ]
 

@@ -93,8 +93,8 @@ such as `p1` from their heads and integer labels:
 from symbolica import S
 from symbolica.community.spenso import Representation, TensorName
 
-mink = Representation.mink(S("D")).to_expression()
-p1 = TensorName("p").to_expression()(1, mink)
+mink = Representation.mink(S("D"))
+p1 = TensorName.vector("p")(1, mink)
 ```
 
 Composite invariants need a Kira-safe alias. For example,

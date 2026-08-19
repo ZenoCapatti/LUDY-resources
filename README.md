@@ -10,7 +10,7 @@ packages/
 calculations/
   dy/
     mathematica/              original DY calculation and FIRE reference data
-    python/                   portable Python/Kira application
+    python/                   portable Kira and analytic-master notebooks
 notebooks/
   ludy.py                     local GammaLoop/Spenso research notebook
   collinear-cone.py           independent cone visualization
@@ -34,10 +34,14 @@ $ cd calculations/dy/python
 $ nix develop
 $ uv sync --locked
 $ uv run --locked marimo edit notebook.py
+$ uv run --locked marimo edit masters.py
 ```
 
-Opening the notebook defines and displays the topology but does not launch
-Kira. Use its run button to create or resume the reduction work directory.
+`notebook.py` defines and displays the selectable topology but does not launch
+Kira until its run button is pressed. `masters.py` derives and evaluates the
+closed-form `B`, `Bcut`, `Tcut`, `Bcutm`, and `Tcutm` basis in radial and
+light-cone coordinates, with exact normalization, virtuality, and soft-endpoint
+checks, without launching Kira or reading a reduction work directory.
 
 This is the recommended workflow after cloning the repository on a remote
 machine. The bundled native runtime currently supports x86-64 Linux and Apple
@@ -89,6 +93,10 @@ The repository root remains a separate local environment for
 [`notebooks/collinear-cone.py`](notebooks/collinear-cone.py). It intentionally
 uses editable sibling checkouts at `../gammaloop/main` and
 `../symbolica-community`:
+
+The Symbolica Community checkout should track its latest
+`simplify-spenso-api` bookmark; the root lock records the resulting 2.2.0
+editable distribution.
 
 ```console
 $ nix develop
