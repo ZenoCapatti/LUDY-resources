@@ -4,34 +4,29 @@ __generated_with = "0.23.15"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
-    import importlib.metadata as metadata
-    import json
-
-    import gammaloop
     import marimo as mo
 
     return (mo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     from collections.abc import Sequence
-    from dataclasses import dataclass, field
+    from dataclasses import dataclass
     from math import prod
     from symbolica import (
         AtomType,
         E,
         S,
+        N,
         Expression,
-        ParseMode,
         PrintMode,
         Replacement,
     )
     from symbolica.community.spenso import (
         Representation,
-        TensorExpression,
         TensorName,
         dot,
         to_typst,
@@ -41,29 +36,27 @@ def _():
         AtomType,
         E,
         Expression,
-        ParseMode,
+        N,
         PrintMode,
         Replacement,
         Representation,
         S,
         Sequence,
-        TensorExpression,
         TensorName,
         dataclass,
         dot,
-        field,
         prod,
         to_typst,
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(Representation, S):
     minkd = Representation.mink(dimension=S("D"))
     return (minkd,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(AtomType, PrintMode):
     def momentum_printer(name):
         """Build the small keyed-vector printer not yet provided by Spenso."""
@@ -107,96 +100,35 @@ def _(AtomType, PrintMode):
     return (momentum_printer,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(TensorName, momentum_printer):
-    import symbolica as _symbolica
-
+    # Symbol attributes and custom printers are registered once per Symbolica
+    # process. If this initialization cell is deliberately rerun, restart the
+    # Marimo kernel first.
     LOOP_MOMENTUM_TAG = "ludy::loop_momentum"
-    _cache_name = "_ludy_tagged_momentum_names_v3"
-    _momentum_names = getattr(_symbolica, _cache_name, None)
-    if _momentum_names is None:
-        for _legacy_cache_name in (
-            "_ludy_tagged_momentum_heads_v2",
-            "_ludy_tagged_momentum_heads_v1",
-        ):
-            _legacy_heads = getattr(_symbolica, _legacy_cache_name, None)
-            if _legacy_heads is not None and (
-                "spenso::rank1" not in _legacy_heads[0].get_tags()
-                or "spenso::rank1" not in _legacy_heads[1].get_tags()
-                or LOOP_MOMENTUM_TAG not in _legacy_heads[1].get_tags()
-            ):
-                raise RuntimeError(
-                    "The existing p/k heads predate TensorName.vector. Restart "
-                    "this Marimo kernel once; Symbolica symbol tags are immutable "
-                    "within a running process."
-                )
-        _momentum_names = (
-            TensorName.vector("p", print=momentum_printer("p")),
-            TensorName.vector(
-                "k",
-                tags=[LOOP_MOMENTUM_TAG],
-                print=momentum_printer("k"),
-            ),
-        )
-        setattr(_symbolica, _cache_name, _momentum_names)
-
-    p, k = _momentum_names
-    if not p.has_tag("spenso::rank1") or not k.has_tag("spenso::rank1"):
-        raise RuntimeError(
-            "The cached p/k names are not rank-one tensors; restart the Marimo "
-            "kernel once."
-        )
-    if not k.has_tag(LOOP_MOMENTUM_TAG):
-        raise RuntimeError(
-            "The cached k name is missing its loop-momentum tag; restart the "
-            "Marimo kernel once."
-        )
+    p = TensorName.vector("p", print=momentum_printer("p"))
+    k = TensorName.vector(
+        "k",
+        tags=[LOOP_MOMENTUM_TAG],
+        print=momentum_printer("k"),
+    )
     return LOOP_MOMENTUM_TAG, k, p
 
 
-@app.cell
-def _(TensorExpression, minkd, mo, p, spenso_table):
-    _p1 = p(1, minkd)
-    assert isinstance(_p1, TensorExpression)
-    assert spenso_disp(_p1) == "p₁"
-    assert _p1.format(color_builtin_symbols=False) == "p(1,mink(D))"
-    assert "spenso::tensor" in _p1.to_canonical_string()
-    assert "spenso::rank1" in _p1.to_canonical_string()
-    assert "spenso::representation" in _p1.to_canonical_string()
-    momentum_p_showcase = {
-        "constructor": "p(1, minkd)",
-        "compact display": spenso_disp(_p1),
-        "default display": _p1.format(color_builtin_symbols=False),
-    }
-    spenso_table([momentum_p_showcase])
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # DY cross-box: implementation and worked reduction
+
+    This notebook is both the readable source of the reusable helper
+    implementations and a complete walkthrough of the cross-box calculation.
+    Each transformation is defined where the calculation first needs it. The
+    worked graph exercises the helpers through partial fractioning, numerator
+    reduction, Kira IBP reduction, cut filtering, and analytic master
+    evaluation; all tests and Mathematica/FIRE comparisons are collected at
+    the end.
+    """)
     return
-
-
-@app.cell
-def _(LOOP_MOMENTUM_TAG, TensorExpression, k, minkd, mo, spenso_table):
-    _k1 = k(1, minkd)
-    assert isinstance(_k1, TensorExpression)
-    assert spenso_disp(_k1) == "k₁"
-    assert _k1.format(color_builtin_symbols=False) == "k(1,mink(D))"
-    assert "spenso::tensor" in _k1.to_canonical_string()
-    assert "spenso::rank1" in _k1.to_canonical_string()
-    assert k.has_tag(LOOP_MOMENTUM_TAG)
-    momentum_k_showcase = {
-        "constructor": "k(1, minkd)",
-        "compact display": spenso_disp(_k1),
-        "default display": _k1.format(color_builtin_symbols=False),
-        "loop tag": LOOP_MOMENTUM_TAG,
-    }
-    spenso_table([momentum_k_showcase])
-    return
-
-
-@app.function
-def spenso_disp(expr):
-    from symbolica.community.spenso import format_tensor
-
-    _method = getattr(expr, "format_tensor", None)
-    return _method() if callable(_method) else format_tensor(expr)
 
 
 @app.cell(hide_code=True)
@@ -207,14 +139,22 @@ def _(mo):
     `SpensoMath` keeps the exact native Symbolica expression for algebra while
     rendering its Spenso-aware Typst form as semantic HTML/MathML. Typst's SVG
     exporter is retained as a fallback while HTML export remains experimental.
+
+    - `spenso_math(expression)` wraps one exact expression for rich output.
+    - `typst(template, **expressions)` safely combines prose with inline or
+      display mathematics without first converting expressions to strings.
+    - `spenso_table(rows)` installs the same renderer for expression-valued
+      table cells while preserving the original objects for selection.
     """)
     return
 
 
-@app.cell
-def _(E, Expression, dataclass, mo, to_typst):
+@app.cell(hide_code=True)
+def _(Expression, dataclass, mo, to_typst):
     from functools import lru_cache as _lru_cache
+    import json as _json
     import re as _re
+    import string as _string
 
     import typst as _typst
 
@@ -282,29 +222,35 @@ def _(E, Expression, dataclass, mo, to_typst):
         return _group_typst_function_applications(formatted)
 
     @_lru_cache(maxsize=256)
-    def _render_typst_html(math):
+    def _render_typst_source_html(source):
         document = _typst_compiler.compile(
-            input=f"$ {math} $\n".encode(),
+            input=source.encode(),
             format="html",
         ).decode()
         body = _body_pattern.search(document)
-        if body is None or "<math" not in body.group(1):
-            raise ValueError("Typst HTML output did not contain MathML")
+        if body is None or not body.group(1).strip():
+            raise ValueError("Typst HTML output did not contain a body fragment")
         styles = "".join(_style_pattern.findall(document))
         return styles, body.group(1)
 
     @_lru_cache(maxsize=256)
-    def _render_typst_svg(math, font_size):
+    def _render_typst_source_svg(source, font_size):
         document = (
             "#set page(width: auto, height: auto, margin: 2pt, fill: none)\n"
             f"#set text(size: {font_size}pt)\n"
-            f"$ {math} $\n"
+            f"{source}\n"
         )
         svg = _typst_compiler.compile(
             input=document.encode(),
             format="svg",
         ).decode()
         return svg.replace("#000000", "currentColor")
+
+    def _render_typst_html(math):
+        return _render_typst_source_html(f"$ {math} $\n")
+
+    def _render_typst_svg(math, font_size):
+        return _render_typst_source_svg(f"$ {math} $", font_size)
 
     @dataclass(frozen=True, slots=True)
     class SpensoMath:
@@ -331,27 +277,72 @@ def _(E, Expression, dataclass, mo, to_typst):
         def __repr__(self):
             return self.expression.format_plain()
 
-    _scalar_power_probe = _typst_math(1 / Expression.PI**2)
-    _gamma_argument_probe = E("3/2-ep")
-    _gamma_reciprocal_probe = _typst_math(
-        1 / _gamma_argument_probe.gamma()
-    )
-    _gamma_square_probe = _typst_math(_gamma_argument_probe.gamma() ** 2)
-    assert _scalar_power_probe == "1/pi^2"
-    assert _gamma_reciprocal_probe == (
-        '1/(op("gamma")(3/2-"ep"))'
-    )
-    assert _gamma_square_probe == '(op("gamma")(3/2-"ep"))^2'
-    _scalar_power_mathml = _render_typst_html(_scalar_power_probe)[1]
-    _gamma_reciprocal_mathml = _render_typst_html(
-        _gamma_reciprocal_probe
-    )[1]
-    _gamma_square_mathml = _render_typst_html(_gamma_square_probe)[1]
-    assert "<math" in _scalar_power_mathml
-    assert "<mfrac><mn>1</mn><mrow><mo" in _gamma_reciprocal_mathml
-    assert "<msup><mrow><mo>(</mo><mrow><mo" in _gamma_square_mathml
+    @dataclass(frozen=True, slots=True)
+    class TypstFragment:
+        source: str
+        font_size: float = 13.0
 
-    return (SpensoMath,)
+        @classmethod
+        def from_template(cls, template, values, font_size=13.0):
+            formatter = _string.Formatter()
+            source = []
+            used = set()
+            for literal, field_name, format_spec, conversion in formatter.parse(
+                template
+            ):
+                if literal:
+                    source.append(f"#text({_json.dumps(literal, ensure_ascii=False)})")
+                if field_name is None:
+                    continue
+                if conversion is not None:
+                    raise ValueError("Typst expression placeholders do not support conversions")
+                if field_name not in values:
+                    raise KeyError(f"Missing Typst template value: {field_name}")
+                value = values[field_name]
+                used.add(field_name)
+                if isinstance(value, SpensoMath):
+                    value = value.expression
+                if not isinstance(value, Expression) and not callable(
+                    getattr(value, "to_typst", None)
+                ):
+                    raise TypeError(
+                        "Typst template values must be Symbolica or Spenso expressions"
+                    )
+                math = _typst_math(value)
+                if format_spec in ("", "inline"):
+                    source.append(f"${math}$")
+                elif format_spec in ("display", "block"):
+                    source.append(f"\n$ {math} $\n")
+                else:
+                    raise ValueError(
+                        "Typst expression format must be inline or display"
+                    )
+            unused = set(values) - used
+            if unused:
+                raise ValueError(
+                    "Unused Typst template values: " + ", ".join(sorted(unused))
+                )
+            return cls("".join(source), font_size=font_size)
+
+        def _display_(self):
+            try:
+                styles, body = _render_typst_source_html(self.source)
+                return mo.Html(
+                    f'{styles}<div style="color: inherit; '
+                    f'font-size: {self.font_size}pt">{body}</div>'
+                )
+            except Exception:
+                return mo.Html(
+                    _render_typst_source_svg(self.source, self.font_size)
+                )
+
+        def _repr_svg_(self):
+            return _render_typst_source_svg(self.source, self.font_size)
+
+        def __repr__(self):
+            return self.source
+
+    return SpensoMath, TypstFragment
 
 
 @app.cell
@@ -367,17 +358,35 @@ def _(Expression, SpensoMath):
 
 
 @app.cell
+def _(TypstFragment):
+    def typst(template, /, *, font_size=13.0, **expressions):
+        """Render escaped prose with typed Symbolica expression placeholders."""
+
+        return TypstFragment.from_template(
+            template,
+            expressions,
+            font_size=font_size,
+        )
+
+    return (typst,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Rich expression tables
+
+    Marimo tables otherwise serialize Symbolica objects through their plain
+    representation. `spenso_table` discovers the columns and installs a
+    recursive formatter for expressions and nested expression sequences. The
+    formatted view uses `SpensoMath`, while the table retains the original row
+    objects for selection and downstream computation.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
 def _(Expression, mo, spenso_math):
-    def spenso_math_cell(expression: Expression):
-        """Return a Marimo HTML MIME value suitable for a table cell."""
-
-        return mo.as_html(spenso_math(expression))
-
-    return (spenso_math_cell,)
-
-
-@app.cell
-def _(Expression, mo, spenso_math_cell):
     from html import escape as _escape_html
 
     def _contains_spenso_expression(value):
@@ -393,7 +402,7 @@ def _(Expression, mo, spenso_math_cell):
             if index:
                 parts.append('<span aria-hidden="true">,</span>')
             if isinstance(value, Expression):
-                parts.append(spenso_math_cell(value).text)
+                parts.append(mo.as_html(spenso_math(value)).text)
             elif isinstance(value, (list, tuple)) and _contains_spenso_expression(
                 value
             ):
@@ -411,7 +420,7 @@ def _(Expression, mo, spenso_math_cell):
 
     def _spenso_table_value(value):
         if isinstance(value, Expression):
-            return spenso_math_cell(value)
+            return mo.as_html(spenso_math(value))
         if isinstance(value, (list, tuple)) and _contains_spenso_expression(value):
             return _spenso_sequence_cell(value)
         return value
@@ -445,64 +454,28 @@ def _(Expression, mo, spenso_math_cell):
     return (spenso_table,)
 
 
-@app.cell
-def _(
-    S,
-    dot,
-    k,
-    minkd,
-    mo,
-    p,
-    spenso_math,
-    spenso_math_cell,
-    spenso_table,
-):
-    spenso_math_showcase = spenso_math(
-        dot(p(1, minkd), k(2, minkd)) + S("x") ** 2 / 3
-    )
-    assert "p_(1)" in spenso_math_showcase.typst
-    assert "k_(2)" in spenso_math_showcase.typst
-    assert " dot " in spenso_math_showcase.typst
-    _table_cell = spenso_math_cell(spenso_math_showcase.expression)
-    assert "<math" in _table_cell.text
-    mo.vstack(
-        [
-            mo.md("**Spenso-aware Typst → HTML/MathML**"),
-            spenso_math_showcase,
-            spenso_table(
-                [
-                    {
-                        "location": "Marimo table cell",
-                        "expression": spenso_math_showcase.expression,
-                    }
-                ],
-                selection=None,
-                show_download=False,
-                show_search=False,
-                show_column_summaries=False,
-                show_data_types=False,
-            ),
-        ]
-    )
-    return (spenso_math_showcase,)
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     ## Data Structures
+
+    `Integrand` is the editable algebraic object. The intermediate records keep
+    the omitted/retained local denominator positions, the rewritten numerator
+    terms, and finally their global graph-source identities. `PreIBPResult`
+    bundles the complete inspectable handoff immediately before Kira; it does
+    not contain validation results or historical topology labels.
     """)
     return
 
 
 @app.cell
-def _(Expression, SpensoMath, dataclass, field, prod):
+def _(Expression, SpensoMath, dataclass, prod):
     @dataclass(slots=True)
     class Integrand:
-        """An editable numerator and an ordered tuple of denominator factors."""
+        """An editable numerator and an ordered list of denominator factors."""
 
         numerator: Expression
-        denominators: tuple[Expression, ...]
+        denominators: list[Expression]
 
         def as_expression(self) -> Expression:
             return self.numerator / prod(self.denominators)
@@ -525,7 +498,7 @@ def _(Expression, SpensoMath, dataclass, field, prod):
         """One coefficient times an integral-index vector in a fixed basis."""
 
         coefficient: Expression
-        propagators: tuple[Expression, ...]
+        propagators: list[Expression]
         integral_indices: tuple[int, ...]
 
         def as_expression(self) -> Expression:
@@ -541,8 +514,8 @@ def _(Expression, SpensoMath, dataclass, field, prod):
     class NumeratorReduction:
         """A numerator rewritten in one independent propagator basis."""
 
-        terms: tuple[ReducedIntegralTerm, ...]
-        relations: tuple[tuple[Expression, Expression], ...]
+        terms: list[ReducedIntegralTerm]
+        relations: list[tuple[Expression, Expression]]
         reduced_numerator: Expression
 
 
@@ -550,9 +523,8 @@ def _(Expression, SpensoMath, dataclass, field, prod):
     class IntegralContribution:
         """One native Python contribution ready to become an IBP target."""
 
-        family_id: int
         source_indices: tuple[int, ...]
-        propagators: tuple[Expression, ...]
+        propagators: list[Expression]
         integral_indices: tuple[int, ...]
         coefficient: Expression
 
@@ -569,7 +541,7 @@ def _(Expression, SpensoMath, dataclass, field, prod):
     class IBPReductionTerm:
         """One family integral together with its exact reduced right-hand side."""
 
-        family_id: int
+        project_key: tuple[str, tuple[int, ...]]
         coefficient: Expression
         target: Expression
         reduced_integral: Expression
@@ -582,26 +554,25 @@ def _(Expression, SpensoMath, dataclass, field, prod):
 
 
     @dataclass(slots=True)
-    class CrossBoxPreIBP:
+    class PreIBPResult:
         """All exact intermediate data at the cross-box IBP boundary."""
 
-        propagators: tuple[Expression, ...]
-        loop_scalar_products: tuple[Expression, ...]
+        denominators: list[Expression]
+        loop_scalar_products: list[Expression]
         delta: Expression
         integrand: Integrand
-        partial_fractions: tuple[PartialFractionTerm, ...]
-        numerator_reductions: tuple[NumeratorReduction, ...]
-        contributions: tuple[IntegralContribution, ...]
-        checks: dict[str, Expression] = field(default_factory=dict)
+        partial_fractions: list[PartialFractionTerm]
+        numerator_reductions: list[NumeratorReduction]
+        contributions: list[IntegralContribution]
 
 
     return (
-        CrossBoxPreIBP,
         IBPReductionTerm,
         IntegralContribution,
         Integrand,
         NumeratorReduction,
         PartialFractionTerm,
+        PreIBPResult,
         ReducedIntegralTerm,
     )
 
@@ -611,61 +582,21 @@ def _(mo):
     mo.md(r"""
     ## Inspectable tooling functions
 
-    Every scientific transformation below lives in its own code cell. Each is
-    exercised by an executable showcase or by the exact derivation cells that
-    consume it, so implementation, intermediate values, and checks remain
-    inspectable together.
+    Every scientific transformation below lives in its own code cell directly
+    before the walkthrough first needs it. The cross-box calculation exercises
+    the helpers in a realistic chain; all exact checks and historical
+    comparisons are collected in the final validation section.
+
+    The small graph helpers have deliberately narrow roles:
+
+    - `square(p)` constructs the Spenso scalar product (p\cdot p).
+    - `propagator_denominators` maps each `(momentum, mass_squared)` pair to
+      (p^2-m^2), without imposing kinematics.
+    - `find_loop_propagator_indices` searches momentum expressions for the
+      `ludy::loop_momentum` tag instead of requiring a second loop-line list.
+    - `project_cutset` restricts a full graph mask to an ordered subset of
+      propagators and validates the mask and indices.
     """)
-    return
-
-
-@app.cell
-def _():
-    PARTIAL_FRACTION_SLOTS: tuple[tuple[int, tuple[int, ...]], ...] = (
-        (1, (0, 1, 2)),
-        (2, (0, 1, 3)),
-        (3, (0, 2, 3)),
-        (4, (1, 2, 3)),
-    )
-    return (PARTIAL_FRACTION_SLOTS,)
-
-
-@app.cell
-def _(
-    PARTIAL_FRACTION_SLOTS: tuple[tuple[int, tuple[int, ...]], ...],
-    Sequence,
-):
-    def partial_fraction_slot_id(source_indices: Sequence[int]) -> int:
-        """Return the display slot for one ordered three-line subset."""
-
-        source_indices = tuple(source_indices)
-        for slot_id, slot_sources in PARTIAL_FRACTION_SLOTS:
-            if source_indices == slot_sources:
-                return slot_id
-        raise ValueError(f"Unknown cross-box propagator subset: {source_indices}")
-
-    return (partial_fraction_slot_id,)
-
-
-@app.cell
-def _(
-    PARTIAL_FRACTION_SLOTS: tuple[tuple[int, tuple[int, ...]], ...],
-    mo,
-    partial_fraction_slot_id,
-    spenso_table,
-):
-    partial_fraction_slot_id_showcase = tuple(
-        {
-            "retained propagators": tuple(index + 1 for index in sources),
-            "partial-fraction slot": partial_fraction_slot_id(sources),
-        }
-        for _, sources in PARTIAL_FRACTION_SLOTS
-    )
-    assert tuple(
-        row["partial-fraction slot"]
-        for row in partial_fraction_slot_id_showcase
-    ) == (1, 2, 3, 4)
-    spenso_table(partial_fraction_slot_id_showcase)
     return
 
 
@@ -680,128 +611,44 @@ def _(Expression, dot):
 
 
 @app.cell
-def _(dot, minkd, mo, p, square, spenso_table):
-    _showcase_momentum = p(1, minkd)
-    square_showcase = {
-        "operation": "square(p1)",
-        "result": square(_showcase_momentum),
-        "direct dot": dot(_showcase_momentum, _showcase_momentum),
-    }
-    assert square(_showcase_momentum) == dot(
-        _showcase_momentum, _showcase_momentum
-    )
-    spenso_table([square_showcase])
-    return
-
-
-@app.cell
 def _(Expression, Sequence, square):
     def propagator_denominators(
         propagators: Sequence[tuple[Expression, Expression]],
-    ) -> tuple[Expression, ...]:
+    ) -> list[Expression]:
         """Convert ordered ``(momentum, mass_squared)`` pairs to denominators."""
 
-        return tuple(
+        return [
             square(momentum) - mass_squared
             for momentum, mass_squared in propagators
-        )
+        ]
 
     return (propagator_denominators,)
 
 
 @app.cell
-def _(E, S, canonical_zero, minkd, mo, p, propagator_denominators, square, spenso_table):
-    _showcase_p1 = p(1, minkd)
-    _showcase_mass_squared = S("propagator_mass_squared")
-    _showcase_denominator = propagator_denominators(
-        ((_showcase_p1, _showcase_mass_squared),)
-    )[0]
-    _showcase_residual = canonical_zero(
-        _showcase_denominator
-        - square(_showcase_p1)
-        + _showcase_mass_squared
-    )
-    assert _showcase_residual == E("0")
-    propagator_denominators_showcase = {
-        "input momentum": _showcase_p1,
-        "input mass squared": _showcase_mass_squared,
-        "denominator": _showcase_denominator,
-        "residual": _showcase_residual,
-    }
-    spenso_table([propagator_denominators_showcase])
-    return
-
-
-@app.cell
-def _(Expression):
-    def has_symbol_tag(expression: Expression, tag: str) -> bool:
-        """Return whether any symbol head inside an expression carries `tag`."""
-
-        return any(
-            tag in symbol.get_tags()
-            for symbol in expression.get_all_symbols(
-                include_function_symbols=True
-            )
-        )
-
-    return (has_symbol_tag,)
-
-
-@app.cell
-def _(LOOP_MOMENTUM_TAG, has_symbol_tag, k, minkd, mo, p, spenso_table):
-    _showcase_loop = k(7, minkd)
-    _showcase_external = p(1, minkd)
-    _showcase_composite = _showcase_loop - _showcase_external
-    assert has_symbol_tag(_showcase_loop, LOOP_MOMENTUM_TAG)
-    assert has_symbol_tag(_showcase_composite, LOOP_MOMENTUM_TAG)
-    assert not has_symbol_tag(_showcase_external, LOOP_MOMENTUM_TAG)
-    has_symbol_tag_showcase = {
-        "expression": _showcase_composite,
-        "tag": LOOP_MOMENTUM_TAG,
-        "found": True,
-    }
-    spenso_table([has_symbol_tag_showcase])
-    return
-
-
-@app.cell
-def _(Expression, LOOP_MOMENTUM_TAG, Sequence, has_symbol_tag):
+def _(Expression, LOOP_MOMENTUM_TAG, Sequence):
     def find_loop_propagator_indices(
         propagators: Sequence[tuple[Expression, Expression]],
         *,
         loop_tag: str = LOOP_MOMENTUM_TAG,
-    ) -> tuple[int, ...]:
+    ) -> list[int]:
         """Find propagators whose momentum contains a tagged loop momentum."""
 
-        return tuple(
+        return [
             index
             for index, (momentum, _mass_squared) in enumerate(propagators)
-            if has_symbol_tag(momentum, loop_tag)
-        )
+            if any(
+                loop_tag in symbol.get_tags()
+                for symbol in momentum.get_all_symbols(
+                    include_function_symbols=True
+                )
+            )
+        ]
 
     return (find_loop_propagator_indices,)
 
 
-@app.cell
-def _(E, find_loop_propagator_indices, k, minkd, mo, p, spenso_table):
-    _showcase_p1 = p(1, minkd)
-    _showcase_k1 = k(1, minkd)
-    _showcase_propagators = (
-        (_showcase_p1, E("0")),
-        (_showcase_k1, E("0")),
-        (_showcase_k1 - _showcase_p1, E("0")),
-    )
-    _showcase_indices = find_loop_propagator_indices(_showcase_propagators)
-    assert _showcase_indices == (1, 2)
-    find_loop_propagator_indices_showcase = {
-        "propagators": len(_showcase_propagators),
-        "loop-dependent indices": _showcase_indices,
-    }
-    spenso_table([find_loop_propagator_indices_showcase])
-    return
-
-
-@app.cell
+@app.cell(hide_code=True)
 def _(Sequence):
     def project_cutset(
         cutset: Sequence[int],
@@ -809,8 +656,6 @@ def _(Sequence):
     ) -> tuple[int, ...]:
         """Project one graph-level cut mask onto an ordered propagator subset."""
 
-        cutset = tuple(cutset)
-        propagator_indices = tuple(propagator_indices)
         if any(value not in (0, 1) for value in cutset):
             raise ValueError("Cut masks must contain only zeroes and ones")
         if len(set(propagator_indices)) != len(propagator_indices):
@@ -822,149 +667,315 @@ def _(Sequence):
     return (project_cutset,)
 
 
-@app.cell
-def _(mo, project_cutset, spenso_table):
-    _showcase_cut = (1, 0, 1, 0, 1, 1)
-    _showcase_projection = project_cutset(_showcase_cut, (2, 3, 4, 5))
-    assert _showcase_projection == (1, 0, 1, 1)
-    project_cutset_showcase = {
-        "full cut": _showcase_cut,
-        "selected positions": (2, 3, 4, 5),
-        "projected cut": _showcase_projection,
-    }
-    spenso_table([project_cutset_showcase])
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 1. Define the cross-box integrand
+
+    The graph input is the ordered list of six `(momentum, mass_squared)`
+    pairs. The loop head `k` carries a Symbolica tag, so loop-dependent lines
+    are discovered from the expressions themselves. The external squares
+    (p_1^2,p_2^2) specify which incoming legs are cut, but are not sent to an
+    IBP reducer as loop propagators.
+
+    No on-shell identity or integral-reduction rule has been applied here.
+    """)
     return
 
 
 @app.cell
-def _(Expression):
-    def canonical_zero(expression: Expression) -> Expression:
-        """Normalize a rational expression for an exact zero comparison."""
+def _(
+    Integrand,
+    N,
+    S,
+    dot,
+    find_loop_propagator_indices,
+    k,
+    minkd,
+    p,
+    project_cutset,
+    propagator_denominators,
+    square,
+):
+    p1 = p(1, minkd)
+    p2 = p(2, minkd)
+    k1 = k(1, minkd)
+    q = S("q")
 
-        return expression.expand().together().cancel()
 
-    return (canonical_zero,)
-
-
-@app.cell
-def _(E, S, canonical_zero, mo, spenso_table):
-    _showcase_x, _showcase_y = S("canonical_x", "canonical_y")
-    _showcase_residual = canonical_zero(
-        (_showcase_x**2 - _showcase_y**2) / (_showcase_x - _showcase_y)
-        - _showcase_x
-        - _showcase_y
+    propagators = [
+        (p1, N(0)),
+        (p2, N(0)),
+        (k1, N(0)),
+        (k1 - p1, N(0)),
+        (p2 - k1, N(0)),
+        (
+            p1 + p2 - k1,
+            q**2,
+        ),
+    ]
+    cutsets = {
+        "11": (1, 1, 1, 0, 0, 1),
+        "10": (1, 0, 1, 0, 1, 1),
+        "01": (0, 1, 1, 1, 0, 1),
+        "00": (0, 0, 1, 1, 1, 1),
+    }
+    denominators = propagator_denominators(propagators)
+    loop_propagator_indices = find_loop_propagator_indices(
+        propagators
     )
-    assert _showcase_residual == E("0")
-    canonical_zero_showcase = {
-        "identity": "(x^2-y^2)/(x-y) - x - y",
-        "residual": _showcase_residual,
+    loop_denominators = [
+        denominators[_index]
+        for _index in loop_propagator_indices
+    ]
+    projected_cutsets = {
+        _name: project_cutset(_mask, loop_propagator_indices)
+        for _name, _mask in cutsets.items()
     }
-    spenso_table([canonical_zero_showcase])
+
+    # This is the editable numerator used by the walkthrough.
+    numerator = dot(
+        k1,
+        p1 + p2,
+    )
+
+    loop_scalar_products = [
+        square(k1),
+        dot(k1, p1),
+        dot(k1, p2),
+    ]
+    delta = q**2 - 2 * dot(p1, p2)
+    integrand = Integrand(
+        numerator=numerator,
+        denominators=loop_denominators,
+    )
+    return (
+        cutsets,
+        delta,
+        denominators,
+        integrand,
+        k1,
+        loop_denominators,
+        loop_propagator_indices,
+        loop_scalar_products,
+        p1,
+        p2,
+        projected_cutsets,
+        propagators,
+        q,
+    )
+
+
+@app.cell(hide_code=True)
+def _(
+    cutsets,
+    denominators,
+    integrand,
+    loop_propagator_indices,
+    mo,
+    projected_cutsets,
+    propagators,
+    spenso_table,
+    typst,
+):
+    mo.vstack(
+        [
+            spenso_table(
+                [
+                    {
+                        "propagator": f"D{_index + 1}",
+                        "momentum": _momentum,
+                        "mass squared": _mass_squared,
+                        "denominator": denominators[_index],
+                        "loop dependent": (
+                            _index in loop_propagator_indices
+                        ),
+                        **{
+                            f"cut {_name}": _mask[_index]
+                            for _name, _mask in cutsets.items()
+                        },
+                    }
+                    for _index, (_momentum, _mass_squared) in enumerate(
+                        propagators
+                    )
+                ]
+            ),
+            spenso_table(
+                [
+                    {
+                        "Python cut": _name,
+                        "full six-line mask": _mask,
+                        "inferred loop projection": (
+                            projected_cutsets[_name]
+                        ),
+                    }
+                    for _name, _mask in cutsets.items()
+                ]
+            ),
+            typst(
+                "Loop integrand before cut or IBP:\n{integrand:display}",
+                integrand=integrand.as_expression(),
+            ),
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 2. Solve the affine relation
+
+    We solve the linear system for
+    loop-independent coefficients \(c_i\) such that
+
+    \[
+    \sum_{i=1}^{N} c_i D_i=1.
+    \]
+
+    `partial_fraction_coefficients(denominators, loop_scalar_products)` treats
+    the \(c_i\) as unknowns, expands this relation in the chosen independent
+    loop scalar products, and sets every resulting polynomial coefficient to
+    zero. It returns the unique loop-independent solution in denominator
+    order. A missing, dependent, or underdetermined relation is rejected rather
+    than choosing arbitrary free parameters.
+    """)
     return
 
 
 @app.cell
-def _(E, Expression, S, Sequence):
+def _(Expression, N, S, Sequence):
     def partial_fraction_coefficients(
-        propagators: Sequence[Expression],
+        denominators: Sequence[Expression],
         loop_scalar_products: Sequence[Expression],
-        *,
-        target: Expression | None = None,
-    ) -> tuple[Expression, ...]:
-        """Solve ``sum(a_i D_i) = target`` for a unique affine relation."""
+    ) -> list[Expression]:
+        """Solve ``sum(c_i D_i) = 1`` for a unique affine relation."""
 
-        propagators = tuple(propagators)
-        loop_scalar_products = tuple(loop_scalar_products)
-        if len(propagators) < 2:
+        if len(denominators) < 2:
             raise ValueError(
                 "Affine partial fractioning needs at least two denominators"
             )
-        target = E("1") if target is None else target
-        weights = tuple(S(f"__pf_{index}") for index in range(len(propagators)))
+        weights = [S(f"__pf_{index}") for index in range(len(denominators))]
         relation = sum(
             (
-                weight * propagator
-                for weight, propagator in zip(
-                    weights, propagators, strict=True
+                weight * denominator
+                for weight, denominator in zip(
+                    weights, denominators, strict=True
                 )
             ),
-            -target,
+            -N(1),
         ).expand()
-        equations = tuple(
+        equations = [
             coefficient
             for _, coefficient in relation.coefficient_list(*loop_scalar_products)
-        )
-        solution = tuple(Expression.solve_linear_system(equations, weights))
+        ]
+        solution = Expression.solve_linear_system(equations, weights)
         if len(solution) != len(weights) or any(
             bool(coefficient.contains(weight))
             for coefficient in solution
             for weight in weights
         ):
-            raise ValueError("Propagators do not define a unique affine relation")
+            raise ValueError("Denominators do not define a unique affine relation")
         return solution
 
     return (partial_fraction_coefficients,)
 
 
 @app.cell
-def _(E, S, canonical_zero, mo, partial_fraction_coefficients, spenso_table):
-    _coefficient_rows = []
-    for _count in range(2, 8):
-        _loop_products = tuple(
-            S(f"coefficient_x_{_count}_{_index}")
-            for _index in range(_count - 1)
+def _(
+    E,
+    loop_denominators,
+    loop_scalar_products,
+    partial_fraction_coefficients,
+):
+    affine_coefficients = partial_fraction_coefficients(
+        loop_denominators,
+        loop_scalar_products,
+    )
+    affine_terms = [
+        _coefficient * _propagator
+        for _coefficient, _propagator in zip(
+            affine_coefficients,
+            loop_denominators,
+            strict=True,
         )
-        _delta = S(f"coefficient_delta_{_count}")
-        _weights = (
-            *(
-                E(str((-1) ** _index * (_index + 1)))
-                for _index in range(_count - 1)
-            ),
-            E("1"),
-        )
-        _denominators = (
-            *_loop_products,
-            _delta
-            - sum(
-                (
-                    _weight * _loop_product
-                    for _weight, _loop_product in zip(
-                        _weights[:-1], _loop_products, strict=True
+    ]
+    affine_relation = sum(affine_terms, E("0"))
+    return affine_coefficients, affine_relation, affine_terms
+
+
+@app.cell(hide_code=True)
+def _(
+    affine_coefficients,
+    affine_relation,
+    affine_terms,
+    loop_denominators,
+    mo,
+    spenso_table,
+    typst,
+):
+    mo.vstack(
+        [
+            spenso_table(
+                [
+                    {
+                        "factor": f"D{_index + 3}",
+                        "D_i": _propagator,
+                        "c_i": _coefficient,
+                        "c_i D_i": _term,
+                    }
+                    for _index, (_propagator, _coefficient, _term) in enumerate(
+                        zip(
+                            loop_denominators,
+                            affine_coefficients,
+                            affine_terms,
+                            strict=True,
+                        )
                     )
-                ),
-                E("0"),
+                ]
             ),
-        )
-        _coefficients = partial_fraction_coefficients(
-            _denominators,
-            _loop_products,
-        )
-        _residual = canonical_zero(
-            sum(
-                (
-                    _coefficient * _denominator
-                    for _coefficient, _denominator in zip(
-                        _coefficients, _denominators, strict=True
-                    )
-                ),
-                E("-1"),
-            )
-        )
-        assert _residual == E("0")
-        assert all(
-            canonical_zero(_actual - _weight / _delta) == E("0")
-            for _actual, _weight in zip(_coefficients, _weights, strict=True)
-        )
-        _coefficient_rows.append(
-            {
-                "propagators": _count,
-                "solved coefficients": len(_coefficients),
-                "residual": _residual,
-            }
-        )
-    partial_fraction_coefficients_showcase = tuple(_coefficient_rows)
-    spenso_table(partial_fraction_coefficients_showcase)
+            typst(
+                "Affine sum: {relation}. The exact residual is checked in the "
+                "final validation section.",
+                relation=affine_relation,
+            ),
+        ]
+    )
     return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 3. Construct the partial-fraction terms
+
+    `normalize_rational` provides one exact comparison form by expanding,
+    combining rational terms, and cancelling common factors.
+
+    `partial_fraction` applies the affine identity to an `Integrand`. It either
+    solves the relation for the selected denominators or accepts supplied
+    coefficients, verifies that they are loop-momentum independent and satisfy
+    \(\sum_i c_iD_i=1\), and emits one child for every removed denominator.
+
+    \[
+    \frac{N}{\prod_iD_i}
+    =N\sum_i\frac{c_i}{\prod_{j\ne i}D_j}.
+    \]
+
+    Each child keeps the original denominator positions, so later graph routing
+    does not depend on the order in which terms happen to print.
+    """)
+    return
+
+
+@app.cell
+def _(Expression):
+    def normalize_rational(expression: Expression) -> Expression:
+        """Return a canonical expanded rational expression."""
+
+        return expression.expand().together().cancel()
+
+    return (normalize_rational,)
 
 
 @app.cell
@@ -974,7 +985,7 @@ def _(
     Integrand,
     PartialFractionTerm,
     Sequence,
-    canonical_zero,
+    normalize_rational,
     partial_fraction_coefficients,
 ):
     def partial_fraction(
@@ -983,11 +994,9 @@ def _(
         removed_indices: Sequence[int],
         loop_scalar_products: Sequence[Expression],
         coefficients: Sequence[Expression] | None = None,
-    ) -> tuple[PartialFractionTerm, ...]:
+    ) -> list[PartialFractionTerm]:
         """Remove denominators using ``sum(c_i D_i) = 1`` directly."""
 
-        removed_indices = tuple(removed_indices)
-        loop_scalar_products = tuple(loop_scalar_products)
         if len(set(removed_indices)) != len(removed_indices):
             raise ValueError("Removed denominator indices must be unique")
         if any(
@@ -996,13 +1005,13 @@ def _(
         ):
             raise IndexError("Removed denominator index is out of range")
 
-        selected = tuple(
+        selected = [
             integrand.denominators[index] for index in removed_indices
-        )
+        ]
         coefficients = (
             partial_fraction_coefficients(selected, loop_scalar_products)
             if coefficients is None
-            else tuple(coefficients)
+            else coefficients
         )
         if len(coefficients) != len(selected):
             raise ValueError("Each selected denominator needs one coefficient")
@@ -1014,7 +1023,7 @@ def _(
             raise ValueError(
                 "Partial-fraction coefficients must be independent of loop momenta"
             )
-        relation_residual = canonical_zero(
+        relation_residual = normalize_rational(
             sum(
                 (
                     coefficient * denominator
@@ -1042,516 +1051,94 @@ def _(
                 for index in range(len(integrand.denominators))
                 if index != removed_index
             )
-            retained_denominators = tuple(
+            retained_denominators = [
                 integrand.denominators[index] for index in retained_indices
-            )
+            ]
             terms.append(
                 PartialFractionTerm(
                     removed_index=removed_index,
                     retained_indices=retained_indices,
                     integrand=Integrand(
-                        numerator=canonical_zero(
-                            integrand.numerator * coefficient
-                        ),
+                        numerator=(integrand.numerator * coefficient).cancel(),
                         denominators=retained_denominators,
                     ),
                 )
             )
-        decomposition = tuple(terms)
-        residual = canonical_zero(
-            sum(
-                (term.integrand.as_expression() for term in decomposition),
-                E("0"),
-            )
-            - integrand.as_expression()
-        )
-        if residual != E("0"):
-            raise ValueError(
-                "Partial-fraction decomposition does not reconstruct input: "
-                f"{residual}"
-            )
-        return decomposition
+        return terms
 
     return (partial_fraction,)
 
 
 @app.cell
-def _(E, Integrand, S, canonical_zero, mo, partial_fraction, prod, spenso_table):
-    _partial_fraction_rows = []
-    for _count in range(2, 8):
-        _loop_products = tuple(
-            S(f"partial_fraction_x_{_count}_{_index}")
-            for _index in range(_count - 1)
-        )
-        _delta = S(f"partial_fraction_delta_{_count}")
-        _numerator = S(f"partial_fraction_numerator_{_count}")
-        _weights = (
-            *(
-                E(str((-1) ** _index * (_index + 1)))
-                for _index in range(_count - 1)
-            ),
-            E("1"),
-        )
-        _denominators = (
-            *_loop_products,
-            _delta
-            - sum(
-                (
-                    _weight * _loop_product
-                    for _weight, _loop_product in zip(
-                        _weights[:-1], _loop_products, strict=True
-                    )
-                ),
-                E("0"),
-            ),
-        )
-        _requested_order = tuple(reversed(range(_count)))
-        _terms = partial_fraction(
-            Integrand(_numerator, _denominators),
-            removed_indices=_requested_order,
-            loop_scalar_products=_loop_products,
-        )
-        _residual = canonical_zero(
-            sum(
-                (_term.integrand.as_expression() for _term in _terms),
-                E("0"),
-            )
-            - _numerator / prod(_denominators)
-        )
-        assert tuple(_term.removed_index for _term in _terms) == _requested_order
-        assert len(_terms) == _count
-        assert _residual == E("0")
-        _partial_fraction_rows.append(
-            {
-                "propagators": _count,
-                "terms": len(_terms),
-                "requested removal order preserved": True,
-                "residual": _residual,
-            }
-        )
-    partial_fraction_showcase = tuple(_partial_fraction_rows)
-    spenso_table(partial_fraction_showcase)
-    return
+def _(affine_coefficients, integrand, loop_scalar_products, partial_fraction):
+    partial_fractions = partial_fraction(
+        integrand,
+        removed_indices=range(len(integrand.denominators)),
+        loop_scalar_products=loop_scalar_products,
+        coefficients=affine_coefficients,
+    )
+    return (partial_fractions,)
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    # Cross Box
-
-    This is a native Python/Spenso preprocessing model. The historical
-    `DY_calculation.nb` cross-box section is used as a semantic validation
-    oracle, not translated cell by cell. Its active scalar example fixes the
-    reference signs and family mapping; the Python functions remain reusable
-    for other numerators and any number of affinely related propagators. The
-    partial fractioning is the solved linear identity itself, matching the
-    Mathematica workflow. No on-shell replacement is used in this stage.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 1. Define the cross-box integrand
-
-    The graph input is the ordered list of six `(momentum, mass_squared)`
-    pairs. The loop head `k` carries a Symbolica tag, so loop-dependent lines
-    are discovered from the expressions themselves. The external squares
-    (p_1^2,p_2^2) specify which incoming legs are cut, but are not sent to an
-    IBP reducer as loop propagators.
-
-    No on-shell identity or integral-reduction rule has been applied here.
-    """)
-    return
-
-
-@app.cell
-def _(
-    E,
-    Integrand,
-    S,
-    dot,
-    find_loop_propagator_indices,
-    k,
-    minkd,
-    p,
-    project_cutset,
-    propagator_denominators,
-    square,
-):
-    cross_box_p1 = p(1, minkd)
-    cross_box_p2 = p(2, minkd)
-    cross_box_k1 = k(1, minkd)
-    cross_box_q = S("q")
-
-    cross_box_propagators = (
-        (cross_box_p1, E("0")),
-        (cross_box_p2, E("0")),
-        (cross_box_k1, E("0")),
-        (cross_box_k1 - cross_box_p1, E("0")),
-        (cross_box_p2 - cross_box_k1, E("0")),
-        (
-            cross_box_p1 + cross_box_p2 - cross_box_k1,
-            cross_box_q**2,
-        ),
-    )
-    cross_box_cutsets = {
-        "11": (1, 1, 1, 0, 0, 1),
-        "10": (1, 0, 1, 0, 1, 1),
-        "01": (0, 1, 1, 1, 0, 1),
-        "00": (0, 0, 1, 1, 1, 1),
-    }
-    cross_box_mathematica_cut_names = {
-        "11": "00",
-        "10": "10",
-        "01": "01",
-        "00": "11",
-    }
-    cross_box_denominators = propagator_denominators(cross_box_propagators)
-    cross_box_loop_propagator_indices = find_loop_propagator_indices(
-        cross_box_propagators
-    )
-    assert cross_box_loop_propagator_indices == (2, 3, 4, 5)
-    cross_box_loop_propagators = tuple(
-        cross_box_propagators[_index]
-        for _index in cross_box_loop_propagator_indices
-    )
-    cross_box_loop_denominators = tuple(
-        cross_box_denominators[_index]
-        for _index in cross_box_loop_propagator_indices
-    )
-    cross_box_projected_cutsets = {
-        _name: project_cutset(_mask, cross_box_loop_propagator_indices)
-        for _name, _mask in cross_box_cutsets.items()
-    }
-    assert cross_box_projected_cutsets == {
-        "11": (1, 0, 0, 1),
-        "10": (1, 0, 1, 1),
-        "01": (1, 1, 0, 1),
-        "00": (1, 1, 1, 1),
-    }
-
-    # This is the native Python example's editable numerator. The independent
-    # Mathematica validation below uses a separate historical numerator.
-    cross_box_numerator = dot(
-        cross_box_k1,
-        cross_box_p1 + cross_box_p2,
-    )
-
-    cross_box_loop_scalar_products = (
-        square(cross_box_k1),
-        dot(cross_box_k1, cross_box_p1),
-        dot(cross_box_k1, cross_box_p2),
-    )
-    cross_box_delta = cross_box_q**2 - 2 * dot(cross_box_p1, cross_box_p2)
-    cross_box_integrand = Integrand(
-        numerator=cross_box_numerator,
-        denominators=cross_box_loop_denominators,
-    )
-    return (
-        cross_box_cutsets,
-        cross_box_delta,
-        cross_box_denominators,
-        cross_box_integrand,
-        cross_box_k1,
-        cross_box_loop_denominators,
-        cross_box_loop_propagator_indices,
-        cross_box_loop_scalar_products,
-        cross_box_mathematica_cut_names,
-        cross_box_p1,
-        cross_box_p2,
-        cross_box_projected_cutsets,
-        cross_box_propagators,
-        cross_box_q,
-    )
-
-
-@app.cell(hide_code=True)
-def _(
-    cross_box_cutsets,
-    cross_box_denominators,
-    cross_box_integrand,
-    cross_box_loop_propagator_indices,
-    cross_box_mathematica_cut_names,
-    cross_box_projected_cutsets,
-    cross_box_propagators,
-    mo,
-    spenso_table,
-):
+def _(affine_coefficients, mo, partial_fractions, spenso_table):
     mo.vstack(
         [
+            mo.md("### Partial-fraction terms"),
             spenso_table(
                 [
                     {
-                        "propagator": f"D{_index + 1}",
-                        "momentum": _momentum,
-                        "mass squared": _mass_squared,
-                        "denominator": cross_box_denominators[_index],
-                        "loop dependent": (
-                            _index in cross_box_loop_propagator_indices
-                        ),
-                        **{
-                            f"cut {_name}": _mask[_index]
-                            for _name, _mask in cross_box_cutsets.items()
-                        },
-                    }
-                    for _index, (_momentum, _mass_squared) in enumerate(
-                        cross_box_propagators
-                    )
-                ]
-            ),
-            spenso_table(
-                [
-                    {
-                        "Python cut": _name,
-                        "Mathematica label": cross_box_mathematica_cut_names[
-                            _name
-                        ],
-                        "full six-line mask": _mask,
-                        "inferred loop projection": (
-                            cross_box_projected_cutsets[_name]
-                        ),
-                    }
-                    for _name, _mask in cross_box_cutsets.items()
-                ]
-            ),
-            mo.md(
-                "Loop integrand before cut or IBP: "
-                f"`{spenso_disp(cross_box_integrand.as_expression())}`"
-            ),
-        ]
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 2. Solve the affine relation
-
-    We solve the linear system for
-    loop-independent coefficients \(c_i\) such that
-
-    \[
-    \sum_{i=1}^{N} c_i D_i=1.
-    \]
-
-    This is not tied to four propagators: the same coefficient solve accepts any
-    number \(N\geq2\) of affine denominator factors whenever the system has a
-    unique solution. The partial fractions follow directly from this identity.
-    """)
-    return
-
-
-@app.cell
-def _(
-    E,
-    canonical_zero,
-    cross_box_loop_denominators,
-    cross_box_loop_scalar_products,
-    partial_fraction_coefficients,
-):
-    cross_box_affine_coefficients = partial_fraction_coefficients(
-        cross_box_loop_denominators,
-        cross_box_loop_scalar_products,
-    )
-    cross_box_affine_terms = tuple(
-        _coefficient * _propagator
-        for _coefficient, _propagator in zip(
-            cross_box_affine_coefficients,
-            cross_box_loop_denominators,
-            strict=True,
-        )
-    )
-    cross_box_affine_relation = sum(cross_box_affine_terms, E("0"))
-    cross_box_affine_residual = canonical_zero(
-        cross_box_affine_relation - E("1")
-    )
-    assert cross_box_affine_residual == E("0")
-    return (
-        cross_box_affine_coefficients,
-        cross_box_affine_relation,
-        cross_box_affine_residual,
-        cross_box_affine_terms,
-    )
-
-
-@app.cell(hide_code=True)
-def _(
-    cross_box_affine_coefficients,
-    cross_box_affine_relation,
-    cross_box_affine_residual,
-    cross_box_affine_terms,
-    cross_box_loop_denominators,
-    mo,
-    spenso_table,
-):
-    mo.vstack(
-        [
-            spenso_table(
-                [
-                    {
-                        "factor": f"D{_index + 3}",
-                        "D_i": _propagator,
-                        "c_i": _coefficient,
-                        "c_i D_i": _term,
-                    }
-                    for _index, (_propagator, _coefficient, _term) in enumerate(
-                        zip(
-                            cross_box_loop_denominators,
-                            cross_box_affine_coefficients,
-                            cross_box_affine_terms,
-                            strict=True,
-                        )
-                    )
-                ]
-            ),
-            mo.md(
-                "Affine sum: "
-                f"`{spenso_disp(cross_box_affine_relation)}`; "
-                "exact residual: "
-                f"`{spenso_disp(cross_box_affine_residual)}`."
-            ),
-        ]
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 3. Construct and map the partial-fraction terms
-
-    Divide the solved identity \(\sum_i c_iD_i=1\) by the complete denominator
-    product and multiply by the editable numerator:
-
-    \[
-    \frac{N}{\prod_iD_i}
-    =N\sum_i\frac{c_i}{\prod_{j\ne i}D_j}.
-    \]
-
-    The propagator objects and their original positions are retained. We label
-    the four children with temporary partial-fraction slots 1--4; these are
-    display/provenance ids, not Kira topology numbers. The later FIRE adapter
-    maps them by their actual global propagator sets.
-    """)
-    return
-
-
-@app.cell
-def _(
-    E,
-    PARTIAL_FRACTION_SLOTS: tuple[tuple[int, tuple[int, ...]], ...],
-    canonical_zero,
-    cross_box_affine_coefficients,
-    cross_box_integrand,
-    cross_box_loop_scalar_products,
-    partial_fraction,
-):
-    _unsorted_partial_fractions = partial_fraction(
-        cross_box_integrand,
-        removed_indices=range(len(cross_box_integrand.denominators)),
-        loop_scalar_products=cross_box_loop_scalar_products,
-        coefficients=cross_box_affine_coefficients,
-    )
-    cross_box_family_by_sources = {
-        _sources: _family_id
-        for _family_id, _sources in PARTIAL_FRACTION_SLOTS
-    }
-    cross_box_partial_fractions = tuple(
-        sorted(
-            _unsorted_partial_fractions,
-            key=lambda _child: cross_box_family_by_sources[
-                _child.retained_indices
-            ],
-        )
-    )
-    cross_box_partial_fraction_residual = canonical_zero(
-        sum(
-            (
-                _child.integrand.as_expression()
-                for _child in cross_box_partial_fractions
-            ),
-            E("0"),
-        )
-        - cross_box_integrand.as_expression()
-    )
-    assert cross_box_partial_fraction_residual == E("0")
-    return (
-        cross_box_family_by_sources,
-        cross_box_partial_fraction_residual,
-        cross_box_partial_fractions,
-    )
-
-
-@app.cell(hide_code=True)
-def _(
-    cross_box_affine_coefficients,
-    cross_box_family_by_sources,
-    cross_box_partial_fraction_residual,
-    cross_box_partial_fractions,
-    mo,
-    spenso_table,
-):
-    mo.vstack(
-        [
-            mo.md("### Explicit partial-fraction slot mapping"),
-            spenso_table(
-                [
-                    {
-                        "retained propagators": tuple(
-                            _index + 1 for _index in _sources
-                        ),
-                        "partial-fraction slot": _family_id,
-                    }
-                    for _sources, _family_id in sorted(
-                        cross_box_family_by_sources.items(),
-                        key=lambda _item: _item[1],
-                    )
-                ]
-            ),
-            mo.md("### Restored partial-fraction terms"),
-            spenso_table(
-                [
-                    {
-                        "partial-fraction slot": (
-                            cross_box_family_by_sources[_child.retained_indices]
-                        ),
-                        "removed propagator": _child.removed_index + 1,
-                        "c_i": cross_box_affine_coefficients[
+                        "term": _term_number,
+                        "removed propagator": _child.removed_index + 3,
+                        "c_i": affine_coefficients[
                             _child.removed_index
                         ],
                         "retained propagators": tuple(
-                            _index + 1 for _index in _child.retained_indices
+                            _index + 3 for _index in _child.retained_indices
                         ),
                         "child numerator": _child.integrand.numerator,
                         "child term": _child.integrand.as_expression(),
                     }
-                    for _child in cross_box_partial_fractions
+                    for _term_number, _child in enumerate(
+                        partial_fractions,
+                        start=1,
+                    )
                 ]
             ),
             mo.md(
-                "Exact partial-fraction residual: "
-                f"`{spenso_disp(cross_box_partial_fraction_residual)}`."
+                "Exact reconstruction is checked in the final validation section."
             ),
         ]
     )
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 4. Rewrite numerators in each denominator basis
+
+    `numerator_relations(propagators, propagator_labels,
+    loop_scalar_products)` treats the retained denominators as coordinates for
+    the independent loop scalar products. It introduces one formal label
+    \(P_i\) for each denominator and solves all equations
+    \(D_i-P_i=0\) simultaneously for the requested loop products. The result is
+    a list of `(loop_product, replacement)` pairs. Equal list lengths and the
+    absence of unresolved loop products ensure that the chosen denominators
+    form a square independent basis.
+    """)
+    return
+
+
 @app.cell
-def _(E, Expression, S, Sequence, canonical_zero):
+def _(Expression, Sequence):
     def numerator_relations(
         propagators: Sequence[Expression],
         propagator_labels: Sequence[Expression],
         loop_scalar_products: Sequence[Expression],
-    ) -> tuple[tuple[Expression, Expression], ...]:
+    ) -> list[tuple[Expression, Expression]]:
         """Solve each loop scalar product in one propagator basis."""
 
-        propagators = tuple(propagators)
-        propagator_labels = tuple(propagator_labels)
-        loop_scalar_products = tuple(loop_scalar_products)
         if len(propagators) != len(propagator_labels):
             raise ValueError("Each propagator needs exactly one formal label")
         if len(propagators) != len(loop_scalar_products):
@@ -1559,95 +1146,38 @@ def _(E, Expression, S, Sequence, canonical_zero):
                 "Choose one independent propagator for each loop scalar product"
             )
 
-        weights = tuple(S(f"__nr_{index}") for index in range(len(propagators)))
-        combination = sum(
-            (
-                weight * propagator
-                for weight, propagator in zip(
-                    weights, propagators, strict=True
-                )
-            ),
-            E("0"),
-        ).expand()
-
-        relations = []
-        for target_index, target in enumerate(loop_scalar_products):
-            equations = tuple(
-                combination.coefficient(loop_product)
-                - (1 if loop_index == target_index else 0)
-                for loop_index, loop_product in enumerate(loop_scalar_products)
+        equations = [
+            propagator - label
+            for propagator, label in zip(
+                propagators,
+                propagator_labels,
+                strict=True,
             )
-            solution = tuple(Expression.solve_linear_system(equations, weights))
-            if len(solution) != len(weights) or any(
-                bool(coefficient.contains(weight))
-                for coefficient in solution
-                for weight in weights
-            ):
-                raise ValueError("Chosen propagators are not an independent basis")
-
-            remainder = canonical_zero(
-                sum(
-                    (
-                        coefficient * propagator
-                        for coefficient, propagator in zip(
-                            solution, propagators, strict=True
-                        )
-                    ),
-                    E("0"),
-                )
-                - target
-            )
-            replacement = (
-                sum(
-                    (
-                        coefficient * label
-                        for coefficient, label in zip(
-                            solution, propagator_labels, strict=True
-                        )
-                    ),
-                    E("0"),
-                )
-                - remainder
-            ).expand()
-            relations.append((target, replacement))
-        return tuple(relations)
+        ]
+        replacements = Expression.solve_linear_system(
+            equations,
+            loop_scalar_products,
+        )
+        if len(replacements) != len(loop_scalar_products) or any(
+            bool(replacement.contains(loop_product))
+            for replacement in replacements
+            for loop_product in loop_scalar_products
+        ):
+            raise ValueError("Chosen propagators are not an independent basis")
+        return list(zip(loop_scalar_products, replacements, strict=True))
 
     return (numerator_relations,)
 
 
-@app.cell
-def _(E, S, canonical_zero, mo, numerator_relations, spenso_table):
-    _relation_x, _relation_y, _relation_a, _relation_b = S(
-        "relation_x", "relation_y", "relation_a", "relation_b"
-    )
-    _relation_labels = S("relation_D1", "relation_D2")
-    _relation_propagators = (
-        _relation_x + _relation_a,
-        _relation_y + _relation_b,
-    )
-    _relations = numerator_relations(
-        _relation_propagators,
-        _relation_labels,
-        (_relation_x, _relation_y),
-    )
-    _relation_rows = []
-    for _target, _replacement in _relations:
-        _reconstructed = _replacement
-        for _label, _propagator in zip(
-            _relation_labels, _relation_propagators, strict=True
-        ):
-            _reconstructed = _reconstructed.replace(_label, _propagator)
-        _residual = canonical_zero(_reconstructed - _target)
-        assert _residual == E("0")
-        _relation_rows.append(
-            {
-                "loop product": _target,
-                "propagator-basis replacement": _replacement,
-                "reconstruction residual": _residual,
-            }
-        )
-    numerator_relations_showcase = tuple(_relation_rows)
-    spenso_table(numerator_relations_showcase)
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    `reduce_numerator` substitutes those relations into one child numerator and
+    converts the result to a polynomial in the formal labels. A label power
+    \(n_i\) cancels \(n_i\) powers of denominator \(D_i\), so the corresponding
+    integral index is \(1-n_i\). It returns the replacement relations, the
+    rewritten polynomial, and every coefficient/index-vector term separately.
+    """)
     return
 
 
@@ -1668,13 +1198,13 @@ def _(
     ) -> NumeratorReduction:
         """Rewrite a numerator and structurally cancel propagator factors."""
 
-        if len(integrand.denominators) != len(tuple(loop_scalar_products)):
+        if len(integrand.denominators) != len(loop_scalar_products):
             raise ValueError(
                 "Choose one independent propagator for each loop scalar product"
             )
-        labels = tuple(
-            S(f"__prop_{index}") for index in range(len(integrand.denominators))
-        )
+        labels = [
+            S("Prop")(index) for index in range(len(integrand.denominators))
+        ]
         relations = numerator_relations(
             integrand.denominators,
             labels,
@@ -1687,7 +1217,7 @@ def _(
 
         terms = []
         polynomial = reduced.to_polynomial(vars=labels)
-        for powers, coefficient in polynomial.coefficient_list(list(labels)):
+        for powers, coefficient in polynomial.coefficient_list(labels):
             terms.append(
                 ReducedIntegralTerm(
                     coefficient=coefficient.to_expression(),
@@ -1695,109 +1225,38 @@ def _(
                     integral_indices=tuple(1 - int(power) for power in powers),
                 )
             )
-        return NumeratorReduction(tuple(terms), relations, reduced)
+        return NumeratorReduction(terms, relations, reduced)
 
     return (reduce_numerator,)
 
 
 @app.cell
-def _(E, Integrand, S, canonical_zero, mo, reduce_numerator, spenso_table):
-    _reduction_x, _reduction_y, _reduction_a, _reduction_b = S(
-        "reduction_x", "reduction_y", "reduction_a", "reduction_b"
-    )
-    _reduction_integrand = Integrand(
-        _reduction_x * _reduction_y + _reduction_x,
-        (_reduction_x + _reduction_a, _reduction_y + _reduction_b),
-    )
-    _reduction = reduce_numerator(
-        _reduction_integrand,
-        loop_scalar_products=(_reduction_x, _reduction_y),
-    )
-    _reduction_residual = canonical_zero(
-        sum((_term.as_expression() for _term in _reduction.terms), E("0"))
-        - _reduction_integrand.as_expression()
-    )
-    assert _reduction_residual == E("0")
-    reduce_numerator_showcase = tuple(
-        {
-            "coefficient": _term.coefficient,
-            "integral indices": _term.integral_indices,
-            "reconstruction residual": _reduction_residual,
-        }
-        for _term in _reduction.terms
-    )
-    spenso_table(reduce_numerator_showcase)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 4. Rewrite each numerator in its three-propagator basis
-
-    The four children have different bases. For each one we solve the three
-    loop scalar products in terms of formal propagator labels, rewrite the
-    numerator, and read off the resulting integral powers.
-    """)
-    return
-
-
-@app.cell
-def _(
-    E,
-    canonical_zero,
-    cross_box_integrand,
-    cross_box_loop_scalar_products,
-    cross_box_partial_fractions,
-    reduce_numerator,
-):
-    cross_box_numerator_reductions = tuple(
+def _(loop_scalar_products, partial_fractions, reduce_numerator):
+    numerator_reductions = [
         reduce_numerator(
             _child.integrand,
-            loop_scalar_products=cross_box_loop_scalar_products,
+            loop_scalar_products=loop_scalar_products,
         )
-        for _child in cross_box_partial_fractions
-    )
-    cross_box_numerator_reduction_residual = canonical_zero(
-        sum(
-            (
-                _term.as_expression()
-                for _reduction in cross_box_numerator_reductions
-                for _term in _reduction.terms
-            ),
-            E("0"),
-        )
-        - cross_box_integrand.as_expression()
-    )
-    assert cross_box_numerator_reduction_residual == E("0")
-    return (
-        cross_box_numerator_reduction_residual,
-        cross_box_numerator_reductions,
-    )
+        for _child in partial_fractions
+    ]
+    return (numerator_reductions,)
 
 
 @app.cell(hide_code=True)
-def _(
-    cross_box_family_by_sources,
-    cross_box_numerator_reduction_residual,
-    cross_box_numerator_reductions,
-    cross_box_partial_fractions,
-    mo,
-    spenso_table,
-):
+def _(mo, numerator_reductions, partial_fractions, spenso_table):
     mo.vstack(
         [
             mo.md("### Family-local propagator-label bases"),
             spenso_table(
                 [
                     {
-                        "family": (
-                            f"topo{cross_box_family_by_sources[_child.retained_indices]}"
+                        "retained propagators": tuple(
+                            _index + 3 for _index in _child.retained_indices
                         ),
-                        "label": f"__prop_{_position}",
+                        "label": f"Prop({_position})",
                         "propagator": _propagator,
                     }
-                    for _child in cross_box_partial_fractions
+                    for _child in partial_fractions
                     for _position, _propagator in enumerate(
                         _child.integrand.denominators
                     )
@@ -1807,15 +1266,15 @@ def _(
             spenso_table(
                 [
                     {
-                        "family": (
-                            f"topo{cross_box_family_by_sources[_child.retained_indices]}"
+                        "retained propagators": tuple(
+                            _index + 3 for _index in _child.retained_indices
                         ),
                         "loop product": _target,
                         "replacement": _replacement,
                     }
                     for _child, _reduction in zip(
-                        cross_box_partial_fractions,
-                        cross_box_numerator_reductions,
+                        partial_fractions,
+                        numerator_reductions,
                         strict=True,
                     )
                     for _target, _replacement in _reduction.relations
@@ -1825,15 +1284,15 @@ def _(
             spenso_table(
                 [
                     {
-                        "family": (
-                            f"topo{cross_box_family_by_sources[_child.retained_indices]}"
+                        "retained propagators": tuple(
+                            _index + 3 for _index in _child.retained_indices
                         ),
                         "input numerator": _child.integrand.numerator,
                         "rewritten polynomial": _reduction.reduced_numerator,
                     }
                     for _child, _reduction in zip(
-                        cross_box_partial_fractions,
-                        cross_box_numerator_reductions,
+                        partial_fractions,
+                        numerator_reductions,
                         strict=True,
                     )
                 ]
@@ -1842,23 +1301,22 @@ def _(
             spenso_table(
                 [
                     {
-                        "family": (
-                            f"topo{cross_box_family_by_sources[_child.retained_indices]}"
+                        "retained propagators": tuple(
+                            _index + 3 for _index in _child.retained_indices
                         ),
                         "coefficient": _term.coefficient,
                         "integral indices": _term.integral_indices,
                     }
                     for _child, _reduction in zip(
-                        cross_box_partial_fractions,
-                        cross_box_numerator_reductions,
+                        partial_fractions,
+                        numerator_reductions,
                         strict=True,
                     )
                     for _term in _reduction.terms
                 ]
             ),
             mo.md(
-                "Exact numerator-reduction residual: "
-                f"`{spenso_disp(cross_box_numerator_reduction_residual)}`."
+                "Exact reconstruction is checked in the final validation section."
             ),
         ]
     )
@@ -1867,766 +1325,84 @@ def _(
 
 @app.cell
 def _(
-    CrossBoxPreIBP,
-    E,
-    Expression,
-    S,
-    canonical_zero,
-    partial_fraction_slot_id,
-):
-    def validate_pre_ibp(result: CrossBoxPreIBP) -> dict[str, Expression]:
-        """Validate every algebraic handoff represented by a pre-IBP result."""
-
-        checks = {
-            "affine propagator relation": canonical_zero(
-                result.propagators[0]
-                - result.propagators[1]
-                - result.propagators[2]
-                + result.propagators[3]
-                + result.delta
-            ),
-            "partial-fraction reconstruction": canonical_zero(
-                sum(
-                    (
-                        child.integrand.as_expression()
-                        for child in result.partial_fractions
-                    ),
-                    E("0"),
-                )
-                - result.integrand.as_expression()
-            ),
-            "numerator-rewrite reconstruction": canonical_zero(
-                sum(
-                    (
-                        term.as_expression()
-                        for reduction in result.numerator_reductions
-                        for term in reduction.terms
-                    ),
-                    E("0"),
-                )
-                - result.integrand.as_expression()
-            ),
-            "IBP-input reconstruction": canonical_zero(
-                sum(
-                    (
-                        contribution.as_expression()
-                        for contribution in result.contributions
-                    ),
-                    E("0"),
-                )
-                - result.integrand.as_expression()
-            ),
-        }
-        for child, reduction in zip(
-            result.partial_fractions,
-            result.numerator_reductions,
-            strict=True,
-        ):
-            family_id = partial_fraction_slot_id(child.retained_indices)
-            labels = tuple(
-                S(f"__prop_{index}")
-                for index in range(len(child.integrand.denominators))
-            )
-            for relation_index, (target, replacement) in enumerate(
-                reduction.relations, start=1
-            ):
-                reconstructed = replacement
-                for label, propagator in zip(
-                    labels,
-                    child.integrand.denominators,
-                    strict=True,
-                ):
-                    reconstructed = reconstructed.replace(label, propagator)
-                checks[f"PF slot {family_id} relation {relation_index}"] = canonical_zero(
-                    reconstructed - target
-                )
-
-        failures = {
-            name: residual
-            for name, residual in checks.items()
-            if residual != E("0")
-        }
-        if failures:
-            details = ", ".join(
-                f"{name}: {value}" for name, value in failures.items()
-            )
-            raise ValueError(f"Cross-box preprocessing validation failed: {details}")
-        return checks
-
-
-    return (validate_pre_ibp,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 5. Assemble the IBP inputs
-
-    The final objects below are coefficients times family/index vectors. This
-    is the boundary object consumed by an IBP reducer; no reduction rule has
-    been applied yet.
-    """)
-    return
-
-
-@app.cell
-def _(
-    CrossBoxPreIBP,
     IntegralContribution,
-    cross_box_delta,
-    cross_box_family_by_sources,
-    cross_box_integrand,
-    cross_box_loop_denominators,
-    cross_box_loop_scalar_products,
-    cross_box_numerator_reductions,
-    cross_box_partial_fractions,
-    validate_pre_ibp,
+    PreIBPResult,
+    delta,
+    integrand,
+    loop_denominators,
+    loop_propagator_indices,
+    loop_scalar_products,
+    numerator_reductions,
+    partial_fractions,
 ):
     _contributions = []
     for _child, _reduction in zip(
-        cross_box_partial_fractions,
-        cross_box_numerator_reductions,
+        partial_fractions,
+        numerator_reductions,
         strict=True,
     ):
-        _family_id = cross_box_family_by_sources[_child.retained_indices]
+        _global_sources = tuple(
+            loop_propagator_indices[_index]
+            for _index in _child.retained_indices
+        )
         _contributions.extend(
             IntegralContribution(
-                family_id=_family_id,
-                source_indices=_child.retained_indices,
+                source_indices=_global_sources,
                 propagators=_term.propagators,
                 integral_indices=_term.integral_indices,
                 coefficient=_term.coefficient,
             )
             for _term in _reduction.terms
         )
-    cross_box_contributions = tuple(_contributions)
-    _unchecked_pre_ibp = CrossBoxPreIBP(
-        propagators=cross_box_loop_denominators,
-        loop_scalar_products=cross_box_loop_scalar_products,
-        delta=cross_box_delta,
-        integrand=cross_box_integrand,
-        partial_fractions=cross_box_partial_fractions,
-        numerator_reductions=cross_box_numerator_reductions,
-        contributions=cross_box_contributions,
+    contributions = _contributions
+    pre_ibp = PreIBPResult(
+        denominators=loop_denominators,
+        loop_scalar_products=loop_scalar_products,
+        delta=delta,
+        integrand=integrand,
+        partial_fractions=partial_fractions,
+        numerator_reductions=numerator_reductions,
+        contributions=contributions,
     )
-    cross_box_checks = validate_pre_ibp(_unchecked_pre_ibp)
-    cross_box_pre_ibp = CrossBoxPreIBP(
-        propagators=cross_box_loop_denominators,
-        loop_scalar_products=cross_box_loop_scalar_products,
-        delta=cross_box_delta,
-        integrand=cross_box_integrand,
-        partial_fractions=cross_box_partial_fractions,
-        numerator_reductions=cross_box_numerator_reductions,
-        contributions=cross_box_contributions,
-        checks=cross_box_checks,
-    )
-    return cross_box_checks, cross_box_contributions, cross_box_pre_ibp
-
-
-@app.cell(hide_code=True)
-def _(cross_box_checks, cross_box_contributions, mo, spenso_table):
-    mo.vstack(
-        [
-            spenso_table(
-                [
-                    {
-                        "partial-fraction slot": _term.family_id,
-                        "source propagators": tuple(
-                            _index + 1 for _index in _term.source_indices
-                        ),
-                        "integral indices": _term.integral_indices,
-                        "coefficient": _term.coefficient,
-                    }
-                    for _term in cross_box_contributions
-                ]
-            ),
-            mo.md("### Exact boundary checks"),
-            spenso_table(
-                [
-                    {
-                        "check": _name,
-                        "residual": _residual,
-                    }
-                    for _name, _residual in cross_box_checks.items()
-                ]
-            ),
-        ]
-    )
-    return
+    return (pre_ibp,)
 
 
 @app.cell
-def _(
-    CrossBoxPreIBP,
-    E,
-    Expression,
-    IntegralContribution,
-    Integrand,
-    dot,
-    partial_fraction,
-    partial_fraction_slot_id,
-    reduce_numerator,
-    square,
-    validate_pre_ibp,
-):
-    def preprocess_cross_box(
-        *,
-        k1: Expression,
-        p1: Expression,
-        p2: Expression,
-        q: Expression,
-        numerator: Expression | None = None,
-    ) -> CrossBoxPreIBP:
-        """Run the visible cross-box stages as one regression convenience."""
-
-        numerator = E("1") if numerator is None else numerator
-        propagators = (
-            square(k1),
-            square(k1 - p1),
-            square(p2 - k1),
-            square(p1 + p2 - k1) - q**2,
-        )
-        loop_scalar_products = (square(k1), dot(k1, p1), dot(k1, p2))
-        delta = q**2 - 2 * dot(p1, p2)
-        integrand = Integrand(numerator, propagators)
-        children = tuple(
-            sorted(
-                partial_fraction(
-                    integrand,
-                    removed_indices=range(len(propagators)),
-                    loop_scalar_products=loop_scalar_products,
-                ),
-                key=lambda child: partial_fraction_slot_id(
-                    child.retained_indices
-                ),
-            )
-        )
-        reductions = tuple(
-            reduce_numerator(
-                child.integrand,
-                loop_scalar_products=loop_scalar_products,
-            )
-            for child in children
-        )
-
-        mapped = []
-        for child, reduction in zip(children, reductions, strict=True):
-            family_id = partial_fraction_slot_id(child.retained_indices)
-            mapped.extend(
-                IntegralContribution(
-                    family_id=family_id,
-                    source_indices=child.retained_indices,
-                    propagators=term.propagators,
-                    integral_indices=term.integral_indices,
-                    coefficient=term.coefficient,
-                )
-                for term in reduction.terms
-            )
-
-        result = CrossBoxPreIBP(
-            propagators=propagators,
-            loop_scalar_products=loop_scalar_products,
-            delta=delta,
-            integrand=integrand,
-            partial_fractions=children,
-            numerator_reductions=reductions,
-            contributions=tuple(mapped),
-        )
-        result.checks = validate_pre_ibp(result)
-        return result
-
-
-    return (preprocess_cross_box,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 6. Validate the linear-system partial fractioner
-
-    First we exercise the same solve and reconstruction for two through seven
-    propagators, an overcomplete relation supplied explicitly, spectator
-    denominators, and rejected invalid inputs. These checks execute whenever
-    the notebook executes.
-    """)
-    return
-
-
-@app.cell
-def _(
-    E,
-    Integrand,
-    S,
-    canonical_zero,
-    partial_fraction,
-    partial_fraction_coefficients,
-    prod,
-):
-    _validation_rows = []
-    for _count in range(2, 8):
-        _loop_products = tuple(
-            S(f"validation_x_{_count}_{_index}")
-            for _index in range(_count - 1)
-        )
-        _delta = S(f"validation_delta_{_count}")
-        _numerator = S(f"validation_numerator_{_count}")
-        _weights = (
-            *(
-                E(str((-1) ** _index * (_index + 1)))
-                for _index in range(_count - 1)
-            ),
-            E("1"),
-        )
-        _denominators = (
-            *_loop_products,
-            _delta
-            - sum(
-                (
-                    _weight * _loop_product
-                    for _weight, _loop_product in zip(
-                        _weights[:-1],
-                        _loop_products,
-                        strict=True,
-                    )
-                ),
-                E("0"),
-            ),
-        )
-        _expected_coefficients = tuple(
-            _weight / _delta for _weight in _weights
-        )
-        _solved_coefficients = partial_fraction_coefficients(
-            _denominators,
-            _loop_products,
-        )
-        assert all(
-            canonical_zero(_actual - _expected) == E("0")
-            for _actual, _expected in zip(
-                _solved_coefficients,
-                _expected_coefficients,
-                strict=True,
-            )
-        )
-
-        _requested_order = tuple(reversed(range(_count)))
-        _terms = partial_fraction(
-            Integrand(_numerator, _denominators),
-            removed_indices=_requested_order,
-            loop_scalar_products=_loop_products,
-        )
-        assert tuple(_term.removed_index for _term in _terms) == _requested_order
-        for _term in _terms:
-            _expected_retained = tuple(
-                _index
-                for _index in range(_count)
-                if _index != _term.removed_index
-            )
-            assert _term.retained_indices == _expected_retained
-            assert _term.integrand.denominators == tuple(
-                _denominators[_index] for _index in _expected_retained
-            )
-            assert canonical_zero(
-                _term.integrand.numerator
-                - _numerator * _expected_coefficients[_term.removed_index]
-            ) == E("0")
-        _residual = canonical_zero(
-            sum(
-                (_term.integrand.as_expression() for _term in _terms),
-                E("0"),
-            )
-            - _numerator / prod(_denominators)
-        )
-        assert _residual == E("0")
-        _validation_rows.append(
-            {"case": f"linear relation with N={_count}", "residual": _residual}
-        )
-
-    _x, _a, _b = S("validation_x", "validation_a", "validation_b")
-    _overcomplete_denominators = (_x, _x + _a, _x + _b)
-    _overcomplete_coefficients = (
-        -2 / (_a + _b),
-        1 / (_a + _b),
-        1 / (_a + _b),
-    )
-    _overcomplete_terms = partial_fraction(
-        Integrand(E("1"), _overcomplete_denominators),
-        removed_indices=range(3),
-        loop_scalar_products=(_x,),
-        coefficients=_overcomplete_coefficients,
-    )
-    _overcomplete_residual = canonical_zero(
-        sum(
-            (_term.integrand.as_expression() for _term in _overcomplete_terms),
-            E("0"),
-        )
-        - 1 / prod(_overcomplete_denominators)
-    )
-    assert _overcomplete_residual == E("0")
-    _validation_rows.append(
-        {"case": "explicit overcomplete relation", "residual": _overcomplete_residual}
-    )
-
-    _spectator0, _spectator1, _spectator2 = S(
-        "validation_s0", "validation_s1", "validation_s2"
-    )
-    _spectator_delta = S("validation_sdelta")
-    _spectator_denominators = (
-        _spectator0,
-        _x,
-        _spectator1,
-        _spectator_delta - 3 * _x,
-        _spectator2,
-    )
-    _spectator_terms = partial_fraction(
-        Integrand(E("1"), _spectator_denominators),
-        removed_indices=(3, 1),
-        loop_scalar_products=(_x,),
-    )
-    assert tuple(_term.removed_index for _term in _spectator_terms) == (3, 1)
-    assert tuple(_term.retained_indices for _term in _spectator_terms) == (
-        (0, 1, 2, 4),
-        (0, 2, 3, 4),
-    )
-    _spectator_residual = canonical_zero(
-        sum(
-            (_term.integrand.as_expression() for _term in _spectator_terms),
-            E("0"),
-        )
-        - 1 / prod(_spectator_denominators)
-    )
-    assert _spectator_residual == E("0")
-    _validation_rows.append(
-        {"case": "spectators and global indices", "residual": _spectator_residual}
-    )
-
-    try:
-        partial_fraction(
-            Integrand(E("1"), (_x, _spectator_delta - _x)),
-            removed_indices=(0, 0),
-            loop_scalar_products=(_x,),
-        )
-    except ValueError as _error:
-        assert "must be unique" in str(_error)
-    else:
-        raise AssertionError("Duplicate denominator indices were accepted")
-    _validation_rows.append(
-        {"case": "duplicate indices rejected", "residual": E("0")}
-    )
-
-    try:
-        partial_fraction(
-            Integrand(E("1"), (_x, _spectator_delta - _x)),
-            removed_indices=(0, 1),
-            loop_scalar_products=(_x,),
-            coefficients=(E("1"), E("2")),
-        )
-    except ValueError as _error:
-        assert "do not solve" in str(_error)
-    else:
-        raise AssertionError("Invalid affine coefficients were accepted")
-    _validation_rows.append(
-        {"case": "invalid coefficients rejected", "residual": E("0")}
-    )
-
-    linear_system_validation_rows = tuple(_validation_rows)
-    return (linear_system_validation_rows,)
-
-
-@app.cell(hide_code=True)
-def _(E, linear_system_validation_rows, mo, spenso_table):
-    assert len(linear_system_validation_rows) == 10
-    assert all(_row["residual"] == E("0") for _row in linear_system_validation_rows)
+def _(pre_ibp, projected_cutsets, spenso_table):
+    reducible_cut_names = [
+        _cut_name
+        for _cut_name, _projected_mask in projected_cutsets.items()
+        if sum(_projected_mask) <= len(pre_ibp.denominators) - 1
+    ]
+    contributions_by_cut = {
+        _cut_name: list(pre_ibp.contributions)
+        for _cut_name in reducible_cut_names
+    }
     spenso_table(
         [
             {
-                "validation": _row["case"],
-                "residual": _row["residual"],
+                "cut": _cut_name,
+                "graph sources": tuple(
+                    _source + 1 for _source in _term.source_indices
+                ),
+                "indices": _term.integral_indices,
             }
-            for _row in linear_system_validation_rows
+            for _cut_name, _terms in contributions_by_cut.items()
+            for _term in _terms
         ]
     )
-    return
+    return (contributions_by_cut,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Historical scalar cross-box oracle
+    ## 5. Solve the three reducible cut blocks with Kira
 
-    The following one-way check compares the native derivation with the retained
-    Mathematica result. It supplies no propagator, coefficient, family mapping,
-    or control-flow input to the calculation above.
-    """)
-    return
-
-
-@app.cell
-def _(
-    E,
-    canonical_zero,
-    cross_box_k1,
-    cross_box_p1,
-    cross_box_p2,
-    cross_box_q,
-    dot,
-    preprocess_cross_box,
-):
-    _reference_delta = cross_box_q**2 - 2 * dot(
-        cross_box_p1, cross_box_p2
-    )
-    mathematica_reference_pre_ibp = preprocess_cross_box(
-        k1=cross_box_k1,
-        p1=cross_box_p1,
-        p2=cross_box_p2,
-        q=cross_box_q,
-        numerator=E("1"),
-    )
-    _expected_family_ids = (1, 2, 3, 4)
-    _expected_sources = (
-        (0, 1, 2),
-        (0, 1, 3),
-        (0, 2, 3),
-        (1, 2, 3),
-    )
-    _expected_coefficients = (
-        -1 / _reference_delta,
-        1 / _reference_delta,
-        1 / _reference_delta,
-        -1 / _reference_delta,
-    )
-    assert tuple(
-        _term.family_id for _term in mathematica_reference_pre_ibp.contributions
-    ) == _expected_family_ids
-    assert tuple(
-        _term.source_indices
-        for _term in mathematica_reference_pre_ibp.contributions
-    ) == _expected_sources
-    assert all(
-        _term.integral_indices == (1, 1, 1)
-        for _term in mathematica_reference_pre_ibp.contributions
-    )
-    reference_validation = {
-        **mathematica_reference_pre_ibp.checks,
-        "delta convention": canonical_zero(
-            mathematica_reference_pre_ibp.delta - _reference_delta
-        ),
-        **{
-            f"PF slot {_family_id} coefficient": canonical_zero(
-                _term.coefficient - _expected
-            )
-            for _family_id, (_term, _expected) in enumerate(
-                zip(
-                    mathematica_reference_pre_ibp.contributions,
-                    _expected_coefficients,
-                    strict=True,
-                ),
-                start=1,
-            )
-        },
-    }
-    assert all(_residual == E("0") for _residual in reference_validation.values())
-    scalar_reference_comparison = [
-        {
-            "expected PF slot": _expected_family,
-            "actual PF slot": _term.family_id,
-            "expected sources": tuple(_index + 1 for _index in _expected_source),
-            "actual sources": tuple(_index + 1 for _index in _term.source_indices),
-            "expected indices": (1, 1, 1),
-            "actual indices": _term.integral_indices,
-            "coefficient residual": canonical_zero(
-                _term.coefficient - _expected_coefficient
-            ),
-        }
-        for _expected_family, _expected_source, _expected_coefficient, _term in zip(
-            _expected_family_ids,
-            _expected_sources,
-            _expected_coefficients,
-            mathematica_reference_pre_ibp.contributions,
-            strict=True,
-        )
-    ]
-    return (
-        mathematica_reference_pre_ibp,
-        reference_validation,
-        scalar_reference_comparison,
-    )
-
-
-@app.cell(hide_code=True)
-def _(mo, reference_validation, scalar_reference_comparison, spenso_table):
-    mo.vstack(
-        [
-            spenso_table(scalar_reference_comparison),
-            mo.callout(
-                "Historical scalar validation passed: all four partial-fraction "
-                "slots, the independent delta convention, sign pattern, "
-                "and exact reconstructions agree with the retained Mathematica "
-                "result. "
-                + " ".join(
-                    f"{_name}={spenso_disp(_residual)};"
-                    for _name, _residual in reference_validation.items()
-                ),
-                kind="success",
-            ),
-        ]
-    )
-    return
-
-
-@app.cell
-def _():
-    CROSS_BOX_FIRE_SOURCE_ORDERS = (
-        (2, 3, 5),
-        (2, 3, 4),
-        (2, 5, 4),
-        (3, 5, 4),
-    )
-    CROSS_BOX_KIRA_FAMILY_BLOCKS = {
-        "11": (20, 21, 22, 23),
-        "10": (24, 25, 26, 27),
-        "01": (28, 29, 30, 31),
-    }
-    return CROSS_BOX_FIRE_SOURCE_ORDERS, CROSS_BOX_KIRA_FAMILY_BLOCKS
-
-
-@app.cell
-def _(IntegralContribution):
-    def map_contributions_to_kira_block(
-        contributions,
-        *,
-        loop_source_indices,
-        family_ids,
-        family_source_orders,
-    ):
-        """Map native graph-order children to one historical Kira block."""
-
-        loop_source_indices = tuple(loop_source_indices)
-        if len(family_ids) != len(family_source_orders):
-            raise ValueError("Every family id needs one ordered source tuple")
-        family_by_sources = {
-            frozenset(source_order): (family_id, tuple(source_order))
-            for family_id, source_order in zip(
-                family_ids, family_source_orders, strict=True
-            )
-        }
-        if len(family_by_sources) != len(family_ids):
-            raise ValueError("Kira family source sets must be unique")
-
-        mapped = []
-        for contribution in contributions:
-            global_sources = tuple(
-                loop_source_indices[index]
-                for index in contribution.source_indices
-            )
-            try:
-                family_id, ordered_sources = family_by_sources[
-                    frozenset(global_sources)
-                ]
-            except KeyError as error:
-                raise ValueError(
-                    "No Kira family matches graph sources "
-                    f"{global_sources}"
-                ) from error
-            permutation = tuple(
-                global_sources.index(source) for source in ordered_sources
-            )
-            mapped.append(
-                IntegralContribution(
-                    family_id=family_id,
-                    source_indices=ordered_sources,
-                    propagators=tuple(
-                        contribution.propagators[index]
-                        for index in permutation
-                    ),
-                    integral_indices=tuple(
-                        contribution.integral_indices[index]
-                        for index in permutation
-                    ),
-                    coefficient=contribution.coefficient,
-                )
-            )
-        return tuple(mapped)
-
-    return (map_contributions_to_kira_block,)
-
-
-@app.cell
-def _(
-    CROSS_BOX_FIRE_SOURCE_ORDERS,
-    CROSS_BOX_KIRA_FAMILY_BLOCKS,
-    E,
-    canonical_zero,
-    cross_box_loop_propagator_indices,
-    cross_box_pre_ibp,
-    map_contributions_to_kira_block,
-    mathematica_reference_pre_ibp,
-    mo,
-    spenso_table,
-):
-    cross_box_contributions_by_cut = {
-        _cut_name: map_contributions_to_kira_block(
-            cross_box_pre_ibp.contributions,
-            loop_source_indices=cross_box_loop_propagator_indices,
-            family_ids=_family_ids,
-            family_source_orders=CROSS_BOX_FIRE_SOURCE_ORDERS,
-        )
-        for _cut_name, _family_ids in CROSS_BOX_KIRA_FAMILY_BLOCKS.items()
-    }
-    mathematica_reference_contributions_by_cut = {
-        _cut_name: map_contributions_to_kira_block(
-            mathematica_reference_pre_ibp.contributions,
-            loop_source_indices=cross_box_loop_propagator_indices,
-            family_ids=_family_ids,
-            family_source_orders=CROSS_BOX_FIRE_SOURCE_ORDERS,
-        )
-        for _cut_name, _family_ids in CROSS_BOX_KIRA_FAMILY_BLOCKS.items()
-    }
-    for _source, _mapped_by_cut in (
-        (cross_box_pre_ibp.contributions, cross_box_contributions_by_cut),
-        (
-            mathematica_reference_pre_ibp.contributions,
-            mathematica_reference_contributions_by_cut,
-        ),
-    ):
-        _source_expression = sum(
-            (_term.as_expression() for _term in _source), E("0")
-        )
-        for _mapped in _mapped_by_cut.values():
-            assert canonical_zero(
-                sum((_term.as_expression() for _term in _mapped), E("0"))
-                - _source_expression
-            ) == E("0")
-
-    map_contributions_to_kira_block_showcase = tuple(
-        {
-            "cut": _cut_name,
-            "family": f"topo{_term.family_id}",
-            "ordered graph sources": tuple(
-                _source + 1 for _source in _term.source_indices
-            ),
-            "indices": _term.integral_indices,
-        }
-        for _cut_name, _terms in cross_box_contributions_by_cut.items()
-        for _term in _terms
-    )
-    spenso_table(map_contributions_to_kira_block_showcase)
-    return (
-        cross_box_contributions_by_cut,
-        mathematica_reference_contributions_by_cut,
-    )
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    # 7. Solve the three reducible cut blocks with Kira
-
-    The inferred graph loop order is \((D_3,D_4,D_5,D_6)\). The retained FIRE
-    evidence uses \((D_3,D_4,D_6,D_5)\), so the cell above performs a visible,
-    checked permutation before assigning the historical family blocks:
-    `topo20`--`topo23` for cut `11`, `topo24`--`topo27` for `10`, and
-    `topo28`--`topo31` for `01`. Cut `00` requires all four loop propagators
-    and is evaluated directly rather than through a three-propagator child.
+    Each project is keyed by its cut and its retained graph propagators in the
+    native order \((D_3,D_4,D_5,D_6)\). Cut `00` requires all four loop
+    propagators and is evaluated directly rather than through a
+    three-propagator child.
 
     Every Kira project requests the fixed complete domain
     \(\{1,0,-1\}^3\). This keeps manifests stable while the editable numerator
@@ -2642,203 +1418,150 @@ def _(mo):
 
 @app.cell
 def _():
-    from itertools import product
     from pathlib import Path
+
+    from ludy_kira import Kira
+
+    return Kira, Path
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Build the Kira projects
+
+    `build_kira_projects` enumerates every three-propagator subset of the
+    inferred loop lines for each reducible cut. It preserves graph order,
+    derives the on-shell kinematics from the cut mask, enables mass
+    reconstruction only when the massive line is present, and requests the
+    complete target cube. The returned dictionary is keyed by
+    `(cut_name, graph_source_indices)`; no historical topology label is needed.
+    """)
+    return
+
+
+@app.function
+def build_kira_projects(*, k1, p1, p2, q, propagators, cutsets):
+    """Build native graph-order Kira projects for every reducible cut."""
+
+    from itertools import combinations, product
 
     from ludy_kira import (
         IntegralFamily,
         KinematicInvariant,
         Kinematics,
-        Kira,
         KiraProject,
         Propagator,
         ReductionBounds,
-        ReductionResult,
         ScalarProductRule,
     )
+    from symbolica import E, S
 
-    return (
-        IntegralFamily,
-        KinematicInvariant,
-        Kinematics,
-        Kira,
-        KiraProject,
-        Path,
-        Propagator,
-        ReductionBounds,
-        ReductionResult,
-        ScalarProductRule,
-        product,
+    ipp1p1, ipp1p2, ipp2p2 = S("ipp1p1", "ipp1p2", "ipp2p2")
+    all_propagators = tuple(
+        Propagator(momentum, mass_squared)
+        for momentum, mass_squared in propagators
     )
-
-
-@app.cell
-def _(
-    CROSS_BOX_FIRE_SOURCE_ORDERS,
-    CROSS_BOX_KIRA_FAMILY_BLOCKS,
-    E,
-    IntegralFamily,
-    KinematicInvariant,
-    Kinematics,
-    KiraProject,
-    Propagator,
-    ReductionBounds,
-    S,
-    ScalarProductRule,
-    product,
-):
-    def build_cross_box_kira_projects(*, k1, p1, p2, q, propagators):
-        """Build all fixed Kira projects for the three reducible cut blocks."""
-
-        ipp1p1, ipp1p2, ipp2p2 = S("ipp1p1", "ipp1p2", "ipp2p2")
-        all_propagators = tuple(
-            Propagator(momentum, mass_squared)
-            for momentum, mass_squared in propagators
+    loop_source_indices = [
+        index
+        for index, (momentum, _mass_squared) in enumerate(propagators)
+        if bool(momentum.contains(k1))
+    ]
+    family_source_sets = list(combinations(loop_source_indices, 3))
+    target_indices = tuple(product((1, 0, -1), repeat=3))
+    bounds = ReductionBounds(sectors=(7,), r=9, s=4, d=2)
+    projects = {}
+    for cut_name, cutset in cutsets.items():
+        required_sources = tuple(
+            source for source in loop_source_indices if cutset[source]
         )
-        preferred_indices = {
-            20: ((0, 0, 1), (1, 0, 1)),
-            21: ((0, 1, 1),),
-            22: ((0, 1, 0), (1, 1, 0)),
-            23: ((0, 1, 0), (1, 0, 1), (1, 1, 1)),
-            24: ((0, 0, 1), (0, 1, 1), (1, 0, 1)),
-            25: ((0, 1, 1), (1, 0, 1)),
-            26: ((0, 1, 0), (1, 0, 1), (1, 1, 0), (1, 1, 1)),
-            27: ((0, 1, 0), (1, 0, 1), (1, 1, 0), (1, 1, 1)),
-            28: ((0, 0, 1), (1, 0, 1), (1, 1, 0), (1, 1, 1)),
-            29: ((0, 1, 1), (1, 1, 0)),
-            30: ((0, 1, 0), (0, 1, 1), (1, 1, 0)),
-            31: ((0, 1, 0), (0, 1, 1), (1, 0, 1), (1, 1, 1)),
-        }
-        target_indices = tuple(product((1, 0, -1), repeat=3))
-        bounds = ReductionBounds(sectors=(7,), r=9, s=4, d=2)
-        projects = {}
-        for cut_name, family_ids in CROSS_BOX_KIRA_FAMILY_BLOCKS.items():
-            for family_id, source_indices in zip(
-                family_ids, CROSS_BOX_FIRE_SOURCE_ORDERS, strict=True
-            ):
-                has_internal_mass = 5 in source_indices
-                invariants = [KinematicInvariant(ipp1p2, 2)]
-                scalar_products = [
-                    ScalarProductRule(p1, p2, ipp1p2),
-                ]
-                if cut_name == "11":
-                    scalar_products[:0] = [
-                        ScalarProductRule(p1, p1, E("0")),
-                        ScalarProductRule(p2, p2, E("0")),
-                    ]
-                elif cut_name == "10":
-                    invariants.append(KinematicInvariant(ipp2p2, 2))
-                    scalar_products[:0] = [
-                        ScalarProductRule(p1, p1, E("0")),
-                        ScalarProductRule(p2, p2, ipp2p2),
-                    ]
-                elif cut_name == "01":
-                    invariants.insert(0, KinematicInvariant(ipp1p1, 2))
-                    scalar_products[:0] = [
-                        ScalarProductRule(p1, p1, ipp1p1),
-                        ScalarProductRule(p2, p2, E("0")),
-                    ]
-                else:
-                    raise ValueError(f"Unsupported Kira cut block {cut_name}")
-                if has_internal_mass:
-                    invariants.insert(
-                        0,
-                        KinematicInvariant(q**2, 2, kira_name="q2"),
-                    )
-
-                family = IntegralFamily(
-                    name=f"topo{family_id}",
-                    loop_momenta=(k1,),
-                    propagators=tuple(
-                        all_propagators[index] for index in source_indices
-                    ),
-                    top_level_sectors=(7,),
+        if len(required_sources) > 3:
+            continue
+        for source_indices in family_source_sets:
+            has_internal_mass = 5 in source_indices
+            invariants = [KinematicInvariant(ipp1p2, 2)]
+            scalar_products = [ScalarProductRule(p1, p2, ipp1p2)]
+            if cutset[0]:
+                p1_squared = E("0")
+            else:
+                p1_squared = ipp1p1
+                invariants.append(KinematicInvariant(ipp1p1, 2))
+            if cutset[1]:
+                p2_squared = E("0")
+            else:
+                p2_squared = ipp2p2
+                invariants.append(KinematicInvariant(ipp2p2, 2))
+            scalar_products[:0] = [
+                ScalarProductRule(p1, p1, p1_squared),
+                ScalarProductRule(p2, p2, p2_squared),
+            ]
+            if has_internal_mass:
+                invariants.insert(
+                    0,
+                    KinematicInvariant(q**2, 2, kira_name="q2"),
                 )
-                projects[family_id] = KiraProject(
-                    family=family,
-                    kinematics=Kinematics(
-                        incoming_momenta=(p1, p2),
-                        kinematic_invariants=tuple(invariants),
-                        scalar_products=tuple(scalar_products),
-                        symbol_to_replace_by_one=(
-                            q**2 if has_internal_mass else None
-                        ),
-                    ),
-                    targets=tuple(
-                        family(*indices) for indices in target_indices
-                    ),
-                    bounds=bounds,
-                    preferred_masters=tuple(
-                        family(*indices)
-                        for indices in preferred_indices[family_id]
-                    ),
-                    check_masters=True,
-                    reconstruct_mass=has_internal_mass,
-                )
-        return projects
 
-    return (build_cross_box_kira_projects,)
+            family_name = "cut" + cut_name + "_" + "_".join(
+                f"d{source + 1}" for source in source_indices
+            )
+            family = IntegralFamily(
+                name=family_name,
+                loop_momenta=(k1,),
+                propagators=tuple(
+                    all_propagators[index] for index in source_indices
+                ),
+                top_level_sectors=(7,),
+            )
+            project_key = (cut_name, source_indices)
+            cut_master_indices = tuple(
+                int(source in required_sources) for source in source_indices
+            )
+            preferred_masters = (
+                (family(*cut_master_indices),)
+                if set(required_sources) <= set(source_indices)
+                else ()
+            )
+            projects[project_key] = KiraProject(
+                family=family,
+                kinematics=Kinematics(
+                    incoming_momenta=(p1, p2),
+                    kinematic_invariants=tuple(invariants),
+                    scalar_products=tuple(scalar_products),
+                    symbol_to_replace_by_one=(
+                        q**2 if has_internal_mass else None
+                    ),
+                ),
+                targets=tuple(
+                    family(*indices) for indices in target_indices
+                ),
+                bounds=bounds,
+                preferred_masters=preferred_masters,
+                check_masters=False,
+                reconstruct_mass=has_internal_mass,
+            )
+    return projects
 
 
 @app.cell
-def _(
-    CROSS_BOX_FIRE_SOURCE_ORDERS,
-    CROSS_BOX_KIRA_FAMILY_BLOCKS,
-    E,
-    Path,
-    build_cross_box_kira_projects,
-    canonical_zero,
-    cross_box_denominators,
-    cross_box_k1,
-    cross_box_p1,
-    cross_box_p2,
-    cross_box_propagators,
-    cross_box_q,
-    mo,
-    square,
-    spenso_table,
-):
-    cross_box_kira_projects = build_cross_box_kira_projects(
-        k1=cross_box_k1,
-        p1=cross_box_p1,
-        p2=cross_box_p2,
-        q=cross_box_q,
-        propagators=cross_box_propagators,
+def _(Path, cutsets, k1, p1, p2, propagators, q, spenso_table):
+    kira_projects = build_kira_projects(
+        k1=k1,
+        p1=p1,
+        p2=p2,
+        q=q,
+        propagators=propagators,
+        cutsets=cutsets,
     )
-    cross_box_kira_workdir_root = (
+    kira_workdir_root = (
         Path(__file__).resolve().parents[1] / "runs"
     )
-    _source_by_family = {
-        _family_id: _source_indices
-        for _family_ids in CROSS_BOX_KIRA_FAMILY_BLOCKS.values()
-        for _family_id, _source_indices in zip(
-            _family_ids, CROSS_BOX_FIRE_SOURCE_ORDERS, strict=True
-        )
-    }
-    _cut_by_family = {
-        _family_id: _cut_name
-        for _cut_name, _family_ids in CROSS_BOX_KIRA_FAMILY_BLOCKS.items()
-        for _family_id in _family_ids
-    }
     _project_rows = []
-    for _family_id, _project in sorted(cross_box_kira_projects.items()):
-        _source_indices = _source_by_family[_family_id]
-        _actual_propagators = tuple(
-            square(_propagator.momentum) - _propagator.mass_squared
-            for _propagator in _project.family.propagators
-        )
-        _expected_propagators = tuple(
-            cross_box_denominators[_index] for _index in _source_indices
-        )
-        assert all(
-            canonical_zero(_actual - _expected) == E("0")
-            for _actual, _expected in zip(
-                _actual_propagators, _expected_propagators, strict=True
-            )
-        )
+    for (_cut_name, _source_indices), _project in sorted(
+        kira_projects.items()
+    ):
         _project_rows.append(
             {
-                "cut": _cut_by_family[_family_id],
+                "cut": _cut_name,
                 "family": _project.family.name,
                 "source propagators": tuple(
                     _index + 1 for _index in _source_indices
@@ -2846,14 +1569,29 @@ def _(
                 "targets": len(_project.targets),
                 "preferred masters": tuple(_project.preferred_masters),
                 "workdir": str(
-                    cross_box_kira_workdir_root
-                    / f"dy-cross-box-topo{_family_id}"
+                    kira_workdir_root
+                    / f"dy-cross-box-{_project.family.name}"
                 ),
             }
         )
-    cross_box_kira_project_showcase = tuple(_project_rows)
-    spenso_table(cross_box_kira_project_showcase)
-    return cross_box_kira_projects, cross_box_kira_workdir_root
+    spenso_table(_project_rows)
+    return kira_projects, kira_workdir_root
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Build the exact IBP input
+
+    The algebraic contributions still carry Spenso scalar products and global
+    graph sources. `apply_kinematic_rules` performs the explicit cut-dependent
+    replacement of external squares and \(p_1\cdot p_2\).
+    `contribution_to_kira_expression` then selects the project with the matching
+    `(cut, sources)` key and constructs its family atom from the integral-index
+    vector. `assemble_ibp_expression` applies both steps term by term and sums
+    the different families into one exact expression.
+    """)
+    return
 
 
 @app.cell
@@ -2873,79 +1611,45 @@ def _(Expression, Sequence):
 
 
 @app.cell
-def _(E, S, apply_kinematic_rules, canonical_zero, dot, minkd, mo, p, square, spenso_table):
-    _kinematic_p1, _kinematic_p2 = p(1, minkd), p(2, minkd)
-    _kinematic_invariant = S("kinematic_ipp1p2")
-    _kinematic_rules = (
-        (square(_kinematic_p1), E("0")),
-        (square(_kinematic_p2), E("0")),
-        (dot(_kinematic_p1, _kinematic_p2), _kinematic_invariant),
-    )
-    _kinematic_input = (
-        square(_kinematic_p1)
-        + square(_kinematic_p2)
-        + 2 * dot(_kinematic_p1, _kinematic_p2)
-    )
-    _kinematic_output = apply_kinematic_rules(
-        _kinematic_input, _kinematic_rules
-    )
-    _kinematic_residual = canonical_zero(
-        _kinematic_output - 2 * _kinematic_invariant
-    )
-    assert _kinematic_residual == E("0")
-    apply_kinematic_rules_showcase = {
-        "input": _kinematic_input,
-        "output": _kinematic_output,
-        "residual": _kinematic_residual,
-    }
-    spenso_table([apply_kinematic_rules_showcase])
-    return
-
-
-@app.cell
-def _(E, S, cross_box_p1, cross_box_p2, dot, square):
-    cross_box_ipp1p1, cross_box_ipp1p2, cross_box_ipp2p2 = S(
+def _(E, S, dot, p1, p2, square):
+    ipp1p1, ipp1p2, ipp2p2 = S(
         "ipp1p1", "ipp1p2", "ipp2p2"
     )
-    cross_box_ibp_kinematic_rules_by_cut = {
+    ibp_kinematic_rules_by_cut = {
         "11": (
-            (square(cross_box_p1), E("0")),
-            (square(cross_box_p2), E("0")),
-            (dot(cross_box_p1, cross_box_p2), cross_box_ipp1p2),
+            (square(p1), E("0")),
+            (square(p2), E("0")),
+            (dot(p1, p2), ipp1p2),
         ),
         "10": (
-            (square(cross_box_p1), E("0")),
-            (square(cross_box_p2), cross_box_ipp2p2),
-            (dot(cross_box_p1, cross_box_p2), cross_box_ipp1p2),
+            (square(p1), E("0")),
+            (square(p2), ipp2p2),
+            (dot(p1, p2), ipp1p2),
         ),
         "01": (
-            (square(cross_box_p1), cross_box_ipp1p1),
-            (square(cross_box_p2), E("0")),
-            (dot(cross_box_p1, cross_box_p2), cross_box_ipp1p2),
+            (square(p1), ipp1p1),
+            (square(p2), E("0")),
+            (dot(p1, p2), ipp1p2),
         ),
         "00": (
-            (square(cross_box_p1), cross_box_ipp1p1),
-            (square(cross_box_p2), cross_box_ipp2p2),
-            (dot(cross_box_p1, cross_box_p2), cross_box_ipp1p2),
+            (square(p1), ipp1p1),
+            (square(p2), ipp2p2),
+            (dot(p1, p2), ipp1p2),
         ),
     }
-    return (
-        cross_box_ibp_kinematic_rules_by_cut,
-        cross_box_ipp1p1,
-        cross_box_ipp1p2,
-        cross_box_ipp2p2,
-    )
+    return ibp_kinematic_rules_by_cut, ipp1p1, ipp1p2, ipp2p2
 
 
 @app.cell
 def _(IntegralContribution):
     def contribution_to_kira_expression(
         contribution: IntegralContribution,
+        cut_name: str,
         projects,
     ):
         """Turn a family/index contribution into an exact Kira integral atom."""
 
-        family = projects[contribution.family_id].family
+        family = projects[(cut_name, contribution.source_indices)].family
         target = family(*contribution.integral_indices)
         return contribution.coefficient * target
 
@@ -2953,49 +1657,23 @@ def _(IntegralContribution):
 
 
 @app.cell
-def _(
-    E,
-    canonical_zero,
-    contribution_to_kira_expression,
-    cross_box_contributions_by_cut,
-    cross_box_kira_projects,
-    mo,
-    spenso_table,
-):
-    contribution_to_kira_expression_showcase = tuple(
-        {
-            "cut": _cut_name,
-            "family": f"topo{_contribution.family_id}",
-            "indices": _contribution.integral_indices,
-            "expression": contribution_to_kira_expression(
-                _contribution, cross_box_kira_projects
-            ),
-        }
-        for _cut_name, _contributions in cross_box_contributions_by_cut.items()
-        for _contribution in _contributions
-    )
-    assert all(
-        canonical_zero(
-            contribution_to_kira_expression(
-                _contribution, cross_box_kira_projects
-            )
-        ) != E("0")
-        for _contributions in cross_box_contributions_by_cut.values()
-        for _contribution in _contributions
-    )
-    spenso_table(contribution_to_kira_expression_showcase)
-    return
-
-
-@app.cell
 def _(E, apply_kinematic_rules, contribution_to_kira_expression):
-    def assemble_ibp_expression(contributions, projects, kinematic_rules):
+    def assemble_ibp_expression(
+        contributions,
+        cut_name,
+        projects,
+        kinematic_rules,
+    ):
         """Assemble the on-shell multi-family expression submitted to IBP rules."""
 
         return sum(
             (
                 apply_kinematic_rules(
-                    contribution_to_kira_expression(contribution, projects),
+                    contribution_to_kira_expression(
+                        contribution,
+                        cut_name,
+                        projects,
+                    ),
                     kinematic_rules,
                 )
                 for contribution in contributions
@@ -3009,45 +1687,45 @@ def _(E, apply_kinematic_rules, contribution_to_kira_expression):
 @app.cell
 def _(
     assemble_ibp_expression,
-    cross_box_contributions_by_cut,
-    cross_box_ibp_kinematic_rules_by_cut,
-    cross_box_kira_projects,
-    mathematica_reference_contributions_by_cut,
-    mo,
+    contributions_by_cut,
+    ibp_kinematic_rules_by_cut,
+    kira_projects,
     spenso_table,
 ):
-    cross_box_ibp_inputs_by_cut = {
+    ibp_inputs_by_cut = {
         _cut_name: assemble_ibp_expression(
             _contributions,
-            cross_box_kira_projects,
-            cross_box_ibp_kinematic_rules_by_cut[_cut_name],
+            _cut_name,
+            kira_projects,
+            ibp_kinematic_rules_by_cut[_cut_name],
         )
-        for _cut_name, _contributions in cross_box_contributions_by_cut.items()
+        for _cut_name, _contributions in contributions_by_cut.items()
     }
-    mathematica_reference_ibp_inputs_by_cut = {
-        _cut_name: assemble_ibp_expression(
-            _contributions,
-            cross_box_kira_projects,
-            cross_box_ibp_kinematic_rules_by_cut[_cut_name],
-        )
-        for _cut_name, _contributions in (
-            mathematica_reference_contributions_by_cut.items()
-        )
-    }
-    assemble_ibp_expression_showcase = tuple(
-        {
-            "cut": _cut_name,
-            "editable numerator IBP input": cross_box_ibp_inputs_by_cut[
-                _cut_name
-            ],
-            "scalar validation IBP input": (
-                mathematica_reference_ibp_inputs_by_cut[_cut_name]
-            ),
-        }
-        for _cut_name in cross_box_contributions_by_cut
+    spenso_table(
+        [
+            {
+                "cut": _cut_name,
+                "editable-numerator IBP input": _expression,
+            }
+            for _cut_name, _expression in ibp_inputs_by_cut.items()
+        ]
     )
-    spenso_table(assemble_ibp_expression_showcase)
-    return cross_box_ibp_inputs_by_cut, mathematica_reference_ibp_inputs_by_cut
+    return (ibp_inputs_by_cut,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Run or resume the Kira projects
+
+    `run_kira_projects` checks the runtime once, processes project keys in a
+    deterministic order, and gives every family its own manifest-backed work
+    directory. A matching complete result is resumed; changed project inputs
+    are rejected by `ludy-kira` instead of being silently reused. The helper
+    requires complete rule sets and returns both the doctor report and the
+    reduction indexed by the original project key.
+    """)
+    return
 
 
 @app.function
@@ -3057,9 +1735,9 @@ def run_kira_projects(kira, projects, workdir_root):
     doctor = kira.doctor()
     doctor.raise_for_errors()
     reductions = {}
-    for family_id in sorted(projects):
-        project = projects[family_id]
-        reductions[family_id] = kira.reduce(
+    for project_key in sorted(projects):
+        project = projects[project_key]
+        reductions[project_key] = kira.reduce(
             family=project.family,
             kinematics=project.kinematics,
             targets=project.targets,
@@ -3067,7 +1745,7 @@ def run_kira_projects(kira, projects, workdir_root):
             preferred_masters=project.preferred_masters,
             check_masters=project.check_masters,
             reconstruct_mass=project.reconstruct_mass,
-            workdir=workdir_root / f"dy-cross-box-topo{family_id}",
+            workdir=workdir_root / f"dy-cross-box-{project.family.name}",
             parallel="physical",
             resume=True,
             require_complete=True,
@@ -3077,77 +1755,34 @@ def run_kira_projects(kira, projects, workdir_root):
 
 
 @app.cell
-def _(Path, cross_box_kira_projects, mo, spenso_table):
-    class _ShowcaseDoctor:
-        version = "showcase"
-
-        def raise_for_errors(self):
-            return None
-
-
-    class _ShowcaseKira:
-        def __init__(self):
-            self.calls = []
-
-        def doctor(self):
-            return _ShowcaseDoctor()
-
-        def reduce(self, **arguments):
-            self.calls.append(arguments)
-            return arguments["family"].name
-
-
-    _showcase_kira = _ShowcaseKira()
-    _showcase_doctor, _showcase_reductions = run_kira_projects(
-        _showcase_kira,
-        cross_box_kira_projects,
-        Path("/tmp/ludy-kira-showcase"),
-    )
-    assert _showcase_doctor.version == "showcase"
-    assert tuple(_showcase_reductions) == tuple(range(20, 32))
-    assert all(_call["resume"] is True for _call in _showcase_kira.calls)
-    run_kira_projects_showcase = tuple(
-        {
-            "family": _call["family"].name,
-            "targets": len(_call["targets"]),
-            "resume": _call["resume"],
-            "workdir": str(_call["workdir"]),
-        }
-        for _call in _showcase_kira.calls
-    )
-    spenso_table(run_kira_projects_showcase)
-    return
-
-
-@app.cell
-def _(Kira, cross_box_kira_projects, cross_box_kira_workdir_root):
-    cross_box_kira_doctor, cross_box_kira_reductions = run_kira_projects(
+def _(Kira, kira_projects, kira_workdir_root):
+    kira_doctor, kira_reductions = run_kira_projects(
         Kira(),
-        cross_box_kira_projects,
-        cross_box_kira_workdir_root,
+        kira_projects,
+        kira_workdir_root,
     )
-    return cross_box_kira_doctor, cross_box_kira_reductions
+    return kira_doctor, kira_reductions
 
 
 @app.cell(hide_code=True)
-def _(cross_box_kira_doctor, cross_box_kira_reductions, mo, spenso_table):
+def _(kira_doctor, kira_reductions, mo, spenso_table):
     _kira_status = mo.vstack(
         [
             mo.callout(
-                f"Kira `{cross_box_kira_doctor.version}` completed or resumed "
+                f"Kira `{kira_doctor.version}` completed or resumed "
                 "all twelve families with complete reductions.",
                 kind="success",
             ),
             spenso_table(
                 [
                     {
-                        "family": f"topo{_family_id}",
+                        "family": _result.family_name,
                         "targets": len(_result.requested_targets),
                         "masters": len(_result.masters),
                         "zeros": len(_result.zero_integrals),
                     }
-                    for _family_id, _result in sorted(
-                        cross_box_kira_reductions.items()
+                    for _project_key, _result in sorted(
+                        kira_reductions.items()
                     )
                 ]
             ),
@@ -3157,10 +1792,25 @@ def _(cross_box_kira_doctor, cross_box_kira_reductions, mo, spenso_table):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Apply the reduction rules without losing provenance
+
+    `apply_ibp_reductions` reconstructs each contribution's native project key,
+    requires that project's complete result, and looks up the exact requested
+    integral. It applies the cut kinematics to the coefficient but keeps the
+    original target beside its reduced right-hand side in an
+    `IBPReductionTerm`, making every term of the final sum inspectable.
+    """)
+    return
+
+
 @app.cell
 def _(IBPReductionTerm, apply_kinematic_rules):
     def apply_ibp_reductions(
         contributions,
+        cut_name,
         projects,
         reductions,
         kinematic_rules,
@@ -3169,8 +1819,9 @@ def _(IBPReductionTerm, apply_kinematic_rules):
 
         terms = []
         for contribution in contributions:
-            project = projects[contribution.family_id]
-            result = reductions[contribution.family_id].require_complete()
+            project_key = (cut_name, contribution.source_indices)
+            project = projects[project_key]
+            result = reductions[project_key].require_complete()
             target = project.family(*contribution.integral_indices)
             if target not in result.rules:
                 raise ValueError(
@@ -3182,13 +1833,13 @@ def _(IBPReductionTerm, apply_kinematic_rules):
             )
             terms.append(
                 IBPReductionTerm(
-                    family_id=contribution.family_id,
+                    project_key=project_key,
                     coefficient=coefficient,
                     target=target,
                     reduced_integral=result.rules[target],
                 )
             )
-        return tuple(terms)
+        return terms
 
     return (apply_ibp_reductions,)
 
@@ -3196,183 +1847,62 @@ def _(IBPReductionTerm, apply_kinematic_rules):
 @app.cell
 def _(
     E,
-    Path,
-    ReductionResult,
-    S,
     apply_ibp_reductions,
-    canonical_zero,
-    cross_box_ibp_kinematic_rules_by_cut,
-    cross_box_kira_projects,
-    mathematica_reference_contributions_by_cut,
-    mo,
-    spenso_table,
+    contributions_by_cut,
+    ibp_kinematic_rules_by_cut,
+    kira_projects,
+    kira_reductions,
+    normalize_rational,
 ):
-    _showcase_contribution = mathematica_reference_contributions_by_cut["11"][0]
-    _showcase_project = cross_box_kira_projects[
-        _showcase_contribution.family_id
-    ]
-    _showcase_target = _showcase_project.family(
-        *_showcase_contribution.integral_indices
-    )
-    _showcase_master = S("ibp_showcase_master")
-    _showcase_result = ReductionResult(
-        family_name=_showcase_project.family.name,
-        arity=3,
-        requested_targets=(_showcase_target,),
-        rules={_showcase_target: _showcase_master},
-        masters=(),
-        workdir=Path("/tmp/ludy-ibp-showcase"),
-    )
-    _showcase_terms = apply_ibp_reductions(
-        (_showcase_contribution,),
-        {_showcase_contribution.family_id: _showcase_project},
-        {_showcase_contribution.family_id: _showcase_result},
-        cross_box_ibp_kinematic_rules_by_cut["11"],
-    )
-    _showcase_term = _showcase_terms[0]
-    _showcase_residual = canonical_zero(
-        _showcase_term.reduced_expression()
-        - _showcase_term.coefficient * _showcase_master
-    )
-    assert _showcase_residual == E("0")
-    apply_ibp_reductions_showcase = {
-        "target": _showcase_term.target,
-        "reduced": _showcase_term.reduced_expression(),
-        "residual": _showcase_residual,
-    }
-    spenso_table([apply_ibp_reductions_showcase])
-    return
-
-
-@app.cell
-def _(
-    E,
-    apply_ibp_reductions,
-    canonical_zero,
-    cross_box_contributions_by_cut,
-    cross_box_ibp_inputs_by_cut,
-    cross_box_ibp_kinematic_rules_by_cut,
-    cross_box_kira_projects,
-    cross_box_kira_reductions,
-    mathematica_reference_contributions_by_cut,
-    mathematica_reference_ibp_inputs_by_cut,
-):
-    cross_box_ibp_terms_by_cut = {
+    ibp_terms_by_cut = {
         _cut_name: apply_ibp_reductions(
             _contributions,
-            cross_box_kira_projects,
-            cross_box_kira_reductions,
-            cross_box_ibp_kinematic_rules_by_cut[_cut_name],
+            _cut_name,
+            kira_projects,
+            kira_reductions,
+            ibp_kinematic_rules_by_cut[_cut_name],
         )
-        for _cut_name, _contributions in cross_box_contributions_by_cut.items()
+        for _cut_name, _contributions in contributions_by_cut.items()
     }
-    mathematica_reference_ibp_terms_by_cut = {
-        _cut_name: apply_ibp_reductions(
-            _contributions,
-            cross_box_kira_projects,
-            cross_box_kira_reductions,
-            cross_box_ibp_kinematic_rules_by_cut[_cut_name],
-        )
-        for _cut_name, _contributions in (
-            mathematica_reference_contributions_by_cut.items()
-        )
-    }
-    for _cut_name, _terms in cross_box_ibp_terms_by_cut.items():
-        assert canonical_zero(
-            sum(
-                (_term.input_expression() for _term in _terms),
-                E("0"),
-            )
-            - cross_box_ibp_inputs_by_cut[_cut_name]
-        ) == E("0")
-    for _cut_name, _terms in mathematica_reference_ibp_terms_by_cut.items():
-        assert canonical_zero(
-            sum(
-                (_term.input_expression() for _term in _terms),
-                E("0"),
-            )
-            - mathematica_reference_ibp_inputs_by_cut[_cut_name]
-        ) == E("0")
-    cross_box_master_expressions_by_cut = {
-        _cut_name: canonical_zero(
+    master_expressions_by_cut = {
+        _cut_name: normalize_rational(
             sum(
                 (_term.reduced_expression() for _term in _terms),
                 E("0"),
             )
         )
-        for _cut_name, _terms in cross_box_ibp_terms_by_cut.items()
+        for _cut_name, _terms in ibp_terms_by_cut.items()
     }
-    mathematica_reference_master_expressions_by_cut = {
-        _cut_name: canonical_zero(
-            sum(
-                (_term.reduced_expression() for _term in _terms),
-                E("0"),
-            )
-        )
-        for _cut_name, _terms in mathematica_reference_ibp_terms_by_cut.items()
-    }
-    return (
-        cross_box_ibp_terms_by_cut,
-        cross_box_master_expressions_by_cut,
-        mathematica_reference_master_expressions_by_cut,
-    )
-
-
-@app.cell(hide_code=True)
-def _(cross_box_ibp_terms_by_cut, cross_box_master_expressions_by_cut, mo, spenso_table):
-    _ibp_output = mo.vstack(
-        [
-            spenso_table(
-                [
-                    {
-                        "cut": _cut_name,
-                        "family": f"topo{_term.family_id}",
-                        "coefficient": _term.coefficient,
-                        "target": _term.target,
-                        "Kira right-hand side": _term.reduced_integral,
-                    }
-                    for _cut_name, _terms in cross_box_ibp_terms_by_cut.items()
-                    for _term in _terms
-                ]
-            ),
-            spenso_table(
-                [
-                    {
-                        "cut": _cut_name,
-                        "combined editable-numerator master expression": _expression,
-                    }
-                    for _cut_name, _expression in (
-                        cross_box_master_expressions_by_cut.items()
-                    )
-                ]
-            ),
-        ]
-    )
-    _ibp_output
-    return
+    return ibp_terms_by_cut, master_expressions_by_cut
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 8. Apply the cut after IBP
+    ## 6. Apply the cut after IBP
 
     Each six-line mask is projected onto the automatically discovered loop
     lines. The cut is then applied to the reduced masters in global graph
     space: a family or master that lacks any required positive exponent is set
     to zero. Cuts `11`, `10`, and `01` have three-propagator children. Cut `00`
     requires all four loop lines and therefore has a separate direct branch.
+
+    `cut_filter_masters` converts each local master-index vector back to a map
+    from global graph source to exponent. A master survives only when every
+    source required by the full cut mask has positive power. The function
+    returns the filtered expression together with the kept and dropped masters,
+    retaining their project keys for the analytic step.
     """)
     return
 
 
 @app.cell
-def _(E, Replacement, canonical_zero):
+def _(E, Replacement, normalize_rational):
     def cut_filter_masters(
         expression,
         *,
-        masters_by_family,
-        family_sources,
+        masters_by_project,
+        sources_by_project,
         required_source_indices,
     ):
         """Drop masters incompatible with a cut in global propagator space."""
@@ -3380,199 +1910,92 @@ def _(E, Replacement, canonical_zero):
         kept = []
         dropped = []
         replacements = []
-        for family_id, masters in sorted(masters_by_family.items()):
-            source_indices = tuple(family_sources[family_id])
+        for project_key, masters in sorted(masters_by_project.items()):
+            source_indices = sources_by_project[project_key]
             for master in masters:
                 powers = tuple(int(argument) for argument in master)
+                powers_by_source = dict(
+                    zip(source_indices, powers, strict=True)
+                )
                 survives = all(
-                    source_index in source_indices
-                    and powers[source_indices.index(source_index)] > 0
+                    powers_by_source.get(source_index, 0) > 0
                     for source_index in required_source_indices
                 )
                 if survives:
-                    kept.append(master)
+                    kept.append((project_key, master))
                 else:
-                    dropped.append(master)
+                    dropped.append((project_key, master))
                     replacements.append(Replacement(master, E("0")))
         filtered = (
             expression.replace_multiple(replacements, repeat=False)
             if replacements
             else expression
         )
-        return canonical_zero(filtered), tuple(kept), tuple(dropped)
+        return normalize_rational(filtered), kept, dropped
 
     return (cut_filter_masters,)
 
 
 @app.cell
 def _(
-    CROSS_BOX_FIRE_SOURCE_ORDERS,
-    E,
-    canonical_zero,
-    cross_box_kira_projects,
+    contributions_by_cut,
     cut_filter_masters,
-    mo,
-    spenso_table,
+    cutsets,
+    kira_reductions,
+    loop_propagator_indices,
+    master_expressions_by_cut,
 ):
-    _showcase_sources = dict(
-        zip((20, 21, 22, 23), CROSS_BOX_FIRE_SOURCE_ORDERS, strict=True)
-    )
-    _showcase_topo20 = cross_box_kira_projects[20].family
-    _showcase_topo22 = cross_box_kira_projects[22].family
-    _showcase_expression = (
-        _showcase_topo20(1, 0, 1)
-        + _showcase_topo20(0, 0, 1)
-        + _showcase_topo22(1, 1, 0)
-    )
-    _showcase_filtered, _showcase_kept, _showcase_dropped = cut_filter_masters(
-        _showcase_expression,
-        masters_by_family={
-            20: (_showcase_topo20(1, 0, 1), _showcase_topo20(0, 0, 1)),
-            22: (_showcase_topo22(1, 1, 0),),
-        },
-        family_sources=_showcase_sources,
-        required_source_indices=(2, 5),
-    )
-    _showcase_residual = canonical_zero(
-        _showcase_filtered
-        - _showcase_topo20(1, 0, 1)
-        - _showcase_topo22(1, 1, 0)
-    )
-    assert _showcase_residual == E("0")
-    cut_filter_masters_showcase = {
-        "kept": tuple(_showcase_kept),
-        "dropped": tuple(_showcase_dropped),
-        "residual": _showcase_residual,
-    }
-    spenso_table([cut_filter_masters_showcase])
-    return
-
-
-@app.cell
-def _(
-    CROSS_BOX_FIRE_SOURCE_ORDERS,
-    CROSS_BOX_KIRA_FAMILY_BLOCKS,
-    cross_box_cutsets,
-    cross_box_kira_reductions,
-    cross_box_loop_propagator_indices,
-    cross_box_master_expressions_by_cut,
-    cut_filter_masters,
-    mathematica_reference_master_expressions_by_cut,
-):
-    cross_box_required_loop_sources_by_cut = {
+    required_loop_sources_by_cut = {
         _cut_name: tuple(
             _source
-            for _source in cross_box_loop_propagator_indices
+            for _source in loop_propagator_indices
             if _mask[_source]
         )
-        for _cut_name, _mask in cross_box_cutsets.items()
+        for _cut_name, _mask in cutsets.items()
     }
-    _family_sources = {
-        _family_id: _source_indices
-        for _family_ids in CROSS_BOX_KIRA_FAMILY_BLOCKS.values()
-        for _family_id, _source_indices in zip(
-            _family_ids, CROSS_BOX_FIRE_SOURCE_ORDERS, strict=True
-        )
+    _sources_by_project = {
+        _project_key: _project_key[1]
+        for _project_key in kira_reductions
     }
-    cross_box_cut_expressions_by_cut = {}
-    cross_box_cut_kept_masters_by_cut = {}
-    cross_box_cut_dropped_masters_by_cut = {}
-    mathematica_reference_cut_expressions_by_cut = {}
-    for _cut_name, _family_ids in CROSS_BOX_KIRA_FAMILY_BLOCKS.items():
-        _masters_by_family = {
-            _family_id: cross_box_kira_reductions[_family_id].masters
-            for _family_id in _family_ids
+    cut_expressions_by_cut = {}
+    cut_kept_masters_by_cut = {}
+    cut_dropped_masters_by_cut = {}
+    for _cut_name in contributions_by_cut:
+        _masters_by_project = {
+            _project_key: _result.masters
+            for _project_key, _result in kira_reductions.items()
+            if _project_key[0] == _cut_name
         }
         (
-            cross_box_cut_expressions_by_cut[_cut_name],
-            cross_box_cut_kept_masters_by_cut[_cut_name],
-            cross_box_cut_dropped_masters_by_cut[_cut_name],
+            cut_expressions_by_cut[_cut_name],
+            cut_kept_masters_by_cut[_cut_name],
+            cut_dropped_masters_by_cut[_cut_name],
         ) = cut_filter_masters(
-            cross_box_master_expressions_by_cut[_cut_name],
-            masters_by_family=_masters_by_family,
-            family_sources=_family_sources,
+            master_expressions_by_cut[_cut_name],
+            masters_by_project=_masters_by_project,
+            sources_by_project=_sources_by_project,
             required_source_indices=(
-                cross_box_required_loop_sources_by_cut[_cut_name]
+                required_loop_sources_by_cut[_cut_name]
             ),
         )
-        (
-            mathematica_reference_cut_expressions_by_cut[_cut_name],
-            _reference_kept,
-            _reference_dropped,
-        ) = cut_filter_masters(
-            mathematica_reference_master_expressions_by_cut[_cut_name],
-            masters_by_family=_masters_by_family,
-            family_sources=_family_sources,
-            required_source_indices=(
-                cross_box_required_loop_sources_by_cut[_cut_name]
-            ),
-        )
-
-    _expected_kept = {
-        "11": {"topo20(1,0,1)", "topo22(1,1,0)"},
-        "10": {"topo26(1,1,1)"},
-        "01": {"topo28(1,1,1)"},
-    }
-    assert {
-        _cut_name: {
-            _master.format_plain()
-            for _master in cross_box_cut_kept_masters_by_cut[_cut_name]
-        }
-        for _cut_name in CROSS_BOX_KIRA_FAMILY_BLOCKS
-    } == _expected_kept
-    assert cross_box_required_loop_sources_by_cut["00"] == (2, 3, 4, 5)
     return (
-        cross_box_cut_dropped_masters_by_cut,
-        cross_box_cut_expressions_by_cut,
-        cross_box_cut_kept_masters_by_cut,
-        cross_box_required_loop_sources_by_cut,
-        mathematica_reference_cut_expressions_by_cut,
+        cut_expressions_by_cut,
+        cut_kept_masters_by_cut,
+        required_loop_sources_by_cut,
     )
 
 
 @app.cell(hide_code=True)
-def _(
-    cross_box_cut_dropped_masters_by_cut,
-    cross_box_cut_expressions_by_cut,
-    cross_box_cut_kept_masters_by_cut,
-    cross_box_required_loop_sources_by_cut,
-    mo,
-    spenso_table,
-):
-    spenso_table(
-        [
-            *(
-                {
-                    "cut": _cut_name,
-                    "required graph propagators": tuple(
-                        _source + 1
-                        for _source in cross_box_required_loop_sources_by_cut[
-                            _cut_name
-                        ]
-                    ),
-                    "kept masters": tuple(
-                        cross_box_cut_kept_masters_by_cut[_cut_name]
-                    ),
-                    "dropped masters": tuple(
-                        cross_box_cut_dropped_masters_by_cut[_cut_name]
-                    ),
-                    "cut-filtered expression": cross_box_cut_expressions_by_cut[
-                        _cut_name
-                    ],
-                    "evaluation": "Kira IBP then cut filter",
-                }
-                for _cut_name in ("11", "10", "01")
-            ),
-            {
-                "cut": "00",
-                "required graph propagators": (3, 4, 5, 6),
-                "kept masters": (),
-                "dropped masters": (),
-                "cut-filtered expression": "direct four-line cut",
-                "evaluation": "no three-propagator IBP child",
-            },
-        ]
-    )
+def _(mo):
+    mo.md(r"""
+    ### Identify surviving masters
+
+    `identify_masters` is a deliberately small boundary: it replaces only the
+    master atoms explicitly paired with analytic values. The replacement is
+    simultaneous and non-repeating, so evaluating one master cannot trigger an
+    accidental second rule. Keeping this step separate makes the IBP result
+    inspectable before any closed-form formula is inserted.
+    """)
     return
 
 
@@ -3581,9 +2004,9 @@ def _(Replacement):
     def identify_masters(expression, identifications):
         """Apply explicit analytic identifications to surviving masters."""
 
-        replacements = tuple(
+        replacements = [
             Replacement(master, value) for master, value in identifications
-        )
+        ]
         return (
             expression.replace_multiple(replacements, repeat=False)
             if replacements
@@ -3593,35 +2016,14 @@ def _(Replacement):
     return (identify_masters,)
 
 
-@app.cell
-def _(E, S, canonical_zero, identify_masters, mo, spenso_table):
-    _identify_m1, _identify_m2, _identify_b = S(
-        "identify_M1", "identify_M2", "identify_B"
-    )
-    _identify_result = identify_masters(
-        _identify_m1 + 2 * _identify_m2,
-        ((_identify_m1, _identify_b), (_identify_m2, _identify_b)),
-    )
-    _identify_residual = canonical_zero(_identify_result - 3 * _identify_b)
-    assert _identify_residual == E("0")
-    identify_masters_showcase = {
-        "input": "M1 + 2*M2",
-        "identification": "M1 = M2 = B",
-        "output": _identify_result,
-        "residual": _identify_residual,
-    }
-    spenso_table([identify_masters_showcase])
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 9. Evaluate the surviving cut masters
+    ## 7. Evaluate the surviving cut masters
 
-    The master names are useful for inspecting the IBP output, but the
-    Mathematica calculation continues one step further. Cut `11` contains the
-    massive cut bubble
+    The master names are useful for inspecting the IBP output, but the cut
+    result requires their analytic values. Cut `11` contains the massive cut
+    bubble
 
     \[
     B_{\mathrm{cutm}}(s,m^2)=-\frac{(\mu^2e^{\gamma_E})^\epsilon}
@@ -3638,383 +2040,1000 @@ def _(mo):
     \left[p_i^2(s-q^2)q^2\right]^{(d-4)/2}.
     \]
 
-    We keep every symbolic master identification visible, then substitute its
-    analytic value into both the editable-numerator and scalar-validation
-    paths. The fully cut `00` sector remains a direct four-line calculation.
+    We keep every master identification visible and substitute the analytic
+    values imported from `masters.py`. The fully cut `00` sector remains a
+    direct four-line calculation.
     """)
-    return
-
-
-@app.cell
-def _(E, Expression, S):
-    def bcutm(
-        momentum_squared: Expression,
-        mass_squared: Expression,
-        *,
-        dimension: Expression,
-        epsilon: Expression,
-        mu_squared: Expression,
-        euler_gamma: Expression,
-    ) -> Expression:
-        """Return the massive cut-bubble master used by the DY notebook."""
-
-        _argument = S("__bcutm_gamma_argument")
-        gamma_factor = E("gamma(__bcutm_gamma_argument)").replace(
-            _argument,
-            (dimension - 1) / 2,
-        )
-        return -(
-            (mu_squared * euler_gamma.exp()) ** epsilon
-            / (
-                8
-                * E("pi").sqrt()
-                * gamma_factor
-                * momentum_squared.sqrt()
-            )
-            * (
-                (momentum_squared - mass_squared)
-                / (2 * momentum_squared.sqrt())
-            )
-            ** (dimension - 3)
-        )
-
-    return (bcutm,)
-
-
-@app.cell
-def _(E, ParseMode, S, bcutm, canonical_zero, mo, spenso_table):
-    _bubble_s, _bubble_m2, _bubble_ep, _bubble_mu2 = S(
-        "bubble_s", "bubble_m2", "bubble_ep", "bubble_mu2"
-    )
-    _bubble_euler_gamma = E("EulerGamma", ParseMode.Mathematica)
-    _bubble_at_three_dimensions = bcutm(
-        _bubble_s,
-        _bubble_m2,
-        dimension=E("3"),
-        epsilon=_bubble_ep,
-        mu_squared=_bubble_mu2,
-        euler_gamma=_bubble_euler_gamma,
-    )
-    _bubble_expected = -(
-        (_bubble_mu2 * _bubble_euler_gamma.exp()) ** _bubble_ep
-        / (8 * E("pi").sqrt() * _bubble_s.sqrt())
-    )
-    _bubble_residual = canonical_zero(
-        _bubble_at_three_dimensions - _bubble_expected
-    )
-    assert _bubble_residual == E("0")
-    bcutm_showcase = {
-        "specialization": "d = 3",
-        "value": _bubble_at_three_dimensions,
-        "expected": _bubble_expected,
-        "residual": _bubble_residual,
-    }
-    spenso_table([bcutm_showcase])
-    return
-
-
-@app.cell
-def _(E, Expression, S):
-    def tcutm(
-        external_virtuality: Expression,
-        momentum_squared: Expression,
-        mass_squared: Expression,
-        *,
-        dimension: Expression,
-        epsilon: Expression,
-        mu_squared: Expression,
-        euler_gamma: Expression,
-    ) -> Expression:
-        """Return the massive cut-triangle master used by the DY notebook."""
-
-        _argument = S("__tcutm_gamma_argument")
-        gamma_factor = E("gamma(__tcutm_gamma_argument)").replace(
-            _argument,
-            (dimension - 2) / 2,
-        )
-        return (
-            (mu_squared * euler_gamma.exp()) ** epsilon
-            / (4 * gamma_factor * momentum_squared ** (dimension - 3))
-            * (
-                external_virtuality
-                * (momentum_squared - mass_squared)
-                * mass_squared
-            )
-            ** ((dimension - 4) / 2)
-        )
-
-    return (tcutm,)
-
-
-@app.cell
-def _(E, ParseMode, S, canonical_zero, mo, tcutm, spenso_table):
-    _triangle_v, _triangle_s, _triangle_m2 = S(
-        "triangle_v", "triangle_s", "triangle_m2"
-    )
-    _triangle_ep, _triangle_mu2 = S("triangle_ep", "triangle_mu2")
-    _triangle_euler_gamma = E("EulerGamma", ParseMode.Mathematica)
-    _triangle_at_four_dimensions = tcutm(
-        _triangle_v,
-        _triangle_s,
-        _triangle_m2,
-        dimension=E("4"),
-        epsilon=_triangle_ep,
-        mu_squared=_triangle_mu2,
-        euler_gamma=_triangle_euler_gamma,
-    )
-    _triangle_expected = (
-        (_triangle_mu2 * _triangle_euler_gamma.exp()) ** _triangle_ep
-        / (4 * _triangle_s)
-    )
-    _triangle_residual = canonical_zero(
-        _triangle_at_four_dimensions - _triangle_expected
-    )
-    assert _triangle_residual == E("0")
-    tcutm_showcase = {
-        "specialization": "d = 4",
-        "value": _triangle_at_four_dimensions,
-        "expected": _triangle_expected,
-        "residual": _triangle_residual,
-    }
-    spenso_table([tcutm_showcase])
-    return
-
-
-@app.cell
-def _(E, ParseMode, S):
-    cross_box_dimension = S("d")
-    cross_box_epsilon = S("ep")
-    cross_box_mu_squared = S("musq")
-    cross_box_euler_gamma = E("EulerGamma", ParseMode.Mathematica)
-    return (
-        cross_box_dimension,
-        cross_box_epsilon,
-        cross_box_euler_gamma,
-        cross_box_mu_squared,
-    )
-
-
-@app.cell
-def _(
-    S,
-    canonical_zero,
-    cross_box_cut_dropped_masters_by_cut,
-    cross_box_cut_expressions_by_cut,
-    cross_box_cut_kept_masters_by_cut,
-    cross_box_ipp1p1,
-    cross_box_ipp1p2,
-    cross_box_ipp2p2,
-    cross_box_kira_projects,
-    cross_box_q,
-    identify_masters,
-    mathematica_reference_cut_expressions_by_cut,
-):
-    cross_box_cut_expression = cross_box_cut_expressions_by_cut["11"]
-    cross_box_cut_kept_masters = cross_box_cut_kept_masters_by_cut["11"]
-    cross_box_cut_dropped_masters = cross_box_cut_dropped_masters_by_cut["11"]
-    mathematica_reference_cut_expression = (
-        mathematica_reference_cut_expressions_by_cut["11"]
-    )
-    cross_box_cut_master_symbols_by_cut = {
-        "11": S("Bcutm")(2 * cross_box_ipp1p2, cross_box_q**2),
-        "10": S("Tcutm")(
-            cross_box_ipp2p2,
-            2 * cross_box_ipp1p2,
-            cross_box_q**2,
-        ),
-        "01": S("Tcutm")(
-            cross_box_ipp1p1,
-            2 * cross_box_ipp1p2,
-            cross_box_q**2,
-        ),
-    }
-    cross_box_master_identifications_by_cut = {
-        "11": (
-            (
-                cross_box_kira_projects[20].family(1, 0, 1),
-                cross_box_cut_master_symbols_by_cut["11"],
-            ),
-            (
-                cross_box_kira_projects[22].family(1, 1, 0),
-                cross_box_cut_master_symbols_by_cut["11"],
-            ),
-        ),
-        "10": (
-            (
-                cross_box_kira_projects[26].family(1, 1, 1),
-                cross_box_cut_master_symbols_by_cut["10"],
-            ),
-        ),
-        "01": (
-            (
-                cross_box_kira_projects[28].family(1, 1, 1),
-                cross_box_cut_master_symbols_by_cut["01"],
-            ),
-        ),
-    }
-    cross_box_final_expressions_by_cut = {
-        _cut_name: canonical_zero(
-            identify_masters(
-                cross_box_cut_expressions_by_cut[_cut_name],
-                cross_box_master_identifications_by_cut[_cut_name],
-            )
-        )
-        for _cut_name in ("11", "10", "01")
-    }
-    mathematica_reference_final_expressions_by_cut = {
-        _cut_name: canonical_zero(
-            identify_masters(
-                mathematica_reference_cut_expressions_by_cut[_cut_name],
-                cross_box_master_identifications_by_cut[_cut_name],
-            )
-        )
-        for _cut_name in ("11", "10", "01")
-    }
-    cross_box_cut_bubble = cross_box_cut_master_symbols_by_cut["11"]
-    cross_box_master_identifications = (
-        cross_box_master_identifications_by_cut["11"]
-    )
-    cross_box_final_expression = cross_box_final_expressions_by_cut["11"]
-    mathematica_reference_final_expression = (
-        mathematica_reference_final_expressions_by_cut["11"]
-    )
-    return (
-        cross_box_cut_bubble,
-        cross_box_cut_master_symbols_by_cut,
-        cross_box_final_expressions_by_cut,
-        mathematica_reference_cut_expression,
-        mathematica_reference_final_expression,
-        mathematica_reference_final_expressions_by_cut,
-    )
-
-
-@app.cell
-def _(
-    bcutm,
-    canonical_zero,
-    cross_box_cut_master_symbols_by_cut,
-    cross_box_dimension,
-    cross_box_epsilon,
-    cross_box_euler_gamma,
-    cross_box_final_expressions_by_cut,
-    cross_box_ipp1p1,
-    cross_box_ipp1p2,
-    cross_box_ipp2p2,
-    cross_box_mu_squared,
-    cross_box_q,
-    identify_masters,
-    mathematica_reference_final_expressions_by_cut,
-    tcutm,
-):
-    cross_box_analytic_master_values_by_cut = {
-        "11": bcutm(
-            2 * cross_box_ipp1p2,
-            cross_box_q**2,
-            dimension=cross_box_dimension,
-            epsilon=cross_box_epsilon,
-            mu_squared=cross_box_mu_squared,
-            euler_gamma=cross_box_euler_gamma,
-        ),
-        "10": tcutm(
-            cross_box_ipp2p2,
-            2 * cross_box_ipp1p2,
-            cross_box_q**2,
-            dimension=cross_box_dimension,
-            epsilon=cross_box_epsilon,
-            mu_squared=cross_box_mu_squared,
-            euler_gamma=cross_box_euler_gamma,
-        ),
-        "01": tcutm(
-            cross_box_ipp1p1,
-            2 * cross_box_ipp1p2,
-            cross_box_q**2,
-            dimension=cross_box_dimension,
-            epsilon=cross_box_epsilon,
-            mu_squared=cross_box_mu_squared,
-            euler_gamma=cross_box_euler_gamma,
-        ),
-    }
-    cross_box_analytic_expressions_by_cut = {
-        _cut_name: canonical_zero(
-            identify_masters(
-                cross_box_final_expressions_by_cut[_cut_name],
-                (
-                    (
-                        cross_box_cut_master_symbols_by_cut[_cut_name],
-                        cross_box_analytic_master_values_by_cut[_cut_name],
-                    ),
-                ),
-            )
-        )
-        for _cut_name in ("11", "10", "01")
-    }
-    mathematica_reference_analytic_expressions_by_cut = {
-        _cut_name: canonical_zero(
-            identify_masters(
-                mathematica_reference_final_expressions_by_cut[_cut_name],
-                (
-                    (
-                        cross_box_cut_master_symbols_by_cut[_cut_name],
-                        cross_box_analytic_master_values_by_cut[_cut_name],
-                    ),
-                ),
-            )
-        )
-        for _cut_name in ("11", "10", "01")
-    }
-    cross_box_cut_bubble_analytic = (
-        cross_box_analytic_master_values_by_cut["11"]
-    )
-    cross_box_analytic_expression = cross_box_analytic_expressions_by_cut["11"]
-    mathematica_reference_analytic_expression = (
-        mathematica_reference_analytic_expressions_by_cut["11"]
-    )
-    return (
-        cross_box_analytic_expressions_by_cut,
-        cross_box_cut_bubble_analytic,
-        mathematica_reference_analytic_expression,
-    )
-
-
-@app.cell(hide_code=True)
-def _(
-    cross_box_analytic_expressions_by_cut,
-    cross_box_cut_dropped_masters_by_cut,
-    cross_box_cut_expressions_by_cut,
-    cross_box_cut_kept_masters_by_cut,
-    cross_box_final_expressions_by_cut,
-    mo,
-    spenso_table,
-):
-    _cut_output = spenso_table(
-        [
-            {
-                "cut": _cut_name,
-                "kept masters": tuple(
-                    cross_box_cut_kept_masters_by_cut[_cut_name]
-                ),
-                "dropped masters": tuple(
-                    cross_box_cut_dropped_masters_by_cut[_cut_name]
-                ),
-                "after cut": cross_box_cut_expressions_by_cut[_cut_name],
-                "after master identification": cross_box_final_expressions_by_cut[
-                    _cut_name
-                ],
-                "after analytic master": cross_box_analytic_expressions_by_cut[
-                    _cut_name
-                ],
-            }
-            for _cut_name in ("11", "10", "01")
-        ]
-    )
-    _cut_output
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 10. Validate the completed scalar result against Mathematica/FIRE
+    ### Analytic symbols
+
+    The analytic formulas use \(d\) for the integration dimension,
+    \(ε\) for the dimensional regulator in \(d=4-2ε\),
+    \(μ^2\) for the renormalization scale, and \(γ_E\) for the
+    Euler--Mascheroni constant. The latter is Symbolica's built-in constant.
+    The regulator and scale retain the stable Symbolica identities `ep` and
+    `musq`, but a small display-only printer emits structured `epsilon` and
+    `mu^2` Typst (and the corresponding LaTeX). This keeps parsing and
+    replacements unambiguous while rendering ε and μ² correctly.
+
+    Symbolica printer attributes are immutable. The registration cell below is
+    therefore a run-once initialization cell; restart the Marimo kernel before
+    deliberately rerunning it after an edit.
+    """)
+    return
+
+
+@app.cell
+def _(PrintMode):
+    def scalar_printer(*, latex: str, typst: str):
+        """Build a display-only printer for an otherwise stable scalar name."""
+
+        def _print_scalar(_expression, mode, **_format_options):
+            if mode == PrintMode.Latex:
+                return latex
+            if mode == PrintMode.Typst:
+                return typst
+            return None
+
+        return _print_scalar
+
+    return (scalar_printer,)
+
+
+@app.cell
+def _(Expression, S, scalar_printer):
+    dimension = S("d")
+    epsilon = S(
+        "ep",
+        print=scalar_printer(latex=r"\epsilon", typst="epsilon"),
+    )
+    mu_squared = S(
+        "musq",
+        print=scalar_printer(latex=r"\mu^{2}", typst="mu^2"),
+    )
+    euler_gamma = Expression.EULER_GAMMA
+    return dimension, epsilon, euler_gamma, mu_squared
+
+
+@app.cell(hide_code=True)
+def _(dimension, epsilon, euler_gamma, mu_squared, spenso_table):
+    spenso_table(
+        [
+            {
+                "Python name": "dimension",
+                "symbol": dimension,
+                "meaning": "integration dimension",
+            },
+            {
+                "Python name": "epsilon",
+                "symbol": epsilon,
+                "meaning": "dimensional regulator",
+            },
+            {
+                "Python name": "mu_squared",
+                "symbol": mu_squared,
+                "meaning": "renormalization scale squared",
+            },
+            {
+                "Python name": "euler_gamma",
+                "symbol": euler_gamma,
+                "meaning": "Euler–Mascheroni constant",
+            },
+        ],
+        selection=None,
+    )
+    return
+
+
+@app.cell
+def _():
+    from pathlib import Path as _Path
+    import sys as _sys
+
+    _repository_root = str(_Path(__file__).resolve().parents[1])
+    if _repository_root not in _sys.path:
+        _sys.path.insert(0, _repository_root)
+
+    from calculations.dy.python.masters import (
+        massive_cut_bubble,
+        massive_cut_triangle,
+    )
+
+    return massive_cut_bubble, massive_cut_triangle
+
+
+@app.cell
+def _(
+    cut_expressions_by_cut,
+    cut_kept_masters_by_cut,
+    dimension,
+    epsilon,
+    euler_gamma,
+    identify_masters,
+    ipp1p1,
+    ipp1p2,
+    ipp2p2,
+    massive_cut_bubble,
+    massive_cut_triangle,
+    mu_squared,
+    normalize_rational,
+    q,
+    required_loop_sources_by_cut,
+    spenso_table,
+):
+    analytic_master_values_by_cut = {
+        "11": massive_cut_bubble(
+            2 * ipp1p2,
+            q**2,
+            dimension=dimension,
+            epsilon=epsilon,
+            mu_squared=mu_squared,
+            euler_gamma=euler_gamma,
+        ),
+        "10": massive_cut_triangle(
+            ipp2p2,
+            2 * ipp1p2,
+            q**2,
+            dimension=dimension,
+            epsilon=epsilon,
+            mu_squared=mu_squared,
+            euler_gamma=euler_gamma,
+        ),
+        "01": massive_cut_triangle(
+            ipp1p1,
+            2 * ipp1p2,
+            q**2,
+            dimension=dimension,
+            epsilon=epsilon,
+            mu_squared=mu_squared,
+            euler_gamma=euler_gamma,
+        ),
+    }
+    analytic_identifications_by_cut = {}
+    analytic_expressions_by_cut = {}
+    for _cut_name, _kept in cut_kept_masters_by_cut.items():
+        _identifications = []
+        for _project_key, _master in _kept:
+            _source_indices = _project_key[1]
+            _expected_powers = tuple(
+                int(_source in required_loop_sources_by_cut[_cut_name])
+                for _source in _source_indices
+            )
+            _actual_powers = tuple(int(_argument) for _argument in _master)
+            if _actual_powers != _expected_powers:
+                raise ValueError(
+                    "A surviving cut master does not match the physical cut "
+                    f"incidence: {_master.format_plain()}"
+                )
+            _identifications.append(
+                (_master, analytic_master_values_by_cut[_cut_name])
+            )
+        analytic_identifications_by_cut[_cut_name] = _identifications
+        analytic_expressions_by_cut[_cut_name] = normalize_rational(
+            identify_masters(
+                cut_expressions_by_cut[_cut_name],
+                _identifications,
+            )
+        )
+    spenso_table(
+        [
+            {
+                "cut": _cut_name,
+                "identified masters": tuple(
+                    _master
+                    for _project_key, _master in cut_kept_masters_by_cut[
+                        _cut_name
+                    ]
+                ),
+                "analytic value": analytic_master_values_by_cut[
+                    _cut_name
+                ],
+                "evaluated expression": analytic_expressions_by_cut[
+                    _cut_name
+                ],
+            }
+            for _cut_name in ("11", "10", "01")
+        ]
+    )
+    return analytic_identifications_by_cut, analytic_master_values_by_cut
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # Validation
+
+    The walkthrough above is the implementation. This appendix now exercises
+    that complete native path, the reusable helper edge cases, and finally the
+    retained Mathematica/FIRE results as independent one-way oracles. None of
+    the expected historical expressions feed the calculation above.
+
+    `validate_pre_ibp` is an invariant checker, not an input to the derivation.
+    It reconstructs the original integrand independently from the
+    partial-fraction children, numerator-reduced terms, and IBP contributions,
+    then substitutes every formal propagator label back into its scalar-product
+    relation. Every residual must vanish exactly before the historical oracles
+    are considered.
+    """)
+    return
+
+
+@app.cell
+def _(E, Expression, PreIBPResult, S, normalize_rational):
+    def validate_pre_ibp(result: PreIBPResult) -> dict[str, Expression]:
+        """Validate every algebraic handoff represented by a pre-IBP result."""
+
+        checks = {
+            "affine propagator relation": normalize_rational(
+                result.denominators[0]
+                - result.denominators[1]
+                - result.denominators[2]
+                + result.denominators[3]
+                + result.delta
+            ),
+            "partial-fraction reconstruction": normalize_rational(
+                sum(
+                    (
+                        child.integrand.as_expression()
+                        for child in result.partial_fractions
+                    ),
+                    E("0"),
+                )
+                - result.integrand.as_expression()
+            ),
+            "numerator-rewrite reconstruction": normalize_rational(
+                sum(
+                    (
+                        term.as_expression()
+                        for reduction in result.numerator_reductions
+                        for term in reduction.terms
+                    ),
+                    E("0"),
+                )
+                - result.integrand.as_expression()
+            ),
+            "IBP-input reconstruction": normalize_rational(
+                sum(
+                    (
+                        contribution.as_expression()
+                        for contribution in result.contributions
+                    ),
+                    E("0"),
+                )
+                - result.integrand.as_expression()
+            ),
+        }
+        for child_index, (child, reduction) in enumerate(zip(
+            result.partial_fractions,
+            result.numerator_reductions,
+            strict=True,
+        ), start=1):
+            labels = [
+                S("Prop")(index)
+                for index in range(len(child.integrand.denominators))
+            ]
+            for relation_index, (target, replacement) in enumerate(
+                reduction.relations, start=1
+            ):
+                reconstructed = replacement
+                for label, propagator in zip(
+                    labels,
+                    child.integrand.denominators,
+                    strict=True,
+                ):
+                    reconstructed = reconstructed.replace(label, propagator)
+                checks[
+                    f"child {child_index} relation {relation_index}"
+                ] = normalize_rational(reconstructed - target)
+
+        failures = {
+            name: residual
+            for name, residual in checks.items()
+            if residual != E("0")
+        }
+        if failures:
+            details = ", ".join(
+                f"{name}: {value}" for name, value in failures.items()
+            )
+            raise ValueError(f"Cross-box preprocessing validation failed: {details}")
+        return checks
+
+
+    return (validate_pre_ibp,)
+
+
+@app.cell
+def _(
+    E,
+    cut_kept_masters_by_cut,
+    denominators,
+    ibp_inputs_by_cut,
+    ibp_terms_by_cut,
+    kira_projects,
+    kira_reductions,
+    loop_propagator_indices,
+    normalize_rational,
+    pre_ibp,
+    projected_cutsets,
+    required_loop_sources_by_cut,
+    square,
+    validate_pre_ibp,
+):
+    _checks = dict(validate_pre_ibp(pre_ibp))
+    assert loop_propagator_indices == [2, 3, 4, 5]
+    assert projected_cutsets == {
+        "11": (1, 0, 0, 1),
+        "10": (1, 0, 1, 1),
+        "01": (1, 1, 0, 1),
+        "00": (1, 1, 1, 1),
+    }
+    assert required_loop_sources_by_cut == {
+        "11": (2, 5),
+        "10": (2, 4, 5),
+        "01": (2, 3, 5),
+        "00": (2, 3, 4, 5),
+    }
+
+    for (_cut_name, _source_indices), _project in kira_projects.items():
+        for _actual, _source_index in zip(
+            _project.family.propagators,
+            _source_indices,
+            strict=True,
+        ):
+            _checks[
+                f"cut {_cut_name} sources {_source_indices} D{_source_index + 1}"
+            ] = (
+                normalize_rational(
+                    square(_actual.momentum)
+                    - _actual.mass_squared
+                    - denominators[_source_index]
+                )
+            )
+
+    for _cut_name, _terms in ibp_terms_by_cut.items():
+        _checks[f"cut {_cut_name} IBP input reconstruction"] = normalize_rational(
+            sum((_term.input_expression() for _term in _terms), E("0"))
+            - ibp_inputs_by_cut[_cut_name]
+        )
+
+    for _cut_name, _kept in cut_kept_masters_by_cut.items():
+        _required_sources = required_loop_sources_by_cut[_cut_name]
+        _expected_count = sum(
+            set(_required_sources) <= set(_source_indices)
+            for _project_cut, _source_indices in kira_projects
+            if _project_cut == _cut_name
+        )
+        assert len(_kept) == _expected_count
+        for (_project_cut, _source_indices), _master in _kept:
+            assert _project_cut == _cut_name
+            assert tuple(int(_argument) for _argument in _master) == tuple(
+                int(_source in _required_sources)
+                for _source in _source_indices
+            )
+    assert all(_result.complete for _result in kira_reductions.values())
+    assert all(_residual == E("0") for _residual in _checks.values())
+    native_validation_rows = [
+        {"check": _name, "residual": _residual}
+        for _name, _residual in _checks.items()
+    ]
+    return (native_validation_rows,)
+
+
+@app.cell(hide_code=True)
+def _(mo, native_validation_rows, spenso_table):
+    mo.vstack(
+        [
+            mo.md("## Native cross-box workflow"),
+            spenso_table(native_validation_rows),
+            mo.callout(
+                "The graph routing, helper orchestration, Kira project "
+                "definitions, IBP inputs, and cut-master selection all pass "
+                "their exact checks.",
+                kind="success",
+            ),
+        ]
+    )
+    return
+
+
+@app.cell
+def _(E, Expression, SpensoMath, mo, typst):
+    _gamma_argument = E("3/2-ep")
+    _expected_typst = {
+        "scalar reciprocal power": "1/pi^2",
+        "gamma reciprocal": '1/(op("gamma")(3/2-epsilon))',
+        "gamma square": '(op("gamma")(3/2-epsilon))^2',
+    }
+    _actual_typst = {
+        "scalar reciprocal power": SpensoMath(1 / Expression.PI**2).typst,
+        "gamma reciprocal": SpensoMath(1 / _gamma_argument.gamma()).typst,
+        "gamma square": SpensoMath(_gamma_argument.gamma() ** 2).typst,
+    }
+    assert _actual_typst == _expected_typst
+    _rendered = SpensoMath(1 / _gamma_argument.gamma())._display_()
+    _rendered_html = _rendered.text
+    assert "<math" in _rendered_html or "<svg" in _rendered_html
+    _mixed = typst(
+        'Mixed prose # $ [] " <script>: {expression}',
+        expression=1 / _gamma_argument.gamma(),
+    )
+    _mixed_html = mo.as_html(_mixed).text
+    assert "Mixed prose" in _mixed_html
+    assert "<math" in _mixed_html
+    assert 'display="block"' not in _mixed_html
+    assert "<script>" not in _mixed_html
+    try:
+        typst("Missing {expression}")
+    except KeyError:
+        pass
+    else:
+        raise AssertionError("A missing Typst template value was accepted")
+    try:
+        typst("No placeholder", expression=E("1"))
+    except ValueError as _error:
+        assert "Unused Typst template values" in str(_error)
+    else:
+        raise AssertionError("An unused Typst template value was accepted")
+    try:
+        typst("Invalid {expression!r}", expression=E("1"))
+    except ValueError as _error:
+        assert "do not support conversions" in str(_error)
+    else:
+        raise AssertionError("A Typst template conversion was accepted")
+    display_validation_rows = [
+        *[
+        {
+            "check": _name,
+            "Typst": _actual_typst[_name],
+            "status": "pass",
+        }
+        for _name in _expected_typst
+        ],
+        {
+            "check": "mixed escaped prose and Symbolica math",
+            "Typst": _mixed.source,
+            "status": "pass",
+        },
+    ]
+    return (display_validation_rows,)
+
+
+@app.cell(hide_code=True)
+def _(display_validation_rows, spenso_table):
+    spenso_table(display_validation_rows)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Validation 1 — generic linear-system partial fractioning
+
+    First we exercise the same solve and reconstruction for two through seven
+    propagators, an overcomplete relation supplied explicitly, spectator
+    denominators, and rejected invalid inputs. These checks execute whenever
+    the notebook executes.
+    """)
+    return
+
+
+@app.cell
+def _(
+    E,
+    Integrand,
+    S,
+    normalize_rational,
+    partial_fraction,
+    partial_fraction_coefficients,
+    prod,
+):
+    _validation_rows = []
+    for _count in range(2, 8):
+        _loop_products = [
+            S(f"validation_x_{_count}_{_index}")
+            for _index in range(_count - 1)
+        ]
+        _delta = S(f"validation_delta_{_count}")
+        _numerator = S(f"validation_numerator_{_count}")
+        _weights = [
+            *[
+                E(str((-1) ** _index * (_index + 1)))
+                for _index in range(_count - 1)
+            ],
+            E("1"),
+        ]
+        _denominators = [
+            *_loop_products,
+            _delta
+            - sum(
+                (
+                    _weight * _loop_product
+                    for _weight, _loop_product in zip(
+                        _weights[:-1],
+                        _loop_products,
+                        strict=True,
+                    )
+                ),
+                E("0"),
+            ),
+        ]
+        _expected_coefficients = [
+            _weight / _delta for _weight in _weights
+        ]
+        _solved_coefficients = partial_fraction_coefficients(
+            _denominators,
+            _loop_products,
+        )
+        assert all(
+            normalize_rational(_actual - _expected) == E("0")
+            for _actual, _expected in zip(
+                _solved_coefficients,
+                _expected_coefficients,
+                strict=True,
+            )
+        )
+
+        _requested_order = list(reversed(range(_count)))
+        _terms = partial_fraction(
+            Integrand(_numerator, _denominators),
+            removed_indices=_requested_order,
+            loop_scalar_products=_loop_products,
+        )
+        assert [_term.removed_index for _term in _terms] == _requested_order
+        for _term in _terms:
+            _expected_retained = tuple(
+                _index
+                for _index in range(_count)
+                if _index != _term.removed_index
+            )
+            assert _term.retained_indices == _expected_retained
+            assert _term.integrand.denominators == [
+                _denominators[_index] for _index in _expected_retained
+            ]
+            assert normalize_rational(
+                _term.integrand.numerator
+                - _numerator * _expected_coefficients[_term.removed_index]
+            ) == E("0")
+        _residual = normalize_rational(
+            sum(
+                (_term.integrand.as_expression() for _term in _terms),
+                E("0"),
+            )
+            - _numerator / prod(_denominators)
+        )
+        assert _residual == E("0")
+        _validation_rows.append(
+            {"case": f"linear relation with N={_count}", "residual": _residual}
+        )
+
+    _x, _a, _b = S("validation_x", "validation_a", "validation_b")
+    _overcomplete_denominators = [_x, _x + _a, _x + _b]
+    _overcomplete_coefficients = [
+        -2 / (_a + _b),
+        1 / (_a + _b),
+        1 / (_a + _b),
+    ]
+    _overcomplete_terms = partial_fraction(
+        Integrand(E("1"), _overcomplete_denominators),
+        removed_indices=range(3),
+        loop_scalar_products=[_x],
+        coefficients=_overcomplete_coefficients,
+    )
+    _overcomplete_residual = normalize_rational(
+        sum(
+            (_term.integrand.as_expression() for _term in _overcomplete_terms),
+            E("0"),
+        )
+        - 1 / prod(_overcomplete_denominators)
+    )
+    assert _overcomplete_residual == E("0")
+    _validation_rows.append(
+        {"case": "explicit overcomplete relation", "residual": _overcomplete_residual}
+    )
+
+    _spectator0, _spectator1, _spectator2 = S(
+        "validation_s0", "validation_s1", "validation_s2"
+    )
+    _spectator_delta = S("validation_sdelta")
+    _spectator_denominators = [
+        _spectator0,
+        _x,
+        _spectator1,
+        _spectator_delta - 3 * _x,
+        _spectator2,
+    ]
+    _spectator_terms = partial_fraction(
+        Integrand(E("1"), _spectator_denominators),
+        removed_indices=[3, 1],
+        loop_scalar_products=[_x],
+    )
+    assert tuple(_term.removed_index for _term in _spectator_terms) == (3, 1)
+    assert tuple(_term.retained_indices for _term in _spectator_terms) == (
+        (0, 1, 2, 4),
+        (0, 2, 3, 4),
+    )
+    _spectator_residual = normalize_rational(
+        sum(
+            (_term.integrand.as_expression() for _term in _spectator_terms),
+            E("0"),
+        )
+        - 1 / prod(_spectator_denominators)
+    )
+    assert _spectator_residual == E("0")
+    _validation_rows.append(
+        {"case": "spectators and global indices", "residual": _spectator_residual}
+    )
+
+    try:
+        partial_fraction(
+            Integrand(E("1"), [_x, _spectator_delta - _x]),
+            removed_indices=[0, 0],
+            loop_scalar_products=[_x],
+        )
+    except ValueError as _error:
+        assert "must be unique" in str(_error)
+    else:
+        raise AssertionError("Duplicate denominator indices were accepted")
+    _validation_rows.append(
+        {"case": "duplicate indices rejected", "residual": E("0")}
+    )
+
+    try:
+        partial_fraction(
+            Integrand(E("1"), [_x, _spectator_delta - _x]),
+            removed_indices=[0, 1],
+            loop_scalar_products=[_x],
+            coefficients=[E("1"), E("2")],
+        )
+    except ValueError as _error:
+        assert "do not solve" in str(_error)
+    else:
+        raise AssertionError("Invalid affine coefficients were accepted")
+    _validation_rows.append(
+        {"case": "invalid coefficients rejected", "residual": E("0")}
+    )
+
+    linear_system_validation_rows = _validation_rows
+    return (linear_system_validation_rows,)
+
+
+@app.cell(hide_code=True)
+def _(E, linear_system_validation_rows, spenso_table):
+    assert len(linear_system_validation_rows) == 10
+    assert all(_row["residual"] == E("0") for _row in linear_system_validation_rows)
+    spenso_table(
+        [
+            {
+                "validation": _row["case"],
+                "residual": _row["residual"],
+            }
+            for _row in linear_system_validation_rows
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Validation 2 — historical scalar cross-box preprocessing
+
+    The following one-way check compares the native derivation with the retained
+    Mathematica result. It supplies no propagator, coefficient, family mapping,
+    or control-flow input to the calculation above.
+    """)
+    return
+
+
+@app.cell
+def _(
+    E,
+    IntegralContribution,
+    Integrand,
+    PreIBPResult,
+    delta,
+    dot,
+    loop_denominators,
+    loop_propagator_indices,
+    loop_scalar_products,
+    normalize_rational,
+    p1,
+    p2,
+    partial_fraction,
+    q,
+    reduce_numerator,
+    validate_pre_ibp,
+):
+    _reference_delta = q**2 - 2 * dot(p1, p2)
+    _reference_integrand = Integrand(E("1"), loop_denominators)
+    _reference_children = partial_fraction(
+        _reference_integrand,
+        removed_indices=range(len(loop_denominators)),
+        loop_scalar_products=loop_scalar_products,
+    )
+    _reference_reductions = [
+        reduce_numerator(
+            _child.integrand,
+            loop_scalar_products=loop_scalar_products,
+        )
+        for _child in _reference_children
+    ]
+    _reference_contributions = []
+    for _child, _reduction in zip(
+        _reference_children,
+        _reference_reductions,
+        strict=True,
+    ):
+        _global_sources = tuple(
+            loop_propagator_indices[_index]
+            for _index in _child.retained_indices
+        )
+        _reference_contributions.extend(
+            IntegralContribution(
+                source_indices=_global_sources,
+                propagators=_term.propagators,
+                integral_indices=_term.integral_indices,
+                coefficient=_term.coefficient,
+            )
+            for _term in _reduction.terms
+        )
+    mathematica_reference_pre_ibp = PreIBPResult(
+        denominators=loop_denominators,
+        loop_scalar_products=loop_scalar_products,
+        delta=_reference_delta,
+        integrand=_reference_integrand,
+        partial_fractions=_reference_children,
+        numerator_reductions=_reference_reductions,
+        contributions=_reference_contributions,
+    )
+
+    MATHEMATICA_PARTIAL_FRACTION_SLOTS = (
+        (1, (2, 3, 4), -1 / _reference_delta),
+        (2, (2, 3, 5), 1 / _reference_delta),
+        (3, (2, 4, 5), 1 / _reference_delta),
+        (4, (3, 4, 5), -1 / _reference_delta),
+    )
+    _terms_by_sources = {
+        _term.source_indices: _term
+        for _term in mathematica_reference_pre_ibp.contributions
+    }
+    assert set(_terms_by_sources) == {
+        _sources for _slot, _sources, _coefficient in (
+            MATHEMATICA_PARTIAL_FRACTION_SLOTS
+        )
+    }
+    assert all(
+        _term.integral_indices == (1, 1, 1)
+        for _term in _terms_by_sources.values()
+    )
+    reference_validation = {
+        **validate_pre_ibp(mathematica_reference_pre_ibp),
+        "Mathematica delta convention": normalize_rational(
+            delta - _reference_delta
+        ),
+        **{
+            f"Mathematica PF slot {_slot} coefficient": normalize_rational(
+                _terms_by_sources[_sources].coefficient - _expected
+            )
+            for _slot, _sources, _expected in (
+                MATHEMATICA_PARTIAL_FRACTION_SLOTS
+            )
+        },
+    }
+    assert all(_residual == E("0") for _residual in reference_validation.values())
+    scalar_reference_comparison = [
+        {
+            "Mathematica PF slot": _slot,
+            "expected sources": tuple(_index + 1 for _index in _sources),
+            "actual sources": tuple(
+                _index + 1
+                for _index in _terms_by_sources[_sources].source_indices
+            ),
+            "expected indices": (1, 1, 1),
+            "actual indices": _terms_by_sources[_sources].integral_indices,
+            "coefficient residual": normalize_rational(
+                _terms_by_sources[_sources].coefficient - _expected
+            ),
+        }
+        for _slot, _sources, _expected in (
+            MATHEMATICA_PARTIAL_FRACTION_SLOTS
+        )
+    ]
+    return (
+        mathematica_reference_pre_ibp,
+        reference_validation,
+        scalar_reference_comparison,
+    )
+
+
+@app.cell(hide_code=True)
+def _(mo, reference_validation, scalar_reference_comparison, spenso_table):
+    mo.vstack(
+        [
+            spenso_table(scalar_reference_comparison),
+            spenso_table(
+                [
+                    {"check": _name, "residual": _residual}
+                    for _name, _residual in reference_validation.items()
+                ]
+            ),
+            mo.callout(
+                "Historical scalar validation passed: all four partial-fraction "
+                "slots, the independent delta convention, sign pattern, "
+                "and exact reconstructions agree with the retained Mathematica "
+                "result.",
+                kind="success",
+            ),
+        ]
+    )
+    return
+
+
+@app.cell
+def _(
+    E,
+    S,
+    analytic_identifications_by_cut,
+    analytic_master_values_by_cut,
+    apply_ibp_reductions,
+    assemble_ibp_expression,
+    contributions_by_cut,
+    cut_filter_masters,
+    ibp_kinematic_rules_by_cut,
+    identify_masters,
+    ipp1p2,
+    kira_projects,
+    kira_reductions,
+    mathematica_reference_pre_ibp,
+    normalize_rational,
+    q,
+    required_loop_sources_by_cut,
+):
+    mathematica_reference_contributions_by_cut = {
+        _cut_name: list(mathematica_reference_pre_ibp.contributions)
+        for _cut_name in contributions_by_cut
+    }
+    mathematica_reference_ibp_inputs_by_cut = {
+        _cut_name: assemble_ibp_expression(
+            _contributions,
+            _cut_name,
+            kira_projects,
+            ibp_kinematic_rules_by_cut[_cut_name],
+        )
+        for _cut_name, _contributions in (
+            mathematica_reference_contributions_by_cut.items()
+        )
+    }
+    mathematica_reference_ibp_terms_by_cut = {
+        _cut_name: apply_ibp_reductions(
+            _contributions,
+            _cut_name,
+            kira_projects,
+            kira_reductions,
+            ibp_kinematic_rules_by_cut[_cut_name],
+        )
+        for _cut_name, _contributions in (
+            mathematica_reference_contributions_by_cut.items()
+        )
+    }
+    mathematica_reference_master_expressions_by_cut = {
+        _cut_name: normalize_rational(
+            sum(
+                (_term.reduced_expression() for _term in _terms),
+                E("0"),
+            )
+        )
+        for _cut_name, _terms in mathematica_reference_ibp_terms_by_cut.items()
+    }
+
+    _sources_by_project = {
+        _project_key: _project_key[1]
+        for _project_key in kira_projects
+    }
+    mathematica_reference_cut_expressions_by_cut = {}
+    mathematica_reference_kept_masters_by_cut = {}
+    _chain_checks = {}
+    _source_expression = sum(
+        (
+            _contribution.as_expression()
+            for _contribution in mathematica_reference_pre_ibp.contributions
+        ),
+        E("0"),
+    )
+    for _cut_name in contributions_by_cut:
+        _mapped = mathematica_reference_contributions_by_cut[_cut_name]
+        _chain_checks[f"cut {_cut_name} routing"] = normalize_rational(
+            sum((_term.as_expression() for _term in _mapped), E("0"))
+            - _source_expression
+        )
+        _chain_checks[f"cut {_cut_name} IBP input"] = normalize_rational(
+            sum(
+                (
+                    _term.input_expression()
+                    for _term in mathematica_reference_ibp_terms_by_cut[
+                        _cut_name
+                    ]
+                ),
+                E("0"),
+            )
+            - mathematica_reference_ibp_inputs_by_cut[_cut_name]
+        )
+        (
+            mathematica_reference_cut_expressions_by_cut[_cut_name],
+            mathematica_reference_kept_masters_by_cut[_cut_name],
+            _reference_dropped,
+        ) = cut_filter_masters(
+            mathematica_reference_master_expressions_by_cut[_cut_name],
+            masters_by_project={
+                _project_key: _result.masters
+                for _project_key, _result in kira_reductions.items()
+                if _project_key[0] == _cut_name
+            },
+            sources_by_project=_sources_by_project,
+            required_source_indices=(
+                required_loop_sources_by_cut[_cut_name]
+            ),
+        )
+
+    mathematica_reference_analytic_expressions_by_cut = {
+        _cut_name: normalize_rational(
+            identify_masters(
+                mathematica_reference_cut_expressions_by_cut[_cut_name],
+                analytic_identifications_by_cut[_cut_name],
+            )
+        )
+        for _cut_name in ("11", "10", "01")
+    }
+    assert all(_residual == E("0") for _residual in _chain_checks.values())
+    mathematica_reference_chain_validation_rows = [
+        {"check": _name, "residual": _residual}
+        for _name, _residual in _chain_checks.items()
+    ]
+
+    mathematica_reference_cut_expression = (
+        mathematica_reference_cut_expressions_by_cut["11"]
+    )
+    cut_bubble = S("Bcutm")(2 * ipp1p2, q**2)
+    mathematica_reference_final_expression = normalize_rational(
+        identify_masters(
+            mathematica_reference_cut_expression,
+            [
+                (_master, cut_bubble)
+                for _project_key, _master in (
+                    mathematica_reference_kept_masters_by_cut["11"]
+                )
+            ],
+        )
+    )
+    mathematica_reference_analytic_expression = (
+        mathematica_reference_analytic_expressions_by_cut["11"]
+    )
+    cut_bubble_analytic = analytic_master_values_by_cut["11"]
+    return (
+        cut_bubble,
+        cut_bubble_analytic,
+        mathematica_reference_analytic_expression,
+        mathematica_reference_chain_validation_rows,
+        mathematica_reference_cut_expression,
+        mathematica_reference_final_expression,
+    )
+
+
+@app.cell(hide_code=True)
+def _(mathematica_reference_chain_validation_rows, spenso_table):
+    spenso_table(mathematica_reference_chain_validation_rows)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Validation 3 — completed scalar result against Mathematica/FIRE
 
     This independent oracle uses the historical scalar numerator `1`. After
     translating its loop routing to the six-line graph, cut `11` must retain
@@ -4026,27 +3045,111 @@ def _(mo):
 
 
 @app.cell
-def _(S, cross_box_ipp1p2, cross_box_kira_projects, cross_box_q):
+def _(
+    Replacement,
+    S,
+    ipp1p2,
+    kira_projects,
+    kira_reductions,
+    mathematica_reference_cut_expression,
+    q,
+):
+    FIRE_SOURCE_ORDERS = (
+        (2, 3, 5),
+        (2, 3, 4),
+        (2, 5, 4),
+        (3, 5, 4),
+    )
+    FIRE_FAMILY_BLOCKS = {
+        "11": (20, 21, 22, 23),
+        "10": (24, 25, 26, 27),
+        "01": (28, 29, 30, 31),
+    }
+    fire_family_oracle = {
+        (_cut_name, tuple(sorted(_fire_sources))): {
+            "family_id": _family_id,
+            "source_order": _fire_sources,
+        }
+        for _cut_name, _family_ids in FIRE_FAMILY_BLOCKS.items()
+        for _family_id, _fire_sources in zip(
+            _family_ids,
+            FIRE_SOURCE_ORDERS,
+            strict=True,
+        )
+    }
+    assert set(fire_family_oracle) == set(kira_projects)
+
+    _fire_replacements = []
+    for _project_key, _result in kira_reductions.items():
+        _native_sources = _project_key[1]
+        _oracle = fire_family_oracle[_project_key]
+        _fire_sources = _oracle["source_order"]
+        _fire_family = S(f"topo{_oracle['family_id']}")
+        for _master in _result.masters:
+            _native_indices = tuple(int(_argument) for _argument in _master)
+            _fire_indices = tuple(
+                _native_indices[_native_sources.index(_source)]
+                for _source in _fire_sources
+            )
+            _fire_replacements.append(
+                Replacement(_master, _fire_family(*_fire_indices))
+            )
+    mathematica_reference_cut_expression_fire = (
+        mathematica_reference_cut_expression.replace_multiple(
+            _fire_replacements,
+            repeat=False,
+        )
+    )
+
     _d = S("d")
-    _delta = cross_box_q**2 - 2 * cross_box_ipp1p2
-    _topo20 = cross_box_kira_projects[20].family
-    _topo22 = cross_box_kira_projects[22].family
+    _delta = q**2 - 2 * ipp1p2
+    _topo20 = S("topo20")
+    _topo22 = S("topo22")
     mathematica_scalar_cut_oracle = (
         2
         * (_d - 3)
         * (_topo20(1, 0, 1) + _topo22(1, 1, 0))
         / ((_d - 4) * _delta**2)
     )
-    return (mathematica_scalar_cut_oracle,)
+    fire_mapping_validation_rows = [
+        {
+            "cut": _project_key[0],
+            "native family": kira_projects[_project_key].family.name,
+            "native sources": tuple(
+                _source + 1 for _source in _project_key[1]
+            ),
+            "FIRE family": f"topo{_oracle['family_id']}",
+            "FIRE source order": tuple(
+                _source + 1 for _source in _oracle["source_order"]
+            ),
+        }
+        for _project_key, _oracle in sorted(fire_family_oracle.items())
+    ]
+    return (
+        fire_mapping_validation_rows,
+        mathematica_reference_cut_expression_fire,
+        mathematica_scalar_cut_oracle,
+    )
 
 
 @app.cell
-def _(mathematica_scalar_cut_oracle, mo, spenso_table):
-    mathematica_scalar_cut_oracle_showcase = {
-        "cut": "11 (Mathematica label 00)",
-        "retained FIRE master expression": mathematica_scalar_cut_oracle,
-    }
-    spenso_table([mathematica_scalar_cut_oracle_showcase])
+def _(
+    fire_mapping_validation_rows,
+    mathematica_scalar_cut_oracle,
+    spenso_table,
+):
+    spenso_table(
+        [
+            *fire_mapping_validation_rows,
+            {
+                "cut": "11 (Mathematica label 00)",
+                "native family": "scalar oracle",
+                "native sources": (),
+                "FIRE family": "retained expression",
+                "FIRE source order": mathematica_scalar_cut_oracle,
+            },
+        ]
+    )
     return
 
 
@@ -4054,38 +3157,38 @@ def _(mathematica_scalar_cut_oracle, mo, spenso_table):
 def _(
     E,
     S,
-    canonical_zero,
-    cross_box_cut_bubble,
-    cross_box_ipp1p2,
-    cross_box_kira_reductions,
-    cross_box_q,
-    mathematica_reference_cut_expression,
+    cut_bubble,
+    ipp1p2,
+    kira_reductions,
+    mathematica_reference_cut_expression_fire,
     mathematica_reference_final_expression,
     mathematica_scalar_cut_oracle,
+    normalize_rational,
+    q,
 ):
     _d = S("d")
-    _delta = cross_box_q**2 - 2 * cross_box_ipp1p2
+    _delta = q**2 - 2 * ipp1p2
     mathematica_expected_cut_expression = mathematica_scalar_cut_oracle
     mathematica_expected_final_expression = (
         4
         * (_d - 3)
-        * cross_box_cut_bubble
+        * cut_bubble
         / ((_d - 4) * _delta**2)
     )
     assert all(
-        _result.complete for _result in cross_box_kira_reductions.values()
+        _result.complete for _result in kira_reductions.values()
     )
-    _cut_residual = canonical_zero(
-        mathematica_reference_cut_expression
+    _cut_residual = normalize_rational(
+        mathematica_reference_cut_expression_fire
         - mathematica_expected_cut_expression
     )
-    _final_residual = canonical_zero(
+    _final_residual = normalize_rational(
         mathematica_reference_final_expression
         - mathematica_expected_final_expression
     )
     assert _cut_residual == E("0")
     assert _final_residual == E("0")
-    mathematica_ibp_validation_rows = (
+    mathematica_ibp_validation_rows = [
         {
             "check": "scalar cut 11 master expression",
             "residual": _cut_residual,
@@ -4094,7 +3197,7 @@ def _(
             "check": "scalar cut 11 Bcutm identification",
             "residual": _final_residual,
         },
-    )
+    ]
     return (
         mathematica_expected_cut_expression,
         mathematica_expected_final_expression,
@@ -4106,70 +3209,70 @@ def _(
 def _(
     E,
     S,
-    canonical_zero,
-    cross_box_cut_bubble_analytic,
-    cross_box_dimension,
-    cross_box_epsilon,
-    cross_box_euler_gamma,
-    cross_box_ipp1p2,
-    cross_box_mu_squared,
-    cross_box_q,
+    cut_bubble_analytic,
+    dimension,
+    epsilon,
+    euler_gamma,
+    ipp1p2,
     mathematica_reference_analytic_expression,
+    mu_squared,
+    normalize_rational,
+    q,
 ):
     _s = S("s")
-    _delta = cross_box_q**2 - 2 * cross_box_ipp1p2
+    _delta = q**2 - 2 * ipp1p2
     mathematica_expected_analytic_expression = (
         4
-        * (cross_box_dimension - 3)
-        * cross_box_cut_bubble_analytic
-        / ((cross_box_dimension - 4) * _delta**2)
+        * (dimension - 3)
+        * cut_bubble_analytic
+        / ((dimension - 4) * _delta**2)
     )
 
     _dimensionally_regularized = mathematica_expected_analytic_expression.replace(
-        cross_box_ipp1p2,
+        ipp1p2,
         _s / 2,
     ).replace(
-        cross_box_dimension,
-        4 - 2 * cross_box_epsilon,
+        dimension,
+        4 - 2 * epsilon,
     )
     _series = _dimensionally_regularized.series(
-        cross_box_epsilon,
+        epsilon,
         0,
         0,
     ).to_expression().expand()
     _series = _series.replace(
-        (cross_box_euler_gamma.exp() * cross_box_mu_squared).log(),
-        cross_box_euler_gamma + cross_box_mu_squared.log(),
+        (euler_gamma.exp() * mu_squared).log(),
+        euler_gamma + mu_squared.log(),
     )
     _series = _series.replace(
         (
-            (_s - cross_box_q**2)
+            (_s - q**2)
             / (2 * _s.sqrt())
         ).log(),
         (
-            (_s - cross_box_q**2)
+            (_s - q**2)
             / _s.sqrt()
         ).log()
         - E("2").log(),
     )
-    mathematica_actual_epsilon_expansion = canonical_zero(_series)
+    mathematica_actual_epsilon_expansion = normalize_rational(_series)
     mathematica_expected_epsilon_expansion = -(
         1
-        + cross_box_epsilon * cross_box_mu_squared.log()
+        + epsilon * mu_squared.log()
         - 2
-        * cross_box_epsilon
+        * epsilon
         * (
-            (_s - cross_box_q**2)
+            (_s - q**2)
             / _s.sqrt()
         ).log()
     ) / (
         4
-        * cross_box_epsilon
+        * epsilon
         * E("pi")
         * _s
-        * (cross_box_q**2 - _s)
+        * (q**2 - _s)
     )
-    _series_residual = canonical_zero(
+    _series_residual = normalize_rational(
         mathematica_actual_epsilon_expansion
         - mathematica_expected_epsilon_expansion
     )
@@ -4181,7 +3284,7 @@ def _(
             "residual": _series_residual,
         }
     ]
-    _analytic_residual = canonical_zero(
+    _analytic_residual = normalize_rational(
         mathematica_reference_analytic_expression
         - mathematica_expected_analytic_expression
     )
@@ -4193,7 +3296,7 @@ def _(
             "residual": _analytic_residual,
         },
     )
-    mathematica_analytic_validation_rows = tuple(_analytic_rows)
+    mathematica_analytic_validation_rows = _analytic_rows
     return (
         mathematica_analytic_validation_rows,
         mathematica_expected_analytic_expression,
@@ -4211,14 +3314,15 @@ def _(
     mathematica_ibp_validation_rows,
     mo,
     spenso_table,
+    typst,
 ):
     if not mathematica_ibp_validation_rows:
         _validation_output = mo.vstack(
             [
                 spenso_table(mathematica_analytic_validation_rows),
-                mo.md(
-                    "Recorded expansion through epsilon^0: "
-                    f"`{spenso_disp(mathematica_expected_epsilon_expansion)}`"
+                typst(
+                    "Recorded expansion through epsilon^0:\n{expression:display}",
+                    expression=mathematica_expected_epsilon_expansion,
                 ),
                 mo.callout(
                     "The scalar pre-IBP and analytic-master oracles are "
@@ -4233,21 +3337,21 @@ def _(
             [
                 spenso_table(mathematica_ibp_validation_rows),
                 spenso_table(mathematica_analytic_validation_rows),
-                mo.md(
-                    "Expected scalar result after the cut: "
-                    f"`{spenso_disp(mathematica_expected_cut_expression)}`"
+                typst(
+                    "Expected scalar result after the cut:\n{expression:display}",
+                    expression=mathematica_expected_cut_expression,
                 ),
-                mo.md(
-                    "Expected completed scalar result: "
-                    f"`{spenso_disp(mathematica_expected_final_expression)}`"
+                typst(
+                    "Expected completed scalar result:\n{expression:display}",
+                    expression=mathematica_expected_final_expression,
                 ),
-                mo.md(
-                    "Expected analytic scalar result: "
-                    f"`{spenso_disp(mathematica_expected_analytic_expression)}`"
+                typst(
+                    "Expected analytic scalar result:\n{expression:display}",
+                    expression=mathematica_expected_analytic_expression,
                 ),
-                mo.md(
-                    "Expansion through epsilon^0: "
-                    f"`{spenso_disp(mathematica_expected_epsilon_expansion)}`"
+                typst(
+                    "Expansion through epsilon^0:\n{expression:display}",
+                    expression=mathematica_expected_epsilon_expansion,
                 ),
                 mo.callout(
                     "All twelve Kira projects are complete. The routed scalar "
@@ -4266,8 +3370,10 @@ def _(
 def _(mo):
     mo.callout(
         "Current boundary: the six-line graph, all four cut masks, all twelve "
-        "topo20--31 reductions, and the Bcutm/Tcutm evaluations for cuts 11, "
-        "10, and 01 are complete. Cut 00 is a direct four-line contribution, "
+        "native graph-order reductions, and the analytic master evaluations "
+        "for cuts 11, 10, and 01 are complete. The final appendix maps those "
+        "projects to the historical topo20--31 oracle. Cut 00 is a direct "
+        "four-line contribution, "
         "not a missing Kira rule and not zero by default. Reproducing the later "
         "physical Mathematica sum still requires porting its contracted "
         "xboxNumContr numerator, direct cut measure, and distribution dressing.",

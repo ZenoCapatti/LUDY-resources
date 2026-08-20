@@ -27,8 +27,10 @@ normalization ambiguities, expands it around `d = 4 - 2 epsilon`, performs the
 leading virtuality and soft plus-distribution bookkeeping, and exposes a
 positive-kinematics numerical evaluator with rich Typst/MathML display.
 
-The cross-box algebra before IBP is defined and presented directly in
-`notebooks/ludy.py`. Its sole graph input is the ordered six-tuple of
+The cross-box helper implementations and calculation walkthrough are defined
+directly in `notebooks/ludy.py`. Each helper appears immediately before its
+first use, so the cross-box calculation itself exercises the reusable helper
+surface. Its sole graph input is the ordered list of six
 `(momentum, mass_squared)` pairs
 `p1, p2, k, k-p1, p2-k, p1+p2-k`, with mass squared `q**2` on the final line.
 The Symbolica head `k` carries a `ludy::loop_momentum` tag, so the four
@@ -37,23 +39,33 @@ four full graph masks are named `11`, `10`, `01`, and `00` by their two
 external-line bits.
 
 The notebook solves the affine linear system `sum(c_i D_i) = 1`, constructs
-the partial-fraction terms, and rewrites each numerator. A visible checked
-adapter maps graph order `(D3,D4,D5,D6)` to the historical FIRE order
-`(D3,D4,D6,D5)`. It then constructs the twelve complete Kira projects
-`topo20`--`topo31`, applies the exact reductions for cuts `11`, `10`, and
-`01`, filters masters in global graph space, and evaluates the surviving
-`Bcutm`/`Tcutm` masters. Cut `00` requires all four loop lines and is therefore
+the partial-fraction terms, and rewrites each numerator. It constructs twelve
+complete Kira projects in native graph order, names each project from its cut
+and retained graph sources, applies the exact reductions for cuts `11`, `10`,
+and `01`, filters masters in global graph space, and evaluates the surviving
+cut bubble or triangle. Cut `00` requires all four loop lines and is therefore
 shown as a direct branch rather than incorrectly represented by a
 three-propagator IBP child. The affine solver accepts any number of propagators
-when the system is unique; an explicit coefficient tuple can select a relation
-for an overcomplete set. Each scientific helper is isolated in its own
-notebook cell and exercised by a showcase or an exact derivation assertion.
+when the system is unique; an explicit coefficient list can select a relation
+for an overcomplete set. The analytic bubble and triangle evaluators are
+imported from `python/masters.py`, their single source of implementation. Only
+the final validation appendix maps native graph order `(D3,D4,D5,D6)` to the
+historical FIRE order `(D3,D4,D6,D5)` and names `topo20`--`topo31`.
+
+`notebooks/dy_topologies.py` provides the root-environment multi-topology
+runner. It imports the public project-building and Kira-running helpers from
+`notebooks/ludy.py`, allowing several topologies to be inspected and run
+without copying the cross-box helpers. The separately locked
+`python/notebook.py` workflow remains self-contained and does not depend on
+either root notebook.
 
 The corresponding Mathematica section is a semantic validation oracle rather
 than an implementation template: the editable Python numerator differs, while
 the independent validation path uses Mathematica's active scalar numerator
-`1` and validates the routed cut-`11` bubble result. This is deliberately not
-a claim that the later historical `xboxNumContr` calculation (whose notebook
+`1` and validates the routed cut-`11` bubble result. These comparisons, the
+generic helper checks, and the remaining oracles live together in the final
+validation appendix of `notebooks/ludy.py`. This is deliberately not a claim
+that the later historical `xboxNumContr` calculation (whose notebook
 also carries a projector warning) has been ported in full. Because it uses
 Community/Spenso, run it from the repository-root environment rather than the
 portable Kira app.
@@ -110,6 +122,7 @@ $ nix develop --command uv run --locked pytest
 
 $ cd ../..
 $ direnv exec . uv run --locked marimo check --strict notebooks/ludy.py
+$ direnv exec . uv run --locked marimo check --strict notebooks/dy_topologies.py
 $ direnv exec . uv run --locked marimo export html notebooks/ludy.py -o /tmp/ludy-validation.html --force
 
 $ cd calculations/dy/python
@@ -122,12 +135,11 @@ $ nix develop --command uv run --locked marimo export html masters.py \
 ```
 
 The package tests own the exact FIRE/Kira parity oracle. Executing the root
-notebook export runs the native Symbolica/Spenso linear-system decomposition,
-all inline tooling showcases, generic-arity checks, and scalar pre-IBP oracle;
-it then runs or exactly resumes the twelve manifest-checked Kira projects,
-checks all three reducible cut survivor sets, and verifies the routed scalar
-cut-`11` `Bcutm` result and epsilon expansion against Mathematica/FIRE. The
-independently locked portable application keeps its explicit run button, and
-its static checks ensure both notebooks remain structurally runnable without
-launching Kira. Exporting `masters.py` executes its exact derivation, dimension,
-finite-term, series, and numerical-evaluation cells.
+cross-box notebook export runs the native Symbolica/Spenso linear-system
+decomposition and the twelve manifest-checked Kira projects, then its final
+validation appendix performs the generic-arity, scalar pre-IBP, cut-survivor,
+Mathematica/FIRE, and epsilon-expansion checks. The independently locked
+portable application keeps its explicit run button. Static checks cover both
+root notebooks and both portable notebooks without launching a new reduction.
+Exporting `masters.py` executes its exact derivation, dimension, finite-term,
+series, and numerical-evaluation cells.

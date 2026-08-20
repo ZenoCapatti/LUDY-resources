@@ -1,10 +1,10 @@
 import marimo
 
-__generated_with = "0.23.16"
+__generated_with = "0.23.15"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import math
 
@@ -14,7 +14,7 @@ def _():
     return E, Expression, S, math, mo
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(E, Expression, mo):
     from dataclasses import dataclass as _dataclass
     from functools import lru_cache as _lru_cache
@@ -234,8 +234,7 @@ def _(E, Expression, mo):
     assert "<math" in _scalar_power_mathml
     assert "<mfrac><mn>1</mn><mrow><mo" in _gamma_reciprocal_mathml
     assert "<msup><mrow><mo>(</mo><mrow><mo" in _gamma_square_mathml
-
-    return spenso_math, spenso_table
+    return (spenso_table,)
 
 
 @app.cell(hide_code=True)
@@ -274,10 +273,10 @@ def _(mo):
 
 @app.cell
 def _(Expression, S):
-    d, epsilon, mu_squared = S("d", "ep", "musq")
-    p_squared, s, mass_squared = S("psq", "s", "msq")
-    p1_squared, p2_squared = S("p1sq", "p2sq")
-    x, beta, kappa_squared = S("x", "beta", "kappasq")
+    d, epsilon, mu_squared = S("d", "ε", "μ²")
+    p_squared, s, mass_squared = S("p²", "s", "m²")
+    p1_squared, p2_squared = S("p1²", "p2²")
+    x, beta, kappa_squared = S("x", "μ1", "𝜅")
     z, lambda_squared, s_lightcone = S("z", "Lambdasq", "sLC")
     pi = Expression.PI
     euler_gamma = Expression.EULER_GAMMA
@@ -311,43 +310,54 @@ def _(Expression):
     return (canonical_zero,)
 
 
-@app.cell
-def _(Expression, pi):
-    def kallen(x: Expression, y: Expression, z: Expression) -> Expression:
-        """Return the Källén polynomial λ(x,y,z)."""
+@app.function
+def kallen(
+    x: "Expression",
+    y: "Expression",
+    z: "Expression",
+) -> "Expression":
+    """Return the Källén polynomial λ(x,y,z)."""
 
-        return x**2 + y**2 + z**2 - 2 * x * y - 2 * x * z - 2 * y * z
+    return x**2 + y**2 + z**2 - 2 * x * y - 2 * x * z - 2 * y * z
 
-    def loop_normalization(
-        mu_squared: Expression,
-        epsilon: Expression,
-        euler_gamma: Expression,
-    ) -> Expression:
-        """Retained MS-bar loop factor with the standard +gamma_E sign."""
 
-        return (
-            mu_squared * euler_gamma.exp() / (4 * pi)
-        ) ** epsilon
+@app.function
+def loop_normalization(
+    mu_squared: "Expression",
+    epsilon: "Expression",
+    euler_gamma: "Expression",
+) -> "Expression":
+    """Retained MS-bar loop factor with the standard +gamma_E sign."""
 
-    def cut_normalization(
-        mu_squared: Expression,
-        epsilon: Expression,
-        euler_gamma: Expression,
-    ) -> Expression:
-        """Closed-form factor after the explicit 4pi powers cancel."""
+    from symbolica import Expression as _Expression
 
-        return (mu_squared * euler_gamma.exp()) ** epsilon
+    return (
+        mu_squared * euler_gamma.exp() / (4 * _Expression.PI)
+    ) ** epsilon
 
-    def sphere_volume(dimension: Expression) -> Expression:
-        """Return the area of the unit sphere S^dimension."""
 
-        return (
-            2
-            * pi ** ((dimension + 1) / 2)
-            / ((dimension + 1) / 2).gamma()
-        )
+@app.function
+def cut_normalization(
+    mu_squared: "Expression",
+    epsilon: "Expression",
+    euler_gamma: "Expression",
+) -> "Expression":
+    """Closed-form factor after the explicit 4pi powers cancel."""
 
-    return cut_normalization, kallen, loop_normalization, sphere_volume
+    return (mu_squared * euler_gamma.exp()) ** epsilon
+
+
+@app.function
+def sphere_volume(dimension: "Expression") -> "Expression":
+    """Return the area of the unit sphere S^dimension."""
+
+    from symbolica import Expression as _Expression
+
+    return (
+        2
+        * _Expression.PI ** ((dimension + 1) / 2)
+        / ((dimension + 1) / 2).gamma()
+    )
 
 
 @app.cell(hide_code=True)
@@ -505,136 +515,146 @@ def _(d, pi, spenso_table):
     return
 
 
-@app.cell
-def _(E, Expression, cut_normalization, kallen, loop_normalization, pi):
-    def uncut_bubble(
-        momentum_squared: Expression,
-        *,
-        dimension: Expression,
-        epsilon: Expression,
-        mu_squared: Expression,
-        euler_gamma: Expression,
-    ) -> Expression:
-        """Massless uncut bubble B(p²) in the Mathematica normalization."""
+@app.function
+def uncut_bubble(
+    momentum_squared: "Expression",
+    *,
+    dimension: "Expression",
+    epsilon: "Expression",
+    mu_squared: "Expression",
+    euler_gamma: "Expression",
+) -> "Expression":
+    """Massless uncut bubble B(p²) in the Mathematica normalization."""
 
-        return (
-            loop_normalization(mu_squared, epsilon, euler_gamma)
-            / (2 * pi) ** dimension
-            * pi ** (dimension / 2)
-            * ((dimension - 2) / 2).gamma() ** 2
-            * ((4 - dimension) / 2).gamma()
-            / (dimension - 2).gamma()
-            * (-momentum_squared) ** ((dimension - 4) / 2)
-        )
+    from symbolica import Expression as _Expression
 
-    def massless_cut_bubble(
-        momentum_squared: Expression,
-        *,
-        dimension: Expression,
-        epsilon: Expression,
-        mu_squared: Expression,
-        euler_gamma: Expression,
-    ) -> Expression:
-        """Massless cut bubble Bcut(p²)."""
-
-        two_power = (-dimension).expand()
-        pi_power = (E("7/2") - dimension - 2 * epsilon).expand()
-        return (
-            cut_normalization(mu_squared, epsilon, euler_gamma)
-            * 2**two_power
-            * momentum_squared ** (-epsilon)
-            * pi**pi_power
-            / (E("3/2") - epsilon).gamma()
-        )
-
-    def massless_cut_triangle(
-        p1_squared: Expression,
-        p2_squared: Expression,
-        p3_squared: Expression,
-        *,
-        dimension: Expression,
-        epsilon: Expression,
-        mu_squared: Expression,
-        euler_gamma: Expression,
-    ) -> Expression:
-        """Massless cut triangle Tcut(p1²,p2²,p3²)."""
-
-        two_power = (2 - dimension - 2 * epsilon).expand()
-        pi_power = (4 - dimension - 2 * epsilon).expand()
-        kallen_power = (E("1/2") - epsilon).expand()
-        return (
-            cut_normalization(mu_squared, epsilon, euler_gamma)
-            * 2**two_power
-            * (-p1_squared * p2_squared * p3_squared) ** (-epsilon)
-            / kallen(0, 0, p3_squared) ** kallen_power
-            * pi**pi_power
-            / (1 - epsilon).gamma()
-        )
-
-    def massive_cut_bubble(
-        momentum_squared: Expression,
-        mass_squared: Expression,
-        *,
-        dimension: Expression,
-        epsilon: Expression,
-        mu_squared: Expression,
-        euler_gamma: Expression,
-    ) -> Expression:
-        """Massive cut bubble Bcutm(s,m²)."""
-
-        cut_radius = (
-            (momentum_squared - mass_squared)
-            / (2 * momentum_squared.sqrt())
-        )
-        gamma_argument = ((dimension - 1) / 2).expand()
-        radial_power = (dimension - 3).expand()
-        return -(
-            cut_normalization(mu_squared, epsilon, euler_gamma)
-            / (
-                8
-                * pi.sqrt()
-                * gamma_argument.gamma()
-                * momentum_squared.sqrt()
-            )
-            * cut_radius ** radial_power
-        )
-
-    def massive_cut_triangle(
-        external_virtuality: Expression,
-        momentum_squared: Expression,
-        mass_squared: Expression,
-        *,
-        dimension: Expression,
-        epsilon: Expression,
-        mu_squared: Expression,
-        euler_gamma: Expression,
-    ) -> Expression:
-        """Massive cut triangle with historical s = 2 p1·p2."""
-
-        gram_factor = (
-            external_virtuality
-            * (momentum_squared - mass_squared)
-            * mass_squared
-        )
-        gamma_argument = ((dimension - 2) / 2).expand()
-        momentum_power = (dimension - 3).expand()
-        gram_power = ((dimension - 4) / 2).expand()
-        return (
-            cut_normalization(mu_squared, epsilon, euler_gamma)
-            / (
-                4
-                * gamma_argument.gamma()
-                * momentum_squared ** momentum_power
-            )
-            * gram_factor ** gram_power
-        )
-
+    pi = _Expression.PI
     return (
-        massive_cut_bubble,
-        massive_cut_triangle,
-        massless_cut_bubble,
-        massless_cut_triangle,
-        uncut_bubble,
+        loop_normalization(mu_squared, epsilon, euler_gamma)
+        / (2 * pi) ** dimension
+        * pi ** (dimension / 2)
+        * ((dimension - 2) / 2).gamma() ** 2
+        * ((4 - dimension) / 2).gamma()
+        / (dimension - 2).gamma()
+        * (-momentum_squared) ** ((dimension - 4) / 2)
+    )
+
+
+@app.function
+def massless_cut_bubble(
+    momentum_squared: "Expression",
+    *,
+    dimension: "Expression",
+    epsilon: "Expression",
+    mu_squared: "Expression",
+    euler_gamma: "Expression",
+) -> "Expression":
+    """Massless cut bubble Bcut(p²)."""
+
+    from symbolica import E as _E
+    from symbolica import Expression as _Expression
+
+    two_power = (-dimension).expand()
+    pi_power = (_E("7/2") - dimension - 2 * epsilon).expand()
+    return (
+        cut_normalization(mu_squared, epsilon, euler_gamma)
+        * 2**two_power
+        * momentum_squared ** (-epsilon)
+        * _Expression.PI**pi_power
+        / (_E("3/2") - epsilon).gamma()
+    )
+
+
+@app.function
+def massless_cut_triangle(
+    p1_squared: "Expression",
+    p2_squared: "Expression",
+    p3_squared: "Expression",
+    *,
+    dimension: "Expression",
+    epsilon: "Expression",
+    mu_squared: "Expression",
+    euler_gamma: "Expression",
+) -> "Expression":
+    """Massless cut triangle Tcut(p1²,p2²,p3²)."""
+
+    from symbolica import E as _E
+    from symbolica import Expression as _Expression
+
+    two_power = (2 - dimension - 2 * epsilon).expand()
+    pi_power = (4 - dimension - 2 * epsilon).expand()
+    kallen_power = (_E("1/2") - epsilon).expand()
+    return (
+        cut_normalization(mu_squared, epsilon, euler_gamma)
+        * 2**two_power
+        * (-p1_squared * p2_squared * p3_squared) ** (-epsilon)
+        / kallen(0, 0, p3_squared) ** kallen_power
+        * _Expression.PI**pi_power
+        / (1 - epsilon).gamma()
+    )
+
+
+@app.function
+def massive_cut_bubble(
+    momentum_squared: "Expression",
+    mass_squared: "Expression",
+    *,
+    dimension: "Expression",
+    epsilon: "Expression",
+    mu_squared: "Expression",
+    euler_gamma: "Expression",
+) -> "Expression":
+    """Massive cut bubble Bcutm(s,m²)."""
+
+    from symbolica import Expression as _Expression
+
+    cut_radius = (
+        (momentum_squared - mass_squared)
+        / (2 * momentum_squared.sqrt())
+    )
+    gamma_argument = ((dimension - 1) / 2).expand()
+    radial_power = (dimension - 3).expand()
+    return -(
+        cut_normalization(mu_squared, epsilon, euler_gamma)
+        / (
+            8
+            * _Expression.PI.sqrt()
+            * gamma_argument.gamma()
+            * momentum_squared.sqrt()
+        )
+        * cut_radius ** radial_power
+    )
+
+
+@app.function
+def massive_cut_triangle(
+    external_virtuality: "Expression",
+    momentum_squared: "Expression",
+    mass_squared: "Expression",
+    *,
+    dimension: "Expression",
+    epsilon: "Expression",
+    mu_squared: "Expression",
+    euler_gamma: "Expression",
+) -> "Expression":
+    """Massive cut triangle with historical s = 2 p1·p2."""
+
+    gram_factor = (
+        external_virtuality
+        * (momentum_squared - mass_squared)
+        * mass_squared
+    )
+    gamma_argument = ((dimension - 2) / 2).expand()
+    momentum_power = (dimension - 3).expand()
+    gram_power = ((dimension - 4) / 2).expand()
+    return (
+        cut_normalization(mu_squared, epsilon, euler_gamma)
+        / (
+            4
+            * gamma_argument.gamma()
+            * momentum_squared ** momentum_power
+        )
+        * gram_factor ** gram_power
     )
 
 
@@ -644,16 +664,11 @@ def _(
     epsilon,
     euler_gamma,
     mass_squared,
-    massive_cut_bubble,
-    massive_cut_triangle,
-    massless_cut_bubble,
-    massless_cut_triangle,
     mu_squared,
     p1_squared,
     p2_squared,
     p_squared,
     s,
-    uncut_bubble,
 ):
     analytic_master_formulas = (
         {
@@ -759,18 +774,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    E,
-    canonical_zero,
-    d,
-    epsilon,
-    euler_gamma,
-    loop_normalization,
-    mu_squared,
-    p_squared,
-    pi,
-    uncut_bubble,
-):
+def _(canonical_zero, d, epsilon, euler_gamma, mu_squared, p_squared, pi):
     bubble_parameter_integral = (
         ((d - 2) / 2).gamma() ** 2 / (d - 2).gamma()
     )
@@ -869,18 +873,13 @@ def _(mo):
 def _(
     E,
     canonical_zero,
-    cut_normalization,
     d,
     epsilon,
     euler_gamma,
-    loop_normalization,
     mass_squared,
-    massless_cut_bubble,
-    massive_cut_bubble,
     mu_squared,
     pi,
     s,
-    sphere_volume,
 ):
     massive_cut_radius = (s - mass_squared) / (2 * s.sqrt())
     massive_cut_phase_space = (
@@ -1043,13 +1042,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    canonical_zero,
-    p1_squared,
-    p2_squared,
-    s_lightcone,
-    spenso_table,
-):
+def _(canonical_zero, p1_squared, p2_squared, s_lightcone, spenso_table):
     _twice_beam_dot = (
         s_lightcone + p1_squared * p2_squared / s_lightcone
     )
@@ -1130,13 +1123,11 @@ def _(
     epsilon,
     euler_gamma,
     kappa_squared,
-    loop_normalization,
     mass_squared,
     mu_squared,
     p1_squared,
     pi,
     s_lightcone,
-    sphere_volume,
     x,
 ):
     lightcone_q_virtuality = s_lightcone * x * beta - kappa_squared
@@ -1347,9 +1338,7 @@ def _(
     d,
     epsilon,
     euler_gamma,
-    kallen,
     lightcone_transverse_radius_squared,
-    loop_normalization,
     mass_squared,
     mu_squared,
     p1_squared,
@@ -1357,7 +1346,6 @@ def _(
     pi,
     s,
     s_lightcone,
-    sphere_volume,
 ):
     full_virtuality_pair_invariant = (
         s_lightcone
@@ -1503,23 +1491,17 @@ def _(mo):
 def _(
     E,
     canonical_zero,
-    cut_normalization,
     d,
     epsilon,
     euler_gamma,
-    kallen,
     lightcone_transverse_radius_squared,
-    loop_normalization,
     mass_squared,
-    massless_cut_triangle,
-    massive_cut_triangle,
     mu_squared,
     p1_squared,
     p2_squared,
     pi,
     s,
     s_lightcone,
-    sphere_volume,
 ):
     massive_triangle_gram = p1_squared * (s - mass_squared) * mass_squared
     lightcone_radius_residual = canonical_zero(
@@ -1807,10 +1789,6 @@ def _(
     epsilon,
     euler_gamma,
     mass_squared,
-    massive_cut_bubble,
-    massive_cut_triangle,
-    massless_cut_bubble,
-    massless_cut_triangle,
     mu_squared,
     p1_squared,
     p2_squared,
@@ -1940,12 +1918,11 @@ def _(mo):
 @app.cell
 def _(
     canonical_zero,
-    cut_normalization,
     epsilon,
     euler_gamma,
+    mass_squared,
     massive_bubble_dimreg,
     massive_triangle_dimreg,
-    mass_squared,
     mu_squared,
     p1_squared,
     s,
@@ -2054,7 +2031,6 @@ def _(
     mu_squared,
     p_squared,
     series_order,
-    uncut_bubble,
 ):
     uncut_bubble_dimreg = uncut_bubble(
         p_squared,
@@ -2140,14 +2116,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    S,
-    canonical_zero,
-    epsilon,
-    lambda_squared,
-    pi,
-    spenso_table,
-):
+def _(S, canonical_zero, epsilon, lambda_squared, pi, spenso_table):
     _virtuality, _a1, _a2, _a3, _a4 = S("v", "a1", "a2", "a3", "a4")
     _antiderivative = -_virtuality ** (-epsilon) / epsilon
     _antiderivative_residual = canonical_zero(

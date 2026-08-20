@@ -8,12 +8,14 @@ asks to modify a sibling repository.
 
 ## Repository Layout
 
-- LUDY: `/Users/lcnbr/dev/work/bern/LUDY`
+- LUDY: `/Users/lcnbr/dev/work/bern/LUDY-clean`
 - Kira wrapper: `packages/ludy-kira`
 - DY calculation overview: `calculations/dy`
 - Portable DY/Kira application: `calculations/dy/python`
 - Mathematica source snapshot: `calculations/dy/mathematica`
-- Local GammaLoop/Spenso notebook: `notebooks/ludy.py`
+- Cross-box helper source and walkthrough: `notebooks/ludy.py`
+- Root multi-topology runner: `notebooks/dy_topologies.py`
+- Analytic master implementations: `calculations/dy/python/masters.py`
 - General cone notebook: `notebooks/collinear-cone.py`
 - GammaLoop: `/Users/lcnbr/dev/work/bern/gammaloop/main`
 - Symbolica Community: `/Users/lcnbr/dev/work/bern/symbolica-community`
@@ -32,8 +34,9 @@ The root uv sources intentionally use the relative sibling paths
 `../gammaloop/main` and `../symbolica-community`. The root Nix flake uses a
 public, exact GammaLoop revision while uv overlays the editable local source.
 If the working copies move, update the uv paths. This root environment serves
-only the general notebooks. The DY/Kira application uses its own environment
-and requires neither sibling.
+only the general notebooks, including the cross-box source/walkthrough and
+multi-topology runner. The DY/Kira application uses its own environment and
+requires neither sibling.
 
 The Mathematica directory is a curated source snapshot. Preserve the complete
 notebook, first-party packages, `tools/trace_form.log`, and historical FIRE
@@ -65,6 +68,7 @@ Marimo are not assumed to exist.
 $ nix develop
 $ uv sync --locked
 $ uv run --locked marimo edit notebooks/ludy.py
+$ uv run --locked marimo edit notebooks/dy_topologies.py
 ```
 
 The equivalent one-shot launch is:
@@ -104,7 +108,19 @@ $ uv run --locked marimo edit notebook.py
 ```
 
 Opening or checking `notebook.py` must not launch Kira. Preserve the explicit
-run control and resumable, ignored work directory.
+run control and resumable, ignored work directory. This independently locked
+portable notebook must not import `notebooks/ludy.py` or
+`notebooks/dy_topologies.py`.
+
+`notebooks/ludy.py` owns the reusable cross-box helper implementations and
+presents them immediately before first use in the walkthrough. Keep its
+Mathematica/FIRE comparisons and other oracle code in the final validation
+appendix. Import analytic master evaluators from
+`calculations/dy/python/masters.py` rather than duplicating them.
+
+`notebooks/dy_topologies.py` is a root-environment runner that imports the
+public helper surface from `notebooks/ludy.py`. Do not copy helper
+implementations into the runner.
 
 ## uv Dependency Wiring
 
@@ -198,6 +214,7 @@ After changing the environment or notebook, run:
 $ nix flake check
 $ nix develop --command uv lock --check
 $ nix develop --command uv run --locked marimo check --strict notebooks/ludy.py
+$ nix develop --command uv run --locked marimo check --strict notebooks/dy_topologies.py
 $ nix develop --command uv run --locked marimo check --strict notebooks/collinear-cone.py
 ```
 
@@ -217,6 +234,7 @@ After changing the DY Python application, also run from
 $ nix flake check
 $ nix develop --command uv lock --check
 $ nix develop --command uv run --locked marimo check --strict notebook.py
+$ nix develop --command uv run --locked marimo check --strict masters.py
 ```
 
 For runtime checks, execute GammaLoop and direct Symbolica imports sequentially,

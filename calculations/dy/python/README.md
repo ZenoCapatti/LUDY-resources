@@ -11,7 +11,9 @@ The application contains two Marimo notebooks:
 
 - `notebook.py` prepares, runs, resumes, and inspects the Kira reductions;
 - `masters.py` derives and evaluates the closed-form `B`, `Bcut`, `Tcut`,
-  `Bcutm`, and `Tcutm` basis used by the retained Mathematica substitutions.
+  `Bcutm`, and `Tcutm` basis used by the retained Mathematica substitutions,
+  and owns the importable analytic master evaluator implementations used by
+  the root cross-box walkthrough.
 
 From the repository root:
 
@@ -41,6 +43,11 @@ plus-distribution expansions, leading-virtuality integrations, and a positive
 real numerical point. Its mapping table is deliberately limited to analytic
 identifications explicitly present in the source notebook; other preferred
 Kira masters remain unevaluated.
+
+The repository-root `notebooks/ludy.py` imports the analytic evaluators from
+`masters.py`; it does not maintain a second copy. This portable application's
+`notebook.py` remains independently locked and does not import `ludy.py` or the
+root multi-topology runner.
 
 The local flake delegates its development shell to the standalone
 `ludy-kira` subflake. That shell provides Python, uv, Kira, Fermat, and

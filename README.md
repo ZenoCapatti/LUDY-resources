@@ -12,7 +12,8 @@ calculations/
     mathematica/              original DY calculation and FIRE reference data
     python/                   portable Kira and analytic-master notebooks
 notebooks/
-  ludy.py                     local GammaLoop/Spenso research notebook
+  ludy.py                     cross-box helpers, walkthrough, and validation
+  dy_topologies.py            multi-topology runner reusing ludy.py helpers
   collinear-cone.py           independent cone visualization
 pyproject.toml, flake.nix     local environment for the general notebooks
 ```
@@ -89,10 +90,22 @@ require FIRE. Snapshot provenance and exact inclusions are documented in
 ## General research notebooks
 
 The repository root remains a separate local environment for
-[`notebooks/ludy.py`](notebooks/ludy.py) and
+[`notebooks/ludy.py`](notebooks/ludy.py),
+[`notebooks/dy_topologies.py`](notebooks/dy_topologies.py), and
 [`notebooks/collinear-cone.py`](notebooks/collinear-cone.py). It intentionally
 uses editable sibling checkouts at `../gammaloop/main` and
-`../symbolica-community`:
+`../symbolica-community`.
+
+`ludy.py` is both the source of the DY/Kira helper implementations and a
+cell-by-cell cross-box walkthrough. Each helper is defined immediately before
+the walkthrough first needs it, while the Mathematica/FIRE comparisons and
+other validation checks are collected in a final appendix. Its Kira project
+builder and resumable runner are module-visible for companion notebooks.
+Analytic master evaluators are imported from
+[`calculations/dy/python/masters.py`](calculations/dy/python/masters.py), which
+is their single implementation site. `dy_topologies.py` imports those public
+Kira helpers from `ludy.py` to inspect and run several topologies without
+copying the cross-box implementation.
 
 The Symbolica Community checkout should track its latest
 `simplify-spenso-api` bookmark; the root lock records the resulting 2.2.0
@@ -102,12 +115,14 @@ editable distribution.
 $ nix develop
 $ uv sync --locked
 $ uv run --locked marimo edit notebooks/ludy.py
+$ uv run --locked marimo edit notebooks/dy_topologies.py
 ```
 
 GammaLoop and Symbolica Community contain separately linked Symbolica engines.
 Use them in one process only when the configured license permits multiple
-engines. The portable DY application imports only the standalone Symbolica
-distribution and avoids that coupling.
+engines. The independently locked portable DY application at
+`calculations/dy/python/notebook.py` does not import either root notebook; it
+imports only the standalone Symbolica distribution and avoids that coupling.
 
 Keep `SYMBOLICA_LICENSE` and other credentials in the ignored `.envrc.local`,
 never in tracked files. Use Jujutsu for version-control operations in this
