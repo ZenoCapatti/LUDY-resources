@@ -4,9 +4,9 @@ version = "0.1.0"
 description = "Portable Marimo application for Drell-Yan reductions and analytic masters"
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "ludy-kira",
+    "kirapy",
     "marimo>=0.23.15",
-    "symbolica>=2.2.0",
+    "symbolica @ git+https://github.com/alphal00p/symbolica.git@63fc4bf82163e25cfe30db0ec1b44b86ee5afed0",
     "typst>=0.15,<0.16",
 ]
 
@@ -15,5 +15,13 @@ package = false
 python-downloads = "never"
 python-preference = "only-system"
 
+[tool.uv.extra-build-dependencies]
+symbolica = ["maturin==1.14.1"]
+
 [tool.uv.sources]
-ludy-kira = { path = "../../../packages/ludy-kira", editable = true }
+kirapy = { path = "../../../packages/kirapy", editable = true }
+
+[dependency-groups]
+build = [
+    "maturin==1.14.1",
+]

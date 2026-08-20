@@ -30,7 +30,7 @@
                 "x86_64-linux"
               ]
             then
-              import ./packages/ludy-kira/nix { pkgs = runtimePkgs; }
+              import ./packages/kirapy/nix { pkgs = runtimePkgs; }
             else
               null;
         in

@@ -5,7 +5,7 @@ description = "Marimo notebooks backed by local GammaLoop and Symbolica Communit
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "gammaloop",
-    "ludy-kira",
+    "kirapy",
     "marimo",
     "symbolica",
     "typst>=0.15,<0.16",
@@ -14,13 +14,14 @@ dependencies = [
 
 [tool.uv]
 config-settings-package = { gammaloop = { build-args = "--manifest-path crates/gammaloop-api/Cargo.toml" } }
+override-dependencies = ["symbolica"]
 package = false
 python-downloads = "never"
 python-preference = "only-system"
 
 [tool.uv.sources]
 gammaloop = { path = "../gammaloop/main", editable = true, package = true }
-ludy-kira = { path = "packages/ludy-kira", editable = true }
+kirapy = { path = "packages/kirapy", editable = true }
 symbolica = { path = "../symbolica-community", editable = true, package = true }
 
 [dependency-groups]

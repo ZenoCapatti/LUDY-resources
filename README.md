@@ -6,7 +6,7 @@ interactive experiments live under `notebooks/`.
 
 ```text
 packages/
-  ludy-kira/                  reusable Python wrapper and pinned Kira runtime
+  kirapy/                     reusable Python wrapper and pinned Kira runtime
 calculations/
   dy/
     mathematica/              original DY calculation and FIRE reference data
@@ -20,14 +20,14 @@ pyproject.toml, flake.nix     local environment for the general notebooks
 
 The two DY implementations are intentionally siblings. The Mathematica tree
 retains the scientific source and historical FIRE fixtures; the Python
-application recreates the reduction through the reusable `ludy-kira` package.
+application recreates the reduction through the reusable `kirapy` package.
 See [`calculations/dy/README.md`](calculations/dy/README.md) for the mapping
 between them.
 
 ## Run the portable DY calculation
 
 The DY Python application has its own uv lock and Nix shell. It depends on the
-local `packages/ludy-kira` checkout but not on the sibling GammaLoop or
+local `packages/kirapy` checkout but not on the sibling GammaLoop or
 Symbolica Community repositories:
 
 ```console
@@ -51,22 +51,25 @@ separately installed Kira 3.1-compatible executable.
 
 ## Reusable Kira wrapper
 
-[`packages/ludy-kira`](packages/ludy-kira) is an independently locked uv/Nix
+[`packages/kirapy`](packages/kirapy) is an independently locked uv/Nix
 project. Its wheel contains only the Python interface; Kira and Fermat are
 external executables supplied by its Nix shell or configured by the user.
 
 ```console
-$ cd packages/ludy-kira
+$ cd packages/kirapy
 $ nix develop
 $ uv sync --locked
 $ uv run --locked pytest
 ```
 
 The wrapper exposes deterministic Kira project generation, resumable runs,
-exact Symbolica parsing, and completeness checks. Its tests compare the full
-27-integral topology-1 result against the retained FIRE oracle. API and
-work-directory details are in
-[`packages/ludy-kira/README.md`](packages/ludy-kira/README.md).
+exact Symbolica parsing, and completeness checks. Native Symbolica and Spenso
+objects cross Kira's text interface through aliases backed by full SHA-256
+digests; Fermat-facing scalar names use a collision-checked ten-character
+projection. Native expressions are restored from a checksummed Symbolica state
+artifact before results are returned. Its tests compare the full 27-integral
+topology-1 result against the retained FIRE oracle. API and work-directory
+details are in [`packages/kirapy/README.md`](packages/kirapy/README.md).
 
 Fermat is downloaded from its official distribution and has a
 [non-business-use restriction](https://home.bway.net/lewis/ferm7.html). Review

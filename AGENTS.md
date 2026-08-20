@@ -2,14 +2,14 @@
 
 This repository is a research monorepo. It contains a local Marimo environment
 backed by sibling GammaLoop and Symbolica Community working copies, the
-standalone `ludy-kira` package, and an independently locked DY Python
+standalone `kirapy` package, and an independently locked DY Python
 application. Keep changes focused on this repository unless the user explicitly
 asks to modify a sibling repository.
 
 ## Repository Layout
 
 - LUDY: `/Users/lcnbr/dev/work/bern/LUDY-clean`
-- Kira wrapper: `packages/ludy-kira`
+- Kira wrapper: `packages/kirapy`
 - DY calculation overview: `calculations/dy`
 - Portable DY/Kira application: `calculations/dy/python`
 - Mathematica source snapshot: `calculations/dy/mathematica`
@@ -20,12 +20,12 @@ asks to modify a sibling repository.
 - GammaLoop: `/Users/lcnbr/dev/work/bern/gammaloop/main`
 - Symbolica Community: `/Users/lcnbr/dev/work/bern/symbolica-community`
 
-`packages/ludy-kira` is a self-contained uv/Nix subproject intended to work
+`packages/kirapy` is a self-contained uv/Nix subproject intended to work
 after cloning only this repository. Do not introduce sibling checkout paths or
 the notebook dependency graph into its package metadata, lock, or flake.
 
 `calculations/dy/python` is a separately locked application environment. It may
-depend on `../../../packages/ludy-kira`, but must not inherit the root notebook
+depend on `../../../packages/kirapy`, but must not inherit the root notebook
 dependency graph or reference the sibling GammaLoop and Symbolica Community
 working copies. Keep application-only dependencies such as Marimo there rather
 than adding them to the reusable wrapper.
@@ -88,7 +88,7 @@ ignored `.envrc` file when needed.
 For the standalone Kira wrapper, use its own shell and lock instead:
 
 ```console
-$ cd packages/ludy-kira
+$ cd packages/kirapy
 $ nix develop
 $ uv sync --locked
 $ uv run --locked pytest
@@ -169,14 +169,15 @@ revision and then update every Spenso/Idenso/Vakint path together.
 
 These crates exchange Symbolica and PyO3 types across crate boundaries. Keep
 Symbolica Community and its `example_extension` aligned with GammaLoop's
-Symbolica 2.2 and PyO3 0.28 dependency families. Its crates.io patches use the
-same Symbolica Git `dev` source identity as its pinned GammaLoop revision,
-while the Community `Cargo.lock` pins that source to Symbolica revision
-`0441bd7a511209dce2ca99925fe87f8b18e4bf03`. When GammaLoop deliberately moves
-that pin, update the Community lock to the same revision and verify the graph:
+Symbolica 2.2 and PyO3 0.28 dependency families. Both the crates.io source and
+GammaLoop's explicit upstream-Git source are patched to the state-registry fork
+at revision `63fc4bf82163e25cfe30db0ec1b44b86ee5afed0`. The matching
+`codex/kirapy-state-registry` branch is published on `alphal00p/symbolica`.
+When that pin deliberately moves, update all six patch entries and verify the
+graph:
 
 ```console
-$ cargo update -p symbolica --precise <gammaloop-symbolica-revision>
+$ cargo update -p symbolica --precise <symbolica-fork-revision>
 $ cargo check --locked
 $ cargo tree --locked -i symbolica
 $ cargo tree --locked -i pyo3
@@ -218,7 +219,7 @@ $ nix develop --command uv run --locked marimo check --strict notebooks/dy_topol
 $ nix develop --command uv run --locked marimo check --strict notebooks/collinear-cone.py
 ```
 
-After changing `packages/ludy-kira`, also run from that directory:
+After changing `packages/kirapy`, also run from that directory:
 
 ```console
 $ nix flake check

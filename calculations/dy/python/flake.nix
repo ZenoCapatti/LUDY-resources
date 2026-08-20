@@ -1,12 +1,12 @@
 {
   description = "Portable runtime for the Drell-Yan Kira notebook";
 
-  inputs.ludy-kira.url = "path:../../../packages/ludy-kira";
+  inputs.kirapy.url = "path:../../../packages/kirapy";
 
   outputs =
-    { ludy-kira, ... }:
+    { kirapy, ... }:
     {
-      devShells = ludy-kira.devShells;
-      formatter = ludy-kira.formatter;
+      devShells = kirapy.devShells;
+      formatter = kirapy.formatter;
     };
 }

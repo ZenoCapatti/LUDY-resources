@@ -221,19 +221,19 @@ def _(E, Expression, mo):
         1 / _gamma_argument_probe.gamma()
     )
     _gamma_square_probe = _typst_math(_gamma_argument_probe.gamma() ** 2)
-    assert _scalar_power_probe == "1/pi^2"
-    assert _gamma_reciprocal_probe == (
-        '1/(op("gamma")(3/2-"ep"))'
-    )
-    assert _gamma_square_probe == '(op("gamma")(3/2-"ep"))^2'
+    assert _scalar_power_probe == "frac(1,pi^2)"
+    assert _gamma_reciprocal_probe == 'frac(1,Gamma(3/2-"ep"))'
+    assert _gamma_square_probe == 'Gamma(3/2-"ep")^2'
     _scalar_power_mathml = _render_typst_html(_scalar_power_probe)[1]
     _gamma_reciprocal_mathml = _render_typst_html(
         _gamma_reciprocal_probe
     )[1]
     _gamma_square_mathml = _render_typst_html(_gamma_square_probe)[1]
     assert "<math" in _scalar_power_mathml
-    assert "<mfrac><mn>1</mn><mrow><mo" in _gamma_reciprocal_mathml
-    assert "<msup><mrow><mo>(</mo><mrow><mo" in _gamma_square_mathml
+    assert "<mfrac>" in _gamma_reciprocal_mathml
+    assert '<mi mathvariant="normal">Γ</mi>' in _gamma_reciprocal_mathml
+    assert "<msup>" in _gamma_square_mathml
+    assert '<mi mathvariant="normal">Γ</mi>' in _gamma_square_mathml
     return (spenso_table,)
 
 

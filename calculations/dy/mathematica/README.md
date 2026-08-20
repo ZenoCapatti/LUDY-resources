@@ -32,7 +32,7 @@ Their curated oracles were regenerated from the pinned notebook and FIRE
 revisions with `regenerate_fire_topo10.wls`, `regenerate_fire_topo11.wls`, and
 `regenerate_fire_crossed_box.wls`. The reviewed artifacts, hashes, and exact
 tool versions are recorded under the corresponding
-`packages/ludy-kira/tests/fixtures/fire_topoN/` directories; generated
+`packages/kirapy/tests/fixtures/fire_topoN/` directories; generated
 databases remain external to the repository.
 
 Generated databases, temporary files, nested version-control metadata, and the

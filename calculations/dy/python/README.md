@@ -3,7 +3,7 @@
 This self-contained uv application is the Python counterpart of the sibling
 [`DY_calculation.nb`](../mathematica/DY_calculation.nb) calculation.
 It uses the repository's reusable
-[`ludy-kira`](../../../packages/ludy-kira) package to reproduce the validated
+[`kirapy`](../../../packages/kirapy) package to reproduce the validated
 topology-1 through topology-8, topology-10 through topology-11, and topology-20
 through topology-31 IBP reductions with Kira.
 
@@ -31,7 +31,7 @@ state under `runs/dy-topoN/`, so an interrupted calculation can be resumed;
 **Run the complete Kira reduction** button when ready. Topologies 10, 11, and
 20–31 are backed by reproducibly regenerated and hashed FIRE evidence
 documented in their
-`packages/ludy-kira/tests/fixtures/fire_topoN/PROVENANCE.md` files.
+`packages/kirapy/tests/fixtures/fire_topoN/PROVENANCE.md` files.
 
 Opening or exporting `masters.py` never launches Kira. It reconstructs the
 Feynman-parameter, radial-delta, light-cone/Sudakov, angular-orbit, and
@@ -50,7 +50,7 @@ The repository-root `notebooks/ludy.py` imports the analytic evaluators from
 root multi-topology runner.
 
 The local flake delegates its development shell to the standalone
-`ludy-kira` subflake. That shell provides Python, uv, Kira, Fermat, and
+`kirapy` subflake. That shell provides Python, uv, Kira, Fermat, and
 `FERMATPATH`; uv installs Marimo, Symbolica, Typst, and the editable wrapper
 package according to this application's lock file.
 

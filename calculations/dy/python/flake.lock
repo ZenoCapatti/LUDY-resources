@@ -1,6 +1,6 @@
 {
   "nodes": {
-    "ludy-kira": {
+    "kirapy": {
       "inputs": {
         "nixpkgs": "nixpkgs",
         "pyproject-build-systems": "pyproject-build-systems",
@@ -8,11 +8,11 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "path": "../../../packages/ludy-kira",
+        "path": "../../../packages/kirapy",
         "type": "path"
       },
       "original": {
-        "path": "../../../packages/ludy-kira",
+        "path": "../../../packages/kirapy",
         "type": "path"
       },
       "parent": []
@@ -36,15 +36,15 @@
     "pyproject-build-systems": {
       "inputs": {
         "nixpkgs": [
-          "ludy-kira",
+          "kirapy",
           "nixpkgs"
         ],
         "pyproject-nix": [
-          "ludy-kira",
+          "kirapy",
           "pyproject-nix"
         ],
         "uv2nix": [
-          "ludy-kira",
+          "kirapy",
           "uv2nix"
         ]
       },
@@ -65,7 +65,7 @@
     "pyproject-nix": {
       "inputs": {
         "nixpkgs": [
-          "ludy-kira",
+          "kirapy",
           "nixpkgs"
         ]
       },
@@ -85,17 +85,17 @@
     },
     "root": {
       "inputs": {
-        "ludy-kira": "ludy-kira"
+        "kirapy": "kirapy"
       }
     },
     "uv2nix": {
       "inputs": {
         "nixpkgs": [
-          "ludy-kira",
+          "kirapy",
           "nixpkgs"
         ],
         "pyproject-nix": [
-          "ludy-kira",
+          "kirapy",
           "pyproject-nix"
         ]
       },

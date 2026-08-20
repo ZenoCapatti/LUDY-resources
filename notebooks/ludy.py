@@ -22,6 +22,7 @@ def _():
         S,
         N,
         Expression,
+        ParseMode,
         PrintMode,
         Replacement,
     )
@@ -37,6 +38,7 @@ def _():
         E,
         Expression,
         N,
+        ParseMode,
         PrintMode,
         Replacement,
         Representation,
@@ -48,6 +50,12 @@ def _():
         prod,
         to_typst,
     )
+
+
+@app.cell
+def _(N):
+    N(1)/0
+    return
 
 
 @app.cell(hide_code=True)
@@ -139,12 +147,6 @@ def _(mo):
     `SpensoMath` keeps the exact native Symbolica expression for algebra while
     rendering its Spenso-aware Typst form as semantic HTML/MathML. Typst's SVG
     exporter is retained as a fallback while HTML export remains experimental.
-
-    - `spenso_math(expression)` wraps one exact expression for rich output.
-    - `typst(template, **expressions)` safely combines prose with inline or
-      display mathematics without first converting expressions to strings.
-    - `spenso_table(rows)` installs the same renderer for expression-valued
-      table cells while preserving the original objects for selection.
     """)
     return
 
@@ -372,20 +374,6 @@ def _(TypstFragment):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Rich expression tables
-
-    Marimo tables otherwise serialize Symbolica objects through their plain
-    representation. `spenso_table` discovers the columns and installs a
-    recursive formatter for expressions and nested expression sequences. The
-    formatted view uses `SpensoMath`, while the table retains the original row
-    objects for selection and downstream computation.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
 def _(Expression, mo, spenso_math):
     from html import escape as _escape_html
 
@@ -458,12 +446,6 @@ def _(Expression, mo, spenso_math):
 def _(mo):
     mo.md(r"""
     ## Data Structures
-
-    `Integrand` is the editable algebraic object. The intermediate records keep
-    the omitted/retained local denominator positions, the rewritten numerator
-    terms, and finally their global graph-source identities. `PreIBPResult`
-    bundles the complete inspectable handoff immediately before Kira; it does
-    not contain validation results or historical topology labels.
     """)
     return
 
@@ -586,16 +568,6 @@ def _(mo):
     before the walkthrough first needs it. The cross-box calculation exercises
     the helpers in a realistic chain; all exact checks and historical
     comparisons are collected in the final validation section.
-
-    The small graph helpers have deliberately narrow roles:
-
-    - `square(p)` constructs the Spenso scalar product (p\cdot p).
-    - `propagator_denominators` maps each `(momentum, mass_squared)` pair to
-      (p^2-m^2), without imposing kinematics.
-    - `find_loop_propagator_indices` searches momentum expressions for the
-      `ludy::loop_momentum` tag instead of requiring a second loop-line list.
-    - `project_cutset` restricts a full graph mask to an ordered subset of
-      propagators and validates the mask and indices.
     """)
     return
 
@@ -832,13 +804,6 @@ def _(mo):
     \[
     \sum_{i=1}^{N} c_i D_i=1.
     \]
-
-    `partial_fraction_coefficients(denominators, loop_scalar_products)` treats
-    the \(c_i\) as unknowns, expands this relation in the chosen independent
-    loop scalar products, and sets every resulting polynomial coefficient to
-    zero. It returns the unique loop-independent solution in denominator
-    order. A missing, dependent, or underdetermined relation is rejected rather
-    than choosing arbitrary free parameters.
     """)
     return
 
@@ -944,30 +909,6 @@ def _(
     return
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 3. Construct the partial-fraction terms
-
-    `normalize_rational` provides one exact comparison form by expanding,
-    combining rational terms, and cancelling common factors.
-
-    `partial_fraction` applies the affine identity to an `Integrand`. It either
-    solves the relation for the selected denominators or accepts supplied
-    coefficients, verifies that they are loop-momentum independent and satisfy
-    \(\sum_i c_iD_i=1\), and emits one child for every removed denominator.
-
-    \[
-    \frac{N}{\prod_iD_i}
-    =N\sum_i\frac{c_i}{\prod_{j\ne i}D_j}.
-    \]
-
-    Each child keeps the original denominator positions, so later graph routing
-    does not depend on the order in which terms happen to print.
-    """)
-    return
-
-
 @app.cell
 def _(Expression):
     def normalize_rational(expression: Expression) -> Expression:
@@ -1069,6 +1010,25 @@ def _(
     return (partial_fraction,)
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 3. Construct and map the partial-fraction terms
+
+    Divide the solved identity \(\sum_i c_iD_i=1\) by the complete denominator
+    product and multiply by the editable numerator:
+
+    \[
+    \frac{N}{\prod_iD_i}
+    =N\sum_i\frac{c_i}{\prod_{j\ne i}D_j}.
+    \]
+
+    The propagator objects and their original graph positions are retained.
+    No family name or external topology numbering is assigned at this stage.
+    """)
+    return
+
+
 @app.cell
 def _(affine_coefficients, integrand, loop_scalar_products, partial_fraction):
     partial_fractions = partial_fraction(
@@ -1113,23 +1073,6 @@ def _(affine_coefficients, mo, partial_fractions, spenso_table):
     return
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 4. Rewrite numerators in each denominator basis
-
-    `numerator_relations(propagators, propagator_labels,
-    loop_scalar_products)` treats the retained denominators as coordinates for
-    the independent loop scalar products. It introduces one formal label
-    \(P_i\) for each denominator and solves all equations
-    \(D_i-P_i=0\) simultaneously for the requested loop products. The result is
-    a list of `(loop_product, replacement)` pairs. Equal list lengths and the
-    absence of unresolved loop products ensure that the chosen denominators
-    form a square independent basis.
-    """)
-    return
-
-
 @app.cell
 def _(Expression, Sequence):
     def numerator_relations(
@@ -1167,18 +1110,6 @@ def _(Expression, Sequence):
         return list(zip(loop_scalar_products, replacements, strict=True))
 
     return (numerator_relations,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    `reduce_numerator` substitutes those relations into one child numerator and
-    converts the result to a polynomial in the formal labels. A label power
-    \(n_i\) cancels \(n_i\) powers of denominator \(D_i\), so the corresponding
-    integral index is \(1-n_i\). It returns the replacement relations, the
-    rewritten polynomial, and every coefficient/index-vector term separately.
-    """)
-    return
 
 
 @app.cell
@@ -1228,6 +1159,18 @@ def _(
         return NumeratorReduction(terms, relations, reduced)
 
     return (reduce_numerator,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 4. Rewrite each numerator in its three-propagator basis
+
+    The four children have different bases. For each one we solve the three
+    loop scalar products in terms of formal propagator labels, rewrite the
+    numerator, and read off the resulting integral powers.
+    """)
+    return
 
 
 @app.cell
@@ -1425,21 +1368,6 @@ def _():
     return Kira, Path
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Build the Kira projects
-
-    `build_kira_projects` enumerates every three-propagator subset of the
-    inferred loop lines for each reducible cut. It preserves graph order,
-    derives the on-shell kinematics from the cut mask, enables mass
-    reconstruction only when the massive line is present, and requests the
-    complete target cube. The returned dictionary is keyed by
-    `(cut_name, graph_source_indices)`; no historical topology label is needed.
-    """)
-    return
-
-
 @app.function
 def build_kira_projects(*, k1, p1, p2, q, propagators, cutsets):
     """Build native graph-order Kira projects for every reducible cut."""
@@ -1578,22 +1506,6 @@ def _(Path, cutsets, k1, p1, p2, propagators, q, spenso_table):
     return kira_projects, kira_workdir_root
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Build the exact IBP input
-
-    The algebraic contributions still carry Spenso scalar products and global
-    graph sources. `apply_kinematic_rules` performs the explicit cut-dependent
-    replacement of external squares and \(p_1\cdot p_2\).
-    `contribution_to_kira_expression` then selects the project with the matching
-    `(cut, sources)` key and constructs its family atom from the integral-index
-    vector. `assemble_ibp_expression` applies both steps term by term and sums
-    the different families into one exact expression.
-    """)
-    return
-
-
 @app.cell
 def _(Expression, Sequence):
     def apply_kinematic_rules(
@@ -1713,21 +1625,6 @@ def _(
     return (ibp_inputs_by_cut,)
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Run or resume the Kira projects
-
-    `run_kira_projects` checks the runtime once, processes project keys in a
-    deterministic order, and gives every family its own manifest-backed work
-    directory. A matching complete result is resumed; changed project inputs
-    are rejected by `ludy-kira` instead of being silently reused. The helper
-    requires complete rule sets and returns both the doctor report and the
-    reduction indexed by the original project key.
-    """)
-    return
-
-
 @app.function
 def run_kira_projects(kira, projects, workdir_root):
     """Run or resume all deterministic Kira projects sequentially."""
@@ -1789,20 +1686,6 @@ def _(kira_doctor, kira_reductions, mo, spenso_table):
         ]
     )
     _kira_status
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Apply the reduction rules without losing provenance
-
-    `apply_ibp_reductions` reconstructs each contribution's native project key,
-    requires that project's complete result, and looks up the exact requested
-    integral. It applies the cut kinematics to the coefficient but keeps the
-    original target beside its reduced right-hand side in an
-    `IBPReductionTerm`, making every term of the final sum inspectable.
-    """)
     return
 
 
@@ -1886,12 +1769,6 @@ def _(mo):
     space: a family or master that lacks any required positive exponent is set
     to zero. Cuts `11`, `10`, and `01` have three-propagator children. Cut `00`
     requires all four loop lines and therefore has a separate direct branch.
-
-    `cut_filter_masters` converts each local master-index vector back to a map
-    from global graph source to exponent. A master survives only when every
-    source required by the full cut mask has positive power. The function
-    returns the filtered expression together with the kept and dropped masters,
-    retaining their project keys for the analytic step.
     """)
     return
 
@@ -1985,20 +1862,6 @@ def _(
     )
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Identify surviving masters
-
-    `identify_masters` is a deliberately small boundary: it replaces only the
-    master atoms explicitly paired with analytic values. The replacement is
-    simultaneous and non-repeating, so evaluating one master cannot trigger an
-    accidental second rule. Keeping this step separate makes the IBP result
-    inspectable before any closed-form formula is inserted.
-    """)
-    return
-
-
 @app.cell
 def _(Replacement):
     def identify_masters(expression, identifications):
@@ -2047,87 +1910,13 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Analytic symbols
-
-    The analytic formulas use \(d\) for the integration dimension,
-    \(ε\) for the dimensional regulator in \(d=4-2ε\),
-    \(μ^2\) for the renormalization scale, and \(γ_E\) for the
-    Euler--Mascheroni constant. The latter is Symbolica's built-in constant.
-    The regulator and scale retain the stable Symbolica identities `ep` and
-    `musq`, but a small display-only printer emits structured `epsilon` and
-    `mu^2` Typst (and the corresponding LaTeX). This keeps parsing and
-    replacements unambiguous while rendering ε and μ² correctly.
-
-    Symbolica printer attributes are immutable. The registration cell below is
-    therefore a run-once initialization cell; restart the Marimo kernel before
-    deliberately rerunning it after an edit.
-    """)
-    return
-
-
 @app.cell
-def _(PrintMode):
-    def scalar_printer(*, latex: str, typst: str):
-        """Build a display-only printer for an otherwise stable scalar name."""
-
-        def _print_scalar(_expression, mode, **_format_options):
-            if mode == PrintMode.Latex:
-                return latex
-            if mode == PrintMode.Typst:
-                return typst
-            return None
-
-        return _print_scalar
-
-    return (scalar_printer,)
-
-
-@app.cell
-def _(Expression, S, scalar_printer):
+def _(E, ParseMode, S):
     dimension = S("d")
-    epsilon = S(
-        "ep",
-        print=scalar_printer(latex=r"\epsilon", typst="epsilon"),
-    )
-    mu_squared = S(
-        "musq",
-        print=scalar_printer(latex=r"\mu^{2}", typst="mu^2"),
-    )
-    euler_gamma = Expression.EULER_GAMMA
+    epsilon = S("ep")
+    mu_squared = S("musq")
+    euler_gamma = E("EulerGamma", ParseMode.Mathematica)
     return dimension, epsilon, euler_gamma, mu_squared
-
-
-@app.cell(hide_code=True)
-def _(dimension, epsilon, euler_gamma, mu_squared, spenso_table):
-    spenso_table(
-        [
-            {
-                "Python name": "dimension",
-                "symbol": dimension,
-                "meaning": "integration dimension",
-            },
-            {
-                "Python name": "epsilon",
-                "symbol": epsilon,
-                "meaning": "dimensional regulator",
-            },
-            {
-                "Python name": "mu_squared",
-                "symbol": mu_squared,
-                "meaning": "renormalization scale squared",
-            },
-            {
-                "Python name": "euler_gamma",
-                "symbol": euler_gamma,
-                "meaning": "Euler–Mascheroni constant",
-            },
-        ],
-        selection=None,
-    )
-    return
 
 
 @app.cell
@@ -2252,13 +2041,6 @@ def _(mo):
     that complete native path, the reusable helper edge cases, and finally the
     retained Mathematica/FIRE results as independent one-way oracles. None of
     the expected historical expressions feed the calculation above.
-
-    `validate_pre_ibp` is an invariant checker, not an input to the derivation.
-    It reconstructs the original integrand independently from the
-    partial-fraction children, numerator-reduced terms, and IBP contributions,
-    then substitutes every formal propagator label back into its scalar-product
-    relation. Every residual must vanish exactly before the historical oracles
-    are considered.
     """)
     return
 
@@ -2314,7 +2096,7 @@ def _(E, Expression, PreIBPResult, S, normalize_rational):
             strict=True,
         ), start=1):
             labels = [
-                S("Prop")(index)
+                S(f"__prop_{index}")
                 for index in range(len(child.integrand.denominators))
             ]
             for relation_index, (target, replacement) in enumerate(
@@ -2446,8 +2228,8 @@ def _(E, Expression, SpensoMath, mo, typst):
     _gamma_argument = E("3/2-ep")
     _expected_typst = {
         "scalar reciprocal power": "1/pi^2",
-        "gamma reciprocal": '1/(op("gamma")(3/2-epsilon))',
-        "gamma square": '(op("gamma")(3/2-epsilon))^2',
+        "gamma reciprocal": '1/(op("gamma")(3/2-"ep"))',
+        "gamma square": '(op("gamma")(3/2-"ep"))^2',
     }
     _actual_typst = {
         "scalar reciprocal power": SpensoMath(1 / Expression.PI**2).typst,

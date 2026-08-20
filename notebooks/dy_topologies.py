@@ -9,18 +9,28 @@ def _():
     from pathlib import Path
 
     import marimo as mo
-    from ludy import build_kira_projects, run_kira_projects
-    from ludy_kira import Kira
-    from symbolica import E, S
+    from ludy import (
+        build_kira_projects,
+        momentum_printer,
+        run_kira_projects,
+        spenso_table,
+    )
+    from kirapy import Kira
+    from symbolica import N, S
+    from symbolica.community.spenso import Representation, TensorName
 
     return (
-        E,
         Kira,
+        N,
         Path,
+        Representation,
         S,
+        TensorName,
         build_kira_projects,
         mo,
+        momentum_printer,
         run_kira_projects,
+        spenso_table,
     )
 
 
@@ -34,18 +44,39 @@ def _(mo):
     resumable runner are imported directly from [`ludy.py`](ludy.py), which
     remains the source of their implementations and the worked cross-box test.
 
-    Project construction is side-effect free. Select any combination of the
-    native graph-order families, inspect the exact project definitions, and use
-    the run control below when you deliberately want to start or resume Kira.
-    Merely importing, checking, or exporting this notebook never launches Kira.
+    Project construction is side-effect free and uses the same native rank-one
+    Spenso momenta, Minkowski representation, project builder, and shared
+    `runs/dy-cross-box-kirapy/` workdirs as the walkthrough. Select any
+    combination of graph-order families, inspect the exact project definitions,
+    and use the run control below when you deliberately want to start or resume
+    Kira. Merely importing, checking, or exporting this notebook never launches
+    Kira.
     """)
     return
 
 
 @app.cell
-def _(E, Path, S, build_kira_projects):
-    k1, p1, p2, q = S("k1", "p1", "p2", "q")
-    _zero = E("0")
+def _(
+    N,
+    Path,
+    Representation,
+    S,
+    TensorName,
+    build_kira_projects,
+    momentum_printer,
+):
+    _minkd = Representation.mink(dimension=S("D"))
+    _p = TensorName.vector("p", print=momentum_printer("p"))
+    _k = TensorName.vector(
+        "k",
+        tags=["ludy::loop_momentum"],
+        print=momentum_printer("k"),
+    )
+    p1 = _p(1, _minkd)
+    p2 = _p(2, _minkd)
+    k1 = _k(1, _minkd)
+    q = S("q")
+    _zero = N(0)
     propagators = [
         (p1, _zero),
         (p2, _zero),
@@ -73,7 +104,11 @@ def _(E, Path, S, build_kira_projects):
         for project_key, project in topology_projects.items()
     }
     project_names = sorted(project_keys_by_name)
-    topology_workdir_root = Path(__file__).resolve().parents[1] / "runs"
+    topology_workdir_root = (
+        Path(__file__).resolve().parents[1]
+        / "runs"
+        / "dy-cross-box-kirapy"
+    )
     return (
         project_keys_by_name,
         project_names,
@@ -98,6 +133,7 @@ def _(mo, project_names):
 def _(
     mo,
     project_keys_by_name,
+    spenso_table,
     topology_projects,
     topology_selector,
     topology_workdir_root,
@@ -129,14 +165,13 @@ def _(
             "preferred masters": list(_project.preferred_masters),
             "reconstruct mass": _project.reconstruct_mass,
             "workdir": str(
-                topology_workdir_root
-                / f"dy-cross-box-{_project.family.name}"
+                topology_workdir_root / _project.family.name
             ),
         }
         for _project_key, _project in selected_topology_projects.items()
     ]
     if _project_rows:
-        _inspection = mo.ui.table(
+        _inspection = spenso_table(
             _project_rows,
             selection=None,
             pagination=True,
@@ -189,7 +224,7 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(mo, topology_kira_doctor, topology_kira_reductions):
+def _(mo, spenso_table, topology_kira_doctor, topology_kira_reductions):
     if topology_kira_doctor is None:
         _run_status = mo.callout(
             "Ready. No Kira subprocess has been started by this notebook run.",
@@ -217,7 +252,7 @@ def _(mo, topology_kira_doctor, topology_kira_reductions):
                     f"{len(_result_rows)} selected project(s).",
                     kind="success",
                 ),
-                mo.ui.table(
+                spenso_table(
                     _result_rows,
                     selection=None,
                     pagination=True,

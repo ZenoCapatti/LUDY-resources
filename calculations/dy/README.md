@@ -19,7 +19,7 @@ dy/
 
 The Mathematica notebook is the scientific source context. Its retained FIRE
 inputs and tables are golden evidence. The portable Python notebook expresses
-the selectable topology through `packages/ludy-kira` and parses the Kira result
+the selectable topology through `packages/kirapy` and parses the Kira result
 as exact Symbolica expressions. The companion `masters.py` notebook derives
 the closed-form bubble and triangle basis used by the historical substitutions,
 checks it in both radial and light-cone coordinates, audits the supplied PDF's
@@ -73,7 +73,7 @@ portable Kira app.
 ## Python/Kira implementation
 
 The Python directory is an application, not another reusable library. Its
-editable dependency on `../../../packages/ludy-kira` keeps wrapper development
+editable dependency on `../../../packages/kirapy` keeps wrapper development
 local while its own lock makes the notebook reproducible after cloning this
 repository. It does not require the sibling GammaLoop or Symbolica Community
 working copies.
@@ -117,7 +117,7 @@ snapshot contents, exclusions, and FIRE configuration.
 The three environments are intentionally checked independently:
 
 ```console
-$ cd packages/ludy-kira
+$ cd packages/kirapy
 $ nix develop --command uv run --locked pytest
 
 $ cd ../..

@@ -11,7 +11,7 @@ def _():
     import marimo as mo
     from symbolica import S
 
-    from ludy_kira import (
+    from kirapy import (
         IntegralFamily,
         KinematicInvariant,
         Kinematics,
@@ -329,7 +329,7 @@ def _(
     massive_kinematics = Kinematics(
         incoming_momenta=(p1, p2),
         kinematic_invariants=(
-            KinematicInvariant(m**2, 2, kira_name="m2"),
+            KinematicInvariant(m**2, 2),
             KinematicInvariant(ipp1p2, 2),
         ),
         scalar_products=(
@@ -624,8 +624,8 @@ def _(bounds, family, kira_workdir, mo, preferred_masters, targets):
     )
     if family.name in {"topo1", "topo2", "topo3"}:
         _invariant_note = (
-            "The composite invariant `m**2` is serialized as Kira's safe symbol "
-            "`m2` and restored exactly on every parsed right-hand side."
+            "The composite invariant `m**2` crosses Kira through a deterministic "
+            "private alias and is restored exactly on every parsed right-hand side."
         )
     elif family.name in {"topo6", "topo25"}:
         _invariant_note = "The external invariant `p2**2 = ipp2p2` remains exact."
@@ -657,7 +657,10 @@ def _(bounds, family, kira_workdir, mo, preferred_masters, targets):
             "`p1**2 = ipp1p1`, and `p1*p2 = ipp1p2` remain exact."
         )
     else:
-        _invariant_note = "This family is massless and needs no composite invariant alias."
+        _invariant_note = (
+            "This family is massless; its kinematic symbols still cross Kira "
+            "through `kirapy`'s private aliases."
+        )
     mo.md(f"""
     | project item | value |
     | --- | --- |
