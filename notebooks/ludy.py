@@ -4,11 +4,168 @@ __generated_with = "0.23.15"
 app = marimo.App(width="medium")
 
 
+@app.function(hide_code=True)
+def render_typst_html(source, *, font_size=15.0):
+    """Compile one responsive Typst fragment through a shared HTML backend."""
+
+    from html import escape
+    from inspect import cleandoc
+    import re
+    from threading import Lock
+
+    import typst
+
+    if not isinstance(source, str):
+        raise TypeError("Typst source must be a string")
+
+    state = getattr(typst, "_ludy_html_renderer_v1", None)
+    if state is None:
+        state = {
+            "compiler": typst.Compiler(ignore_system_fonts=True),
+            "lock": Lock(),
+            "cache": {},
+            "body_pattern": re.compile(
+                r"<body(?:\s[^>]*)?>(.*?)</body>",
+                re.DOTALL | re.IGNORECASE,
+            ),
+            "head_pattern": re.compile(
+                r"<head(?:\s[^>]*)?>(.*?)</head>",
+                re.DOTALL | re.IGNORECASE,
+            ),
+            "style_pattern": re.compile(
+                r"<style(?:\s[^>]*)?>.*?</style>",
+                re.DOTALL | re.IGNORECASE,
+            ),
+        }
+        setattr(typst, "_ludy_html_renderer_v1", state)
+
+    cell_css = r"""
+    <style>
+    .ludy-typst {
+      color: var(--foreground, currentColor);
+      font-family: var(--text-font, system-ui, sans-serif);
+      line-height: 1.55;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .ludy-typst math,
+    .ludy-typst h1,
+    .ludy-typst h2,
+    .ludy-typst h3,
+    .ludy-typst h4,
+    .ludy-typst h5,
+    .ludy-typst h6 {
+      color: currentColor;
+    }
+    .ludy-typst h1,
+    .ludy-typst h2,
+    .ludy-typst h3,
+    .ludy-typst h4,
+    .ludy-typst h5,
+    .ludy-typst h6 {
+      font-family: var(--heading-font, inherit);
+      margin-block: 0.7em 0.45em;
+    }
+    .ludy-typst > :first-child {
+      margin-top: 0;
+    }
+    .ludy-typst > :last-child {
+      margin-bottom: 0;
+    }
+    .ludy-typst a {
+      color: var(--link, currentColor);
+    }
+    .ludy-typst pre {
+      overflow-x: auto;
+    }
+    .ludy-typst-error {
+      color: var(--error, #b00020);
+      font-family: var(--monospace-font, ui-monospace, monospace);
+      font-size: 0.875rem;
+      white-space: pre-wrap;
+    }
+    </style>
+    """
+
+    cleaned_source = cleandoc(source)
+    try:
+        with state["lock"]:
+            parts = state["cache"].get(cleaned_source)
+            if parts is None:
+                compiled = state["compiler"].compile(
+                    input=f"{cleaned_source}\n".encode("utf-8"),
+                    format="html",
+                )
+                if not isinstance(compiled, bytes):
+                    raise TypeError(
+                        "Typst HTML export returned multiple outputs"
+                    )
+                document = compiled.decode("utf-8")
+                body = state["body_pattern"].search(document)
+                if body is None:
+                    raise ValueError(
+                        "Typst HTML output did not contain a body"
+                    )
+                head = state["head_pattern"].search(document)
+                mathml_css = (
+                    ""
+                    if head is None
+                    else "".join(
+                        state["style_pattern"].findall(head.group(1))
+                    )
+                )
+                parts = mathml_css, body.group(1)
+                state["cache"][cleaned_source] = parts
+                if len(state["cache"]) > 512:
+                    state["cache"].pop(next(iter(state["cache"])))
+
+        mathml_css, body = parts
+        return (
+            f"{mathml_css}{cell_css}"
+            f'<section class="ludy-typst" '
+            f'style="font-size:{float(font_size):g}pt">{body}</section>'
+        )
+    except Exception as error:
+        diagnostic = str(getattr(error, "diagnostic", None) or error)
+        return (
+            f"{cell_css}"
+            '<div class="ludy-typst-error" role="alert">'
+            "<strong>Typst compilation failed</strong>"
+            f"<pre>{escape(diagnostic)}</pre>"
+            "</div>"
+        )
+
+
+@app.function(hide_code=True)
+def typst_html(source, *, font_size=15.0):
+    """Return one responsive Typst fragment as a Marimo HTML object."""
+
+    import marimo
+
+    return marimo.Html(render_typst_html(source, font_size=font_size))
+
+
+@app.function(hide_code=True)
+def typst_md(source):
+    """Render Typst prose without Marimo's syntax-level ``mo.md`` handling."""
+
+    return typst_html(source)
+
+
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
 
+    mo.md = typst_md
     return (mo,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    $ integral dif x $
+    """)
+    return
 
 
 @app.cell(hide_code=True)
@@ -112,7 +269,7 @@ def _(TensorName):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # DY cross-box: implementation and worked reduction
+    = DY cross-box: implementation and worked reduction
 
     This notebook is both the readable source of the reusable helper
     implementations and a complete walkthrough of the cross-box calculation.
@@ -128,11 +285,11 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Rich Symbolica display
+    == Rich Symbolica display
 
     `SpensoMath` keeps the exact native Symbolica expression for algebra while
-    rendering its Spenso-aware Typst form as semantic HTML/MathML. Typst's SVG
-    exporter is retained as a fallback while HTML export remains experimental.
+    rendering its Spenso-aware Typst form as semantic HTML/MathML. Notebook
+    prose and expression displays share the same responsive HTML renderer.
 
     - `spenso_math(expression)` wraps one exact expression for rich output.
     - `typst(template, **expressions)` safely combines prose with inline or
@@ -144,57 +301,12 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(Expression, dataclass, mo):
-    from functools import lru_cache as _lru_cache
+def _(Expression, dataclass):
     import json as _json
-    import re as _re
     import string as _string
-
-    import typst as _typst
-
-    _typst_compiler = _typst.Compiler(ignore_system_fonts=True)
-    _body_pattern = _re.compile(
-        r"<body(?:\s[^>]*)?>(.*?)</body>",
-        _re.DOTALL,
-    )
-    _style_pattern = _re.compile(
-        r"<style(?:\s[^>]*)?>.*?</style>",
-        _re.DOTALL,
-    )
 
     def _typst_math(expression):
         return expression.to_typst()
-
-    @_lru_cache(maxsize=256)
-    def _render_typst_source_html(source):
-        document = _typst_compiler.compile(
-            input=source.encode(),
-            format="html",
-        ).decode()
-        body = _body_pattern.search(document)
-        if body is None or not body.group(1).strip():
-            raise ValueError("Typst HTML output did not contain a body fragment")
-        styles = "".join(_style_pattern.findall(document))
-        return styles, body.group(1)
-
-    @_lru_cache(maxsize=256)
-    def _render_typst_source_svg(source, font_size):
-        document = (
-            "#set page(width: auto, height: auto, margin: 2pt, fill: none)\n"
-            f"#set text(size: {font_size}pt)\n"
-            f"{source}\n"
-        )
-        svg = _typst_compiler.compile(
-            input=document.encode(),
-            format="svg",
-        ).decode()
-        return svg.replace("#000000", "currentColor")
-
-    def _render_typst_html(math):
-        return _render_typst_source_html(f"$ {math} $\n")
-
-    def _render_typst_svg(math, font_size):
-        return _render_typst_source_svg(f"$ {math} $", font_size)
 
     @dataclass(frozen=True, slots=True)
     class SpensoMath:
@@ -206,17 +318,7 @@ def _(Expression, dataclass, mo):
             return _typst_math(self.expression)
 
         def _display_(self):
-            try:
-                styles, body = _render_typst_html(self.typst)
-                return mo.Html(
-                    f'{styles}<div style="color: inherit; '
-                    f'font-size: {self.font_size}pt">{body}</div>'
-                )
-            except Exception:
-                return mo.Html(_render_typst_svg(self.typst, self.font_size))
-
-        def _repr_svg_(self):
-            return _render_typst_svg(self.typst, self.font_size)
+            return typst_html(f"$ {self.typst} $", font_size=self.font_size)
 
         def __repr__(self):
             return self.expression.format_plain()
@@ -269,19 +371,7 @@ def _(Expression, dataclass, mo):
             return cls("".join(source), font_size=font_size)
 
         def _display_(self):
-            try:
-                styles, body = _render_typst_source_html(self.source)
-                return mo.Html(
-                    f'{styles}<div style="color: inherit; '
-                    f'font-size: {self.font_size}pt">{body}</div>'
-                )
-            except Exception:
-                return mo.Html(
-                    _render_typst_source_svg(self.source, self.font_size)
-                )
-
-        def _repr_svg_(self):
-            return _render_typst_source_svg(self.source, self.font_size)
+            return typst_html(self.source, font_size=self.font_size)
 
         def __repr__(self):
             return self.source
@@ -316,9 +406,9 @@ def _(TypstFragment):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Rich expression tables
+def _():
+    typst_md(r"""
+    === Rich expression tables
 
     Marimo tables otherwise serialize Symbolica objects through their plain
     representation. `spenso_table` discovers the columns and installs a
@@ -335,44 +425,18 @@ def _(mo):
 def spenso_table(data, **kwargs):
     """Render Symbolica expressions richly while retaining raw table data."""
 
-    from functools import lru_cache
     from html import escape
-    import re
 
     import marimo as mo
     from symbolica import Expression
-    import typst
-
-    compiler = typst.Compiler(ignore_system_fonts=True)
-    body_pattern = re.compile(
-        r"<body(?:\s[^>]*)?>(.*?)</body>",
-        re.DOTALL,
-    )
-    style_pattern = re.compile(
-        r"<style(?:\s[^>]*)?>.*?</style>",
-        re.DOTALL,
-    )
-
-    def typst_math(expression):
-        return expression.to_typst()
-
-    @lru_cache(maxsize=256)
-    def render_html(math):
-        document = compiler.compile(
-            input=f"$ {math} $\n".encode(),
-            format="html",
-        ).decode()
-        body = body_pattern.search(document)
-        if body is None or not body.group(1).strip():
-            raise ValueError("Typst HTML output did not contain a body fragment")
-        styles = "".join(style_pattern.findall(document))
-        return mo.Html(
-            f'{styles}<div style="color: inherit; font-size: 13pt">'
-            f"{body.group(1)}</div>"
-        )
 
     def expression_html(expression):
-        return render_html(typst_math(expression))
+        return mo.Html(
+            render_typst_html(
+                f"$ {expression.to_typst()} $",
+                font_size=13.0,
+            )
+        )
 
     def contains_expression(value):
         return isinstance(value, Expression) or (
@@ -431,9 +495,9 @@ def spenso_table(data, **kwargs):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Data Structures
+def _():
+    typst_md(r"""
+    == Data Structures
 
     `Integrand` is the editable algebraic object. The intermediate records keep
     the omitted/retained local denominator positions, the rewritten numerator
@@ -668,14 +732,14 @@ def project_cutset(
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 1. Define the cross-box integrand
+def _():
+    typst_md(r"""
+    == 1. Define the cross-box integrand
 
     The graph input is the ordered list of six `(momentum, mass_squared)`
     pairs. The loop head `k` carries a Symbolica tag, so loop-dependent lines
     are discovered from the expressions themselves. The external squares
-    (p_1^2,p_2^2) specify which incoming legs are cut, but are not sent to an
+    $p_1^2, p_2^2$ specify which incoming legs are cut, but are not sent to an
     IBP reducer as loop propagators.
 
     No on-shell identity or integral-reduction rule has been applied here.
@@ -810,31 +874,24 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 2. Solve the affine relation
+def _():
+    typst_md(r"""
+    == 2. Solve the affine relation
 
+    The input integrand has loop-dependent denominators that are not all
+    independent. To use IBP relations, we first reduce it to an independent
+    family. We solve the linear system for loop-independent coefficients $c_i$
+    such that
 
-    The input integrand, has loop-dependent denominators that are not all independent. If we want to make use of IBP relations it is crucial to reduce to an independent family.
-    We solve the linear system for
-    loop-independent coefficients \(c_i\) such that
-
-    \[
-    \sum_{i=1}^{N} c_i D_i=1.
-    \]
+    $ sum_(i=1)^N c_i D_i = 1. $
 
     `partial_fraction_coefficients(denominators, loop_scalar_products)` treats
-    the \(c_i\) as unknowns, expands this relation in the chosen independent
+    the $c_i$ as unknowns, expands this relation in the chosen independent
     loop scalar products, and sets every resulting polynomial coefficient to
     zero. It returns the unique loop-independent solution in denominator
     order. A missing, dependent, or underdetermined relation is rejected rather
     than choosing arbitrary free parameters.
     """)
-    return
-
-
-@app.cell
-def _():
     return
 
 
@@ -942,9 +999,9 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 3. Construct the partial-fraction terms
+def _():
+    typst_md(r"""
+    == 3. Construct the partial-fraction terms
 
     `normalize_rational` provides one exact comparison form by expanding,
     combining rational terms, and cancelling common factors.
@@ -952,12 +1009,10 @@ def _(mo):
     `partial_fraction` applies the affine identity to an `Integrand`. It either
     solves the relation for the selected denominators or accepts supplied
     coefficients, verifies that they are loop-momentum independent and satisfy
-    \(\sum_i c_iD_i=1\), and emits one child for every removed denominator.
+    $sum_i c_i D_i = 1$, and emits one child for every removed denominator.
 
-    \[
-    \frac{N}{\prod_iD_i}
-    =N\sum_i\frac{c_i}{\prod_{j\ne i}D_j}.
-    \]
+    $ frac(N, product_i D_i)
+      = N sum_i frac(c_i, product_(j != i) D_j). $
 
     Each child keeps the original denominator positions, so later graph routing
     does not depend on the order in which terms happen to print.
@@ -1070,7 +1125,7 @@ def _(affine_coefficients, integrand, loop_scalar_products):
 def _(affine_coefficients, mo, partial_fractions):
     mo.vstack(
         [
-            mo.md("### Partial-fraction terms"),
+            typst_md("=== Partial-fraction terms"),
             spenso_table(
                 [
                     {
@@ -1091,7 +1146,7 @@ def _(affine_coefficients, mo, partial_fractions):
                     )
                 ]
             ),
-            mo.md(
+            typst_md(
                 "Exact reconstruction is checked in the final validation section."
             ),
         ]
@@ -1100,54 +1155,44 @@ def _(affine_coefficients, mo, partial_fractions):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 4. Rewrite numerators in each denominator basis
+def _():
+    typst_md(r"""
+    == 4. Rewrite numerators in each denominator basis
 
-    ### `numerator_relations`: invert the denominator coordinates
+    === `numerator_relations`: invert the denominator coordinates
 
     After partial fractioning, each child has three retained denominators and
     its numerator can depend on the three independent loop products
 
-    \[
-    x=(k^2,\;k\!\cdot p_1,\;k\!\cdot p_2).
-    \]
+    $ x = (k^2, k dot p_1, k dot p_2). $
 
     Each denominator is affine in these variables. The helper introduces one
-    *formal* label \(P_i\) for every retained denominator and solves
+    _formal_ label $P_i$ for every retained denominator and solves
 
-    \[
-    D_i(x)=P_i
-    \]
+    $ D_i(x) = P_i $
 
-    for the components of \(x\). In the code, `denominators` supplies the
-    \(D_i\), `denominator_labels` supplies the matching \(P_i\), and
+    for the components of $x$. In the code, `denominators` supplies the
+    $D_i$, `denominator_labels` supplies the matching $P_i$, and
     `loop_scalar_products` specifies both the unknowns and their returned
     order. The result is an ordered list
 
-    \[
-    [(x_0,f_0(P)),\ldots,(x_{r-1},f_{r-1}(P))]
-    \]
+    $ [(x_0, f_0(P)), dots, (x_(r-1), f_(r-1)(P))] $
 
     that can be used directly as substitution rules.
 
     For example, for the local basis
 
-    \[
-    D_0=k^2,\qquad
-    D_1=(k-p_1)^2,\qquad
-    D_2=(p_2-k)^2,
-    \]
+    $ D_0 = k^2, quad
+      D_1 = (k-p_1)^2, quad
+      D_2 = (p_2-k)^2. $
 
-    solving \(D_i=P_i\) gives
+    solving $D_i=P_i$ gives
 
-    \[
-    k^2=P_0,\qquad
-    k\!\cdot p_1=\frac{P_0-P_1+p_1^2}{2},\qquad
-    k\!\cdot p_2=\frac{P_0-P_2+p_2^2}{2}.
-    \]
+    $ k^2 = P_0, quad
+      k dot p_1 = frac(P_0-P_1+p_1^2, 2), quad
+      k dot p_2 = frac(P_0-P_2+p_2^2, 2). $
 
-    The \(P_i\) are only local bookkeeping variables—created as `Prop(i)`—not
+    The $P_i$ are only local bookkeeping variables—created as `Prop(i)`—not
     extra propagators or Kira family names. Requiring equally many
     denominators, labels, and loop products makes the system square; requiring
     exactly one solved branch with no loop product left on the right-hand side
@@ -1208,56 +1253,45 @@ def numerator_relations(
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### `reduce_numerator`: turn numerator factors into index shifts
+def _():
+    typst_md(r"""
+    === `reduce_numerator`: turn numerator factors into index shifts
 
     A partial-fraction child initially has the form
 
-    \[
-    \frac{N(k)}{D_0D_1\cdots D_{r-1}}.
-    \]
+    $ frac(N(k), D_0 D_1 dots D_(r-1)). $
 
     `reduce_numerator` performs four explicit steps:
 
-    1. Create the local labels \(P_i=\texttt{Prop}(i)\).
+    1. Create the local labels $P_i = "Prop"(i)$.
     2. Use `numerator_relations` to replace every chosen loop scalar product in
-       \(N(k)\) by an expression in those labels and external invariants.
-    3. Expand the result as a polynomial in \(P_0,\ldots,P_{r-1}\).
+       $N(k)$ by an expression in those labels and external invariants.
+    3. Expand the result as a polynomial in $P_0, dots, P_(r-1)$.
     4. Translate each polynomial monomial into one integral-index vector.
 
     If a monomial is
 
-    \[
-    c\,P_0^{n_0}\cdots P_{r-1}^{n_{r-1}},
-    \]
+    $ c P_0^(n_0) dots P_(r-1)^(n_(r-1)), $
 
-    then \(P_i\) stands for \(D_i\), while the child started with one inverse
+    then $P_i$ stands for $D_i$, while the child started with one inverse
     power of every denominator. Therefore
 
-    \[
-    \frac{c\prod_i P_i^{n_i}}{\prod_i D_i}
-      =\frac{c}{\prod_i D_i^{\,1-n_i}},
-    \qquad a_i=1-n_i.
-    \]
+    $ frac(c product_i P_i^(n_i), product_i D_i)
+      = frac(c, product_i D_i^(1-n_i)), quad a_i = 1-n_i. $
 
-    Thus \(n_i=0\) leaves index \(a_i=1\), \(n_i=1\) cancels that denominator
-    and gives \(a_i=0\), and \(n_i>1\) produces a negative index—a numerator
+    Thus $n_i=0$ leaves index $a_i=1$, $n_i=1$ cancels that denominator
+    and gives $a_i=0$, and $n_i>1$ produces a negative index—a numerator
     insertion in the integral-family convention.
 
-    In the example above, a numerator \(N=k\!\cdot p_1\) becomes
+    In the example above, a numerator $N=k dot p_1$ becomes
 
-    \[
-    \frac{P_0-P_1+p_1^2}{2}.
-    \]
+    $ frac(P_0-P_1+p_1^2, 2). $
 
-    Dividing by \(D_0D_1D_2\) therefore yields three terms with indices
+    Dividing by $D_0 D_1 D_2$ therefore yields three terms with indices
 
-    \[
-    \tfrac12 I(0,1,1)
-    -\tfrac12 I(1,0,1)
-    +\tfrac{p_1^2}{2}I(1,1,1).
-    \]
+    $ frac(1,2) I(0,1,1)
+      - frac(1,2) I(1,0,1)
+      + frac(p_1^2,2) I(1,1,1). $
 
     The returned `NumeratorReduction` keeps all three useful views: `relations`
     records the coordinate change, `reduced_numerator` records the complete
@@ -1332,7 +1366,7 @@ def _(loop_scalar_products, partial_fractions):
 def _(mo, numerator_reductions, partial_fractions):
     mo.vstack(
         [
-            mo.md("### Family-local propagator-label bases"),
+            typst_md("=== Family-local propagator-label bases"),
             spenso_table(
                 [
                     {
@@ -1348,7 +1382,7 @@ def _(mo, numerator_reductions, partial_fractions):
                     )
                 ]
             ),
-            mo.md("### Scalar-product relations"),
+            typst_md("=== Scalar-product relations"),
             spenso_table(
                 [
                     {
@@ -1366,7 +1400,7 @@ def _(mo, numerator_reductions, partial_fractions):
                     for _target, _replacement in _reduction.relations
                 ]
             ),
-            mo.md("### Rewritten child numerators"),
+            typst_md("=== Rewritten child numerators"),
             spenso_table(
                 [
                     {
@@ -1383,7 +1417,7 @@ def _(mo, numerator_reductions, partial_fractions):
                     )
                 ]
             ),
-            mo.md("### Terms after numerator cancellation"),
+            typst_md("=== Terms after numerator cancellation"),
             spenso_table(
                 [
                     {
@@ -1401,7 +1435,7 @@ def _(mo, numerator_reductions, partial_fractions):
                     for _term in _reduction.terms
                 ]
             ),
-            mo.md(
+            typst_md(
                 "Exact reconstruction is checked in the final validation section."
             ),
         ]
@@ -1555,17 +1589,17 @@ def _(pre_ibp, projected_cutsets):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 5. Solve the three reducible cut blocks with Kira
+def _():
+    typst_md(r"""
+    == 5. Solve the three reducible cut blocks with Kira
 
     Each project is keyed by its cut and its retained graph propagators in the
-    native order \((D_3,D_4,D_5,D_6)\). Cut `00` requires all four loop
+    native order $(D_3,D_4,D_5,D_6)$. Cut `00` requires all four loop
     propagators and is evaluated as the analytic maximal-cut master rather than
     through a three-propagator child.
 
     Every Kira project requests the fixed complete domain
-    \(\{1,0,-1\}^3\). This keeps manifests stable while the editable numerator
+    $\{1,0,-1\}^3$. This keeps manifests stable while the editable numerator
     changes.
 
     Evaluation is automatic and resumable. On a fresh checkout this cell runs
@@ -1586,9 +1620,9 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Build the Kira projects
+def _():
+    typst_md(r"""
+    === Build the Kira projects
 
     `build_kira_projects` enumerates every three-propagator subset of the
     inferred loop lines for each reducible cut. It preserves graph order,
@@ -1746,14 +1780,14 @@ def _(Path, cutsets, k1, p1, p2, propagators, q):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Build the exact IBP input
+def _():
+    typst_md(r"""
+    === Build the exact IBP input
 
     The algebraic contributions still carry Spenso scalar products and global
     graph sources. `apply_kinematic_rules` performs only the explicit
     cut-dependent on-shell replacement of external squares. Uncut squares and
-    \(p_1\cdot p_2\) remain native Spenso expressions.
+    $p_1 dot p_2$ remain native Spenso expressions.
     `contribution_to_kira_expression` then selects the project with the matching
     `(cut, sources)` key and constructs its family atom from the integral-index
     vector. `assemble_ibp_expression` applies both steps term by term and sums
@@ -1857,9 +1891,9 @@ def _(contributions_by_cut, kira_projects, on_shell_rules_by_cut):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Run or resume the Kira projects
+def _():
+    typst_md(r"""
+    === Run or resume the Kira projects
 
     `run_kira_projects` checks the runtime once, processes project keys in a
     deterministic order, and gives every family its own manifest-backed work
@@ -1937,9 +1971,9 @@ def _(kira_doctor, kira_reductions, mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Apply the reduction rules without losing provenance
+def _():
+    typst_md(r"""
+    === Apply the reduction rules without losing provenance
 
     `apply_ibp_reductions` reconstructs each contribution's native project key,
     requires that project's complete result, and looks up the exact requested
@@ -2016,9 +2050,9 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 6. Apply the cut after IBP
+def _():
+    typst_md(r"""
+    == 6. Apply the cut after IBP
 
     Each six-line mask is projected onto the automatically discovered loop
     lines. The cut is then applied to the reduced masters in global graph
@@ -2124,9 +2158,9 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Identify surviving masters
+def _():
+    typst_md(r"""
+    === Identify surviving masters
 
     `identify_masters` is a deliberately small boundary: it replaces only the
     master atoms explicitly paired with analytic values. The replacement is
@@ -2154,28 +2188,25 @@ def identify_masters(expression, identifications):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## 7. Evaluate the surviving cut masters
+def _():
+    typst_md(r"""
+    == 7. Evaluate the surviving cut masters
 
     The master names are useful for inspecting the IBP output, but the cut
     result requires their analytic values. Cut `11` contains the massive cut
     bubble
 
-    \[
-    B_{\mathrm{cutm}}(s,m^2)=-\frac{(\mu^2e^{\gamma_E})^\epsilon}
-    {8\sqrt{\pi}\,\Gamma((d-1)/2)\sqrt{s}}
-    \left(\frac{s-m^2}{2\sqrt{s}}\right)^{d-3}.
-    \]
+    $ B_("cutm")(s,m^2) =
+      -frac((mu^2 e^(gamma_E))^epsilon,
+        8 sqrt(pi) Gamma((d-1)/2) sqrt(s))
+      (frac(s-m^2, 2 sqrt(s)))^(d-3). $
 
     Cuts `10` and `01` contain the corresponding cut triangle
 
-    \[
-    T_{\mathrm{cutm}}(p_i^2,s,q^2)=
-    \frac{(\mu^2e^{\gamma_E})^\epsilon}
-    {4\,\Gamma((d-2)/2)\,s^{d-3}}
-    \left[p_i^2(s-q^2)q^2\right]^{(d-4)/2}.
-    \]
+    $ T_("cutm")(p_i^2,s,q^2) =
+      frac((mu^2 e^(gamma_E))^epsilon,
+        4 Gamma((d-2)/2) s^(d-3))
+      [p_i^2 (s-q^2) q^2]^((d-4)/2). $
 
     We keep every master identification visible and substitute the analytic
     values imported from `masters.py`. The fully cut `00` sector is the
@@ -2186,13 +2217,13 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ### Analytic symbols
+def _():
+    typst_md(r"""
+    === Analytic symbols
 
-    The analytic formulas use \(d\) for the integration dimension,
-    \(ε\) for the dimensional regulator in \(d=4-2ε\),
-    \(μ^2\) for the renormalization scale, and \(γ_E\) for the
+    The analytic formulas use $d$ for the integration dimension,
+    $epsilon$ for the dimensional regulator in $d=4-2 epsilon$,
+    $mu^2$ for the renormalization scale, and $gamma_E$ for the
     Euler--Mascheroni constant. The latter is Symbolica's built-in constant.
     The regulator and scale retain the stable Symbolica identities `ep` and
     `musq`, but a small display-only printer emits structured `epsilon` and
@@ -2379,9 +2410,9 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    # Validation
+def _():
+    typst_md(r"""
+    = Validation
 
     The walkthrough above is the implementation. This appendix now exercises
     that complete native path, the reusable helper edge cases, and finally the
@@ -2624,7 +2655,7 @@ def _(
 def _(mo, native_validation_rows):
     mo.vstack(
         [
-            mo.md("## Native cross-box workflow"),
+            typst_md("== Native cross-box workflow"),
             spenso_table(native_validation_rows),
             mo.callout(
                 "The graph routing, helper orchestration, Kira project "
@@ -2653,7 +2684,7 @@ def _(E, Expression, SpensoMath, mo, typst):
     assert _actual_typst == _expected_typst
     _rendered = SpensoMath(1 / _gamma_argument.gamma())._display_()
     _rendered_html = _rendered.text
-    assert "<math" in _rendered_html or "<svg" in _rendered_html
+    assert "<math" in _rendered_html
     _mixed = typst(
         'Mixed prose # $ [] " <script>: {expression}',
         expression=1 / _gamma_argument.gamma(),
@@ -2706,9 +2737,9 @@ def _(display_validation_rows):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Validation 1 — generic linear-system partial fractioning
+def _():
+    typst_md(r"""
+    == Validation 1 — generic linear-system partial fractioning
 
     First we exercise the same solve and reconstruction for two through seven
     propagators, an overcomplete relation supplied explicitly, spectator
@@ -2907,9 +2938,9 @@ def _(E, linear_system_validation_rows):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Validation 2 — historical scalar cross-box preprocessing
+def _():
+    typst_md(r"""
+    == Validation 2 — historical scalar cross-box preprocessing
 
     The following one-way check compares the native derivation with the retained
     Mathematica result. It supplies no propagator, coefficient, family mapping,
@@ -3212,15 +3243,15 @@ def _(mathematica_reference_chain_validation_rows):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Validation 3 — completed scalar result against Mathematica/FIRE
+def _():
+    typst_md(r"""
+    == Validation 3 — completed scalar result against Mathematica/FIRE
 
     This independent oracle uses the historical scalar numerator `1`. After
     translating its loop routing to the six-line graph, cut `11` must retain
     `topo20(1,0,1)` and `topo22(1,1,0)`. We check the exact master expression,
     identify both with the same cut bubble, evaluate that master, and reproduce
-    the recorded expansion through order \(\epsilon^0\).
+    the recorded expansion through order $epsilon^0$.
     """)
     return
 
