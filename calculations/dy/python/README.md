@@ -45,9 +45,10 @@ identifications explicitly present in the source notebook; other preferred
 Kira masters remain unevaluated.
 
 The repository-root `notebooks/ludy.py` imports the analytic evaluators from
-`masters.py`; it does not maintain a second copy. This portable application's
+`masters.py`, including the analytic maximal-cut master `M00(s)`; it does not
+maintain a second copy. This portable application's
 `notebook.py` remains independently locked and does not import `ludy.py` or the
-root multi-topology runner.
+root physical-diagram runner.
 
 The local flake delegates its development shell to the standalone
 `kirapy` subflake. That shell provides Python, uv, Kira, Fermat, and

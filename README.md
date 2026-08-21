@@ -13,7 +13,7 @@ calculations/
     python/                   portable Kira and analytic-master notebooks
 notebooks/
   ludy.py                     cross-box helpers, walkthrough, and validation
-  dy_topologies.py            multi-topology runner reusing ludy.py helpers
+  dy_topologies.py            physical DY runner reusing ludy.py helpers
   collinear-cone.py           independent cone visualization
 pyproject.toml, flake.nix     local environment for the general notebooks
 ```
@@ -40,9 +40,10 @@ $ uv run --locked marimo edit masters.py
 
 `notebook.py` defines and displays the selectable topology but does not launch
 Kira until its run button is pressed. `masters.py` derives and evaluates the
-closed-form `B`, `Bcut`, `Tcut`, `Bcutm`, and `Tcutm` basis in radial and
-light-cone coordinates, with exact normalization, virtuality, and soft-endpoint
-checks, without launching Kira or reading a reduction work directory.
+closed-form `B`, `Bcut`, `Tcut`, `Bcutm`, `Tcutm`, and maximal-cut `M00` basis
+in radial and light-cone coordinates, with exact normalization, virtuality, and
+soft-endpoint checks, without launching Kira or reading a reduction work
+directory.
 
 This is the recommended workflow after cloning the repository on a remote
 machine. The bundled native runtime currently supports x86-64 Linux and Apple
@@ -103,12 +104,18 @@ uses editable sibling checkouts at `../gammaloop/main` and
 cell-by-cell cross-box walkthrough. Each helper is defined immediately before
 the walkthrough first needs it, while the Mathematica/FIRE comparisons and
 other validation checks are collected in a final appendix. Its Kira project
-builder and resumable runner are module-visible for companion notebooks.
+builder, algebraic reduction pipeline, and resumable runner are module-visible
+for companion notebooks.
 Analytic master evaluators are imported from
 [`calculations/dy/python/masters.py`](calculations/dy/python/masters.py), which
-is their single implementation site. `dy_topologies.py` imports those public
-Kira helpers from `ludy.py` to inspect and run several topologies without
-copying the cross-box implementation.
+is their single implementation site. `dy_topologies.py` imports that public
+surface to evaluate the paper's metric-contracted physical crossed-box
+numerator. It combines the three IBP-reducible cuts with the analytic
+maximal-cut master `M00(s)`, performs the leading virtuality integrations, and
+represents the endpoint answer in a typed delta/plus-distribution basis. Kira
+remains behind an explicit run button, and the notebook labels the result as
+one diagram contribution rather than the complete renormalized and factorized
+DY observable.
 
 The Symbolica Community checkout should track its latest
 `simplify-spenso-api` bookmark; the root lock records the resulting 2.2.0

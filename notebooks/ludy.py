@@ -38,7 +38,6 @@ def _():
         Replacement,
         Representation,
         S,
-        Sequence,
         TensorName,
         dataclass,
         dot,
@@ -107,7 +106,7 @@ def _(TensorName):
         tags=[LOOP_MOMENTUM_TAG],
         print=momentum_printer("k"),
     )
-    return LOOP_MOMENTUM_TAG, k, p
+    return k, p
 
 
 @app.cell(hide_code=True)
@@ -445,203 +444,227 @@ def _(mo):
     return
 
 
-@app.cell
-def _(Expression, SpensoMath, dataclass, prod):
-    @dataclass(slots=True)
-    class Integrand:
-        """An editable numerator and an ordered list of denominator factors."""
+@app.class_definition
+@__import__("dataclasses").dataclass(slots=True)
+class Integrand:
+    """An editable numerator and an ordered list of denominator factors."""
 
-        numerator: Expression
-        denominators: list[Expression]
+    numerator: "Expression"
+    denominators: list["Expression"]
 
-        def as_expression(self) -> Expression:
-            return self.numerator / prod(self.denominators)
+    def as_expression(self) -> "Expression":
+        from math import prod
 
-        def _display_(self):
-            return SpensoMath(self.as_expression())
+        return self.numerator / prod(self.denominators)
 
 
-    @dataclass(slots=True)
-    class PartialFractionTerm:
-        """One child produced by omitting a propagator from an affine relation."""
+@app.class_definition
+@__import__("dataclasses").dataclass(slots=True)
+class PartialFractionTerm:
+    """One child produced by omitting a propagator from an affine relation."""
 
-        removed_index: int
-        retained_indices: tuple[int, ...]
-        integrand: Integrand
+    removed_index: int
+    retained_indices: tuple[int, ...]
+    integrand: "Integrand"
 
 
-    @dataclass(slots=True)
-    class ReducedIntegralTerm:
-        """One coefficient times an integral-index vector in a fixed basis."""
+@app.class_definition
+@__import__("dataclasses").dataclass(slots=True)
+class ReducedIntegralTerm:
+    """One coefficient times an integral-index vector in a fixed basis."""
 
-        coefficient: Expression
-        propagators: list[Expression]
-        integral_indices: tuple[int, ...]
+    coefficient: "Expression"
+    propagators: list["Expression"]
+    integral_indices: tuple[int, ...]
 
-        def as_expression(self) -> Expression:
-            return self.coefficient / prod(
-                propagator**index
-                for propagator, index in zip(
-                    self.propagators, self.integral_indices, strict=True
-                )
+    def as_expression(self) -> "Expression":
+        from math import prod
+
+        return self.coefficient / prod(
+            propagator**index
+            for propagator, index in zip(
+                self.propagators, self.integral_indices, strict=True
             )
+        )
 
 
-    @dataclass(slots=True)
-    class NumeratorReduction:
-        """A numerator rewritten in one independent propagator basis."""
+@app.class_definition
+@__import__("dataclasses").dataclass(slots=True)
+class NumeratorReduction:
+    """A numerator rewritten in one independent propagator basis."""
 
-        terms: list[ReducedIntegralTerm]
-        relations: list[tuple[Expression, Expression]]
-        reduced_numerator: Expression
+    terms: list["ReducedIntegralTerm"]
+    relations: list[tuple["Expression", "Expression"]]
+    reduced_numerator: "Expression"
 
 
-    @dataclass(slots=True)
-    class IntegralContribution:
-        """One native Python contribution ready to become an IBP target."""
+@app.class_definition
+@__import__("dataclasses").dataclass(slots=True)
+class IntegralContribution:
+    """One native Python contribution ready to become an IBP target."""
 
-        source_indices: tuple[int, ...]
-        propagators: list[Expression]
-        integral_indices: tuple[int, ...]
-        coefficient: Expression
+    source_indices: tuple[int, ...]
+    propagators: list["Expression"]
+    integral_indices: tuple[int, ...]
+    coefficient: "Expression"
 
-        def as_expression(self) -> Expression:
-            return self.coefficient / prod(
-                propagator**index
-                for propagator, index in zip(
-                    self.propagators, self.integral_indices, strict=True
-                )
+    def as_expression(self) -> "Expression":
+        from math import prod
+
+        return self.coefficient / prod(
+            propagator**index
+            for propagator, index in zip(
+                self.propagators, self.integral_indices, strict=True
             )
+        )
 
 
-    @dataclass(slots=True)
-    class IBPReductionTerm:
-        """One family integral together with its exact reduced right-hand side."""
+@app.class_definition
+@__import__("dataclasses").dataclass(slots=True)
+class IBPReductionTerm:
+    """One family integral together with its exact reduced right-hand side."""
 
-        project_key: tuple[str, tuple[int, ...]]
-        coefficient: Expression
-        target: Expression
-        reduced_integral: Expression
+    project_key: tuple[str, tuple[int, ...]]
+    coefficient: "Expression"
+    target: "Expression"
+    reduced_integral: "Expression"
 
-        def input_expression(self) -> Expression:
-            return self.coefficient * self.target
+    def input_expression(self) -> "Expression":
+        return self.coefficient * self.target
 
-        def reduced_expression(self) -> Expression:
-            return self.coefficient * self.reduced_integral
-
-
-    @dataclass(slots=True)
-    class PreIBPResult:
-        """All exact intermediate data at the cross-box IBP boundary."""
-
-        denominators: list[Expression]
-        loop_scalar_products: list[Expression]
-        delta: Expression
-        integrand: Integrand
-        partial_fractions: list[PartialFractionTerm]
-        numerator_reductions: list[NumeratorReduction]
-        contributions: list[IntegralContribution]
+    def reduced_expression(self) -> "Expression":
+        return self.coefficient * self.reduced_integral
 
 
-    return (
-        IBPReductionTerm,
-        IntegralContribution,
-        Integrand,
-        NumeratorReduction,
-        PartialFractionTerm,
-        PreIBPResult,
-        ReducedIntegralTerm,
+@app.class_definition
+@__import__("dataclasses").dataclass(slots=True)
+class PreIBPResult:
+    """All exact intermediate data at the cross-box IBP boundary."""
+
+    denominators: list["Expression"]
+    loop_scalar_products: list["Expression"]
+    delta: "Expression"
+    integrand: "Integrand"
+    partial_fractions: list["PartialFractionTerm"]
+    numerator_reductions: list["NumeratorReduction"]
+    contributions: list["IntegralContribution"]
+
+
+@app.function
+def square(momentum: "Expression") -> "Expression":
+    """Return a Spenso scalar square without imposing kinematics."""
+
+    from symbolica.community.spenso import dot
+
+    return dot(momentum, momentum)
+
+
+@app.function
+def gamma_trace_to_dots(
+    vectors,
+    lorentz_labels,
+    *,
+    lorentz_dimension,
+):
+    """Close and simplify one even Dirac trace to native Spenso dots.
+
+    ``vectors`` and ``lorentz_labels`` describe one gamma factor per position.
+    A vector contracts that gamma into a slash; ``None`` leaves its Lorentz
+    index available to contract with a repeated label elsewhere in the chain.
+    """
+
+    from symbolica import E
+    from symbolica.community.idenso import (
+        simplify_gamma,
+        simplify_metrics,
+        to_dots,
     )
+    from symbolica.community.spenso import Representation, TensorName
+
+    vectors = list(vectors)
+    lorentz_labels = list(lorentz_labels)
+    if not vectors:
+        raise ValueError("A Dirac trace needs at least one gamma factor")
+    if len(vectors) != len(lorentz_labels):
+        raise ValueError("Each gamma factor needs one Lorentz label")
+    if len(vectors) % 2:
+        raise ValueError("This helper expects an even closed Dirac trace")
+    if any(
+        vector is not None and not callable(vector)
+        for vector in vectors
+    ):
+        raise TypeError("Slashed vectors must be callable Spenso expressions")
+
+    minkowski = Representation.mink(dimension=lorentz_dimension)
+    bispinor = Representation.bis(4)
+    gamma = TensorName.gamma()(bispinor, bispinor, minkowski)
+    trace_expression = E("1")
+    chain_length = len(vectors)
+    for index, (vector, label) in enumerate(
+        zip(vectors, lorentz_labels, strict=True)
+    ):
+        lorentz_slot = minkowski(label)
+        trace_expression *= gamma(
+            bispinor(index),
+            bispinor((index + 1) % chain_length),
+            lorentz_slot,
+        ).to_expression()
+        if vector is not None:
+            trace_expression *= vector(lorentz_slot).to_expression()
+
+    return to_dots(
+        simplify_metrics(
+            simplify_gamma(trace_expression).expand()
+        ).expand()
+    ).expand()
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Inspectable tooling functions
+@app.function
+def propagator_denominators(
+    propagators: "Sequence[tuple[Expression, Expression]]",
+) -> "list[Expression]":
+    """Convert ordered ``(momentum, mass_squared)`` pairs to denominators."""
 
-    Every scientific transformation below lives in its own code cell directly
-    before the walkthrough first needs it. The cross-box calculation exercises
-    the helpers in a realistic chain; all exact checks and historical
-    comparisons are collected in the final validation section.
-
-    The small graph helpers have deliberately narrow roles:
-
-    - `square(p)` constructs the Spenso scalar product (p\cdot p).
-    - `propagator_denominators` maps each `(momentum, mass_squared)` pair to
-      (p^2-m^2), without imposing kinematics.
-    - `find_loop_propagator_indices` searches momentum expressions for the
-      `ludy::loop_momentum` tag instead of requiring a second loop-line list.
-    - `project_cutset` restricts a full graph mask to an ordered subset of
-      propagators and validates the mask and indices.
-    """)
-    return
+    return [
+        square(momentum) - mass_squared
+        for momentum, mass_squared in propagators
+    ]
 
 
-@app.cell
-def _(Expression, dot):
-    def square(momentum: Expression) -> Expression:
-        """Return a Spenso scalar square without imposing kinematics."""
+@app.function
+def find_loop_propagator_indices(
+    propagators: "Sequence[tuple[Expression, Expression]]",
+    *,
+    loop_tag: str = "ludy::loop_momentum",
+) -> list[int]:
+    """Find propagators whose momentum contains a tagged loop momentum."""
 
-        return dot(momentum, momentum)
-
-    return (square,)
-
-
-@app.cell
-def _(Expression, Sequence, square):
-    def propagator_denominators(
-        propagators: Sequence[tuple[Expression, Expression]],
-    ) -> list[Expression]:
-        """Convert ordered ``(momentum, mass_squared)`` pairs to denominators."""
-
-        return [
-            square(momentum) - mass_squared
-            for momentum, mass_squared in propagators
-        ]
-
-    return (propagator_denominators,)
-
-
-@app.cell
-def _(Expression, LOOP_MOMENTUM_TAG, Sequence):
-    def find_loop_propagator_indices(
-        propagators: Sequence[tuple[Expression, Expression]],
-        *,
-        loop_tag: str = LOOP_MOMENTUM_TAG,
-    ) -> list[int]:
-        """Find propagators whose momentum contains a tagged loop momentum."""
-
-        return [
-            index
-            for index, (momentum, _mass_squared) in enumerate(propagators)
-            if any(
-                loop_tag in symbol.get_tags()
-                for symbol in momentum.get_all_symbols(
-                    include_function_symbols=True
-                )
+    return [
+        index
+        for index, (momentum, _mass_squared) in enumerate(propagators)
+        if any(
+            loop_tag in symbol.get_tags()
+            for symbol in momentum.get_all_symbols(
+                include_function_symbols=True
             )
-        ]
+        )
+    ]
 
-    return (find_loop_propagator_indices,)
 
+@app.function(hide_code=True)
+def project_cutset(
+    cutset: "Sequence[int]",
+    propagator_indices: "Sequence[int]",
+) -> tuple[int, ...]:
+    """Project one graph-level cut mask onto an ordered propagator subset."""
 
-@app.cell(hide_code=True)
-def _(Sequence):
-    def project_cutset(
-        cutset: Sequence[int],
-        propagator_indices: Sequence[int],
-    ) -> tuple[int, ...]:
-        """Project one graph-level cut mask onto an ordered propagator subset."""
-
-        if any(value not in (0, 1) for value in cutset):
-            raise ValueError("Cut masks must contain only zeroes and ones")
-        if len(set(propagator_indices)) != len(propagator_indices):
-            raise ValueError("Projected propagator indices must be unique")
-        if any(index < 0 or index >= len(cutset) for index in propagator_indices):
-            raise IndexError("Projected propagator index is out of range")
-        return tuple(cutset[index] for index in propagator_indices)
-
-    return (project_cutset,)
+    if any(value not in (0, 1) for value in cutset):
+        raise ValueError("Cut masks must contain only zeroes and ones")
+    if len(set(propagator_indices)) != len(propagator_indices):
+        raise ValueError("Projected propagator indices must be unique")
+    if any(index < 0 or index >= len(cutset) for index in propagator_indices):
+        raise IndexError("Projected propagator index is out of range")
+    return tuple(cutset[index] for index in propagator_indices)
 
 
 @app.cell(hide_code=True)
@@ -661,19 +684,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    Integrand,
-    N,
-    S,
-    dot,
-    find_loop_propagator_indices,
-    k,
-    minkd,
-    p,
-    project_cutset,
-    propagator_denominators,
-    square,
-):
+def _(N, S, dot, k, minkd, p):
     p1 = p(1, minkd)
     p2 = p(2, minkd)
     k1 = k(1, minkd)
@@ -735,6 +746,7 @@ def _(
         loop_denominators,
         loop_propagator_indices,
         loop_scalar_products,
+        numerator,
         p1,
         p2,
         projected_cutsets,
@@ -802,6 +814,8 @@ def _(mo):
     mo.md(r"""
     ## 2. Solve the affine relation
 
+
+    The input integrand, has loop-dependent denominators that are not all independent. If we want to make use of IBP relations it is crucial to reduce to an independent family.
     We solve the linear system for
     loop-independent coefficients \(c_i\) such that
 
@@ -820,59 +834,58 @@ def _(mo):
 
 
 @app.cell
-def _(Expression, N, S, Sequence):
-    def partial_fraction_coefficients(
-        denominators: Sequence[Expression],
-        loop_scalar_products: Sequence[Expression],
-    ) -> list[Expression]:
-        """Solve ``sum(c_i D_i) = 1`` for a unique affine relation."""
+def _():
+    return
 
-        if len(denominators) < 2:
-            raise ValueError(
-                "Affine partial fractioning needs at least two denominators"
+
+@app.function
+def partial_fraction_coefficients(
+    denominators: "Sequence[Expression]",
+    loop_scalar_products: "Sequence[Expression]",
+) -> "list[Expression]":
+    """Solve ``sum(c_i D_i) = 1`` for a unique affine relation."""
+
+    from symbolica import Expression, N, S
+
+    if len(denominators) < 2:
+        raise ValueError(
+            "Affine partial fractioning needs at least two denominators"
+        )
+    weights = [S(f"__pf_{index}") for index in range(len(denominators))]
+    relation = sum(
+        (
+            weight * denominator
+            for weight, denominator in zip(
+                weights, denominators, strict=True
             )
-        weights = [S(f"__pf_{index}") for index in range(len(denominators))]
-        relation = sum(
-            (
-                weight * denominator
-                for weight, denominator in zip(
-                    weights, denominators, strict=True
-                )
-            ),
-            -N(1),
-        ).expand()
-        equations = [
-            coefficient
-            for _, coefficient in relation.coefficient_list(*loop_scalar_products)
-        ]
-        branches = Expression.solve(
-            equations,
-            weights,
-            warn_if_underdetermined=False,
-        )
-        solution = (
-            [branches[0][weight] for weight in weights]
-            if len(branches) == 1
-            else []
-        )
-        if len(solution) != len(weights) or any(
-            bool(coefficient.contains(weight))
-            for coefficient in solution
-            for weight in weights
-        ):
-            raise ValueError("Denominators do not define a unique affine relation")
-        return solution
-
-    return (partial_fraction_coefficients,)
+        ),
+        -N(1),
+    ).expand()
+    equations = [
+        coefficient
+        for _, coefficient in relation.coefficient_list(*loop_scalar_products)
+    ]
+    branches = Expression.solve(
+        equations,
+        weights,
+        warn_if_underdetermined=False,
+    )
+    solution = (
+        [branches[0][weight] for weight in weights]
+        if len(branches) == 1
+        else []
+    )
+    if len(solution) != len(weights) or any(
+        bool(coefficient.contains(weight))
+        for coefficient in solution
+        for weight in weights
+    ):
+        raise ValueError("Denominators do not define a unique affine relation")
+    return solution
 
 
 @app.cell
-def _(
-    E,
-    loop_denominators,
-    loop_scalar_products,
-    partial_fraction_coefficients,
-):
+def _(E, loop_denominators, loop_scalar_products):
     affine_coefficients = partial_fraction_coefficients(
         loop_denominators,
         loop_scalar_products,
@@ -952,109 +965,98 @@ def _(mo):
     return
 
 
-@app.cell
-def _(Expression):
-    def normalize_rational(expression: Expression) -> Expression:
-        """Return a canonical expanded rational expression."""
+@app.function
+def normalize_rational(expression: "Expression") -> "Expression":
+    """Return a canonical expanded rational expression."""
 
-        return expression.expand().together().cancel()
-
-    return (normalize_rational,)
+    return expression.expand().together().cancel()
 
 
-@app.cell
-def _(
-    E,
-    Expression,
-    Integrand,
-    PartialFractionTerm,
-    Sequence,
-    normalize_rational,
-    partial_fraction_coefficients,
-):
-    def partial_fraction(
-        integrand: Integrand,
-        *,
-        removed_indices: Sequence[int],
-        loop_scalar_products: Sequence[Expression],
-        coefficients: Sequence[Expression] | None = None,
-    ) -> list[PartialFractionTerm]:
-        """Remove denominators using ``sum(c_i D_i) = 1`` directly."""
+@app.function
+def partial_fraction(
+    integrand: "Integrand",
+    *,
+    removed_indices: "Sequence[int]",
+    loop_scalar_products: "Sequence[Expression]",
+    coefficients: "Sequence[Expression] | None" = None,
+) -> "list[PartialFractionTerm]":
+    """Remove denominators using ``sum(c_i D_i) = 1`` directly."""
 
-        if len(set(removed_indices)) != len(removed_indices):
-            raise ValueError("Removed denominator indices must be unique")
-        if any(
-            index < 0 or index >= len(integrand.denominators)
-            for index in removed_indices
-        ):
-            raise IndexError("Removed denominator index is out of range")
+    from symbolica import E
 
-        selected = [
-            integrand.denominators[index] for index in removed_indices
-        ]
-        coefficients = (
-            partial_fraction_coefficients(selected, loop_scalar_products)
-            if coefficients is None
-            else coefficients
+    removed_indices = list(removed_indices)
+    if len(set(removed_indices)) != len(removed_indices):
+        raise ValueError("Removed denominator indices must be unique")
+    if any(
+        index < 0 or index >= len(integrand.denominators)
+        for index in removed_indices
+    ):
+        raise IndexError("Removed denominator index is out of range")
+
+    selected = [
+        integrand.denominators[index] for index in removed_indices
+    ]
+    coefficients = (
+        partial_fraction_coefficients(selected, loop_scalar_products)
+        if coefficients is None
+        else coefficients
+    )
+    if len(coefficients) != len(selected):
+        raise ValueError("Each selected denominator needs one coefficient")
+    if any(
+        bool(coefficient.contains(loop_product))
+        for coefficient in coefficients
+        for loop_product in loop_scalar_products
+    ):
+        raise ValueError(
+            "Partial-fraction coefficients must be independent of loop momenta"
         )
-        if len(coefficients) != len(selected):
-            raise ValueError("Each selected denominator needs one coefficient")
-        if any(
-            bool(coefficient.contains(loop_product))
-            for coefficient in coefficients
-            for loop_product in loop_scalar_products
-        ):
-            raise ValueError(
-                "Partial-fraction coefficients must be independent of loop momenta"
-            )
-        relation_residual = normalize_rational(
-            sum(
-                (
-                    coefficient * denominator
-                    for coefficient, denominator in zip(
-                        coefficients, selected, strict=True
-                    )
-                ),
-                E("-1"),
-            )
-        )
-        if relation_residual != E("0"):
-            raise ValueError(
-                "Partial-fraction coefficients do not solve sum(c_i D_i) = 1: "
-                f"{relation_residual}"
-            )
-
-        terms = []
-        for removed_index, coefficient in zip(
-            removed_indices,
-            coefficients,
-            strict=True,
-        ):
-            retained_indices = tuple(
-                index
-                for index in range(len(integrand.denominators))
-                if index != removed_index
-            )
-            retained_denominators = [
-                integrand.denominators[index] for index in retained_indices
-            ]
-            terms.append(
-                PartialFractionTerm(
-                    removed_index=removed_index,
-                    retained_indices=retained_indices,
-                    integrand=Integrand(
-                        numerator=(integrand.numerator * coefficient).cancel(),
-                        denominators=retained_denominators,
-                    ),
+    relation_residual = normalize_rational(
+        sum(
+            (
+                coefficient * denominator
+                for coefficient, denominator in zip(
+                    coefficients, selected, strict=True
                 )
-            )
-        return terms
+            ),
+            E("-1"),
+        )
+    )
+    if relation_residual != E("0"):
+        raise ValueError(
+            "Partial-fraction coefficients do not solve sum(c_i D_i) = 1: "
+            f"{relation_residual}"
+        )
 
-    return (partial_fraction,)
+    terms = []
+    for removed_index, coefficient in zip(
+        removed_indices,
+        coefficients,
+        strict=True,
+    ):
+        retained_indices = tuple(
+            index
+            for index in range(len(integrand.denominators))
+            if index != removed_index
+        )
+        retained_denominators = [
+            integrand.denominators[index] for index in retained_indices
+        ]
+        terms.append(
+            PartialFractionTerm(
+                removed_index=removed_index,
+                retained_indices=retained_indices,
+                integrand=Integrand(
+                    numerator=(integrand.numerator * coefficient).cancel(),
+                    denominators=retained_denominators,
+                ),
+            )
+        )
+    return terms
 
 
 @app.cell
-def _(affine_coefficients, integrand, loop_scalar_products, partial_fraction):
+def _(affine_coefficients, integrand, loop_scalar_products):
     partial_fractions = partial_fraction(
         integrand,
         removed_indices=range(len(integrand.denominators)),
@@ -1157,53 +1159,52 @@ def _(mo):
     return
 
 
-@app.cell
-def _(Expression, Sequence):
-    def numerator_relations(
-        denominators: Sequence[Expression],
-        denominator_labels: Sequence[Expression],
-        loop_scalar_products: Sequence[Expression],
-    ) -> list[tuple[Expression, Expression]]:
-        """Invert one independent denominator basis.
+@app.function
+def numerator_relations(
+    denominators: "Sequence[Expression]",
+    denominator_labels: "Sequence[Expression]",
+    loop_scalar_products: "Sequence[Expression]",
+) -> "list[tuple[Expression, Expression]]":
+    """Invert one independent denominator basis.
 
-        Solves ``D_i(loop products) = P_i`` and returns ordered
-        ``(loop product, expression in P_i)`` substitution pairs.
-        """
+    Solves ``D_i(loop products) = P_i`` and returns ordered
+    ``(loop product, expression in P_i)`` substitution pairs.
+    """
 
-        if len(denominators) != len(denominator_labels):
-            raise ValueError("Each denominator needs exactly one formal label")
-        if len(denominators) != len(loop_scalar_products):
-            raise ValueError(
-                "Choose one independent denominator for each loop scalar product"
-            )
+    from symbolica import Expression
 
-        equations = [
-            denominator - label
-            for denominator, label in zip(
-                denominators,
-                denominator_labels,
-                strict=True,
-            )
-        ]
-        branches = Expression.solve(
-            equations,
-            loop_scalar_products,
-            warn_if_underdetermined=False,
+    if len(denominators) != len(denominator_labels):
+        raise ValueError("Each denominator needs exactly one formal label")
+    if len(denominators) != len(loop_scalar_products):
+        raise ValueError(
+            "Choose one independent denominator for each loop scalar product"
         )
-        replacements = (
-            [branches[0][loop_product] for loop_product in loop_scalar_products]
-            if len(branches) == 1
-            else []
-        )
-        if len(replacements) != len(loop_scalar_products) or any(
-            bool(replacement.contains(loop_product))
-            for replacement in replacements
-            for loop_product in loop_scalar_products
-        ):
-            raise ValueError("Chosen denominators are not an independent basis")
-        return list(zip(loop_scalar_products, replacements, strict=True))
 
-    return (numerator_relations,)
+    equations = [
+        denominator - label
+        for denominator, label in zip(
+            denominators,
+            denominator_labels,
+            strict=True,
+        )
+    ]
+    branches = Expression.solve(
+        equations,
+        loop_scalar_products,
+        warn_if_underdetermined=False,
+    )
+    replacements = (
+        [branches[0][loop_product] for loop_product in loop_scalar_products]
+        if len(branches) == 1
+        else []
+    )
+    if len(replacements) != len(loop_scalar_products) or any(
+        bool(replacement.contains(loop_product))
+        for replacement in replacements
+        for loop_product in loop_scalar_products
+    ):
+        raise ValueError("Chosen denominators are not an independent basis")
+    return list(zip(loop_scalar_products, replacements, strict=True))
 
 
 @app.cell(hide_code=True)
@@ -1271,61 +1272,52 @@ def _(mo):
     return
 
 
-@app.cell
-def _(
-    Expression,
-    Integrand,
-    NumeratorReduction,
-    ReducedIntegralTerm,
-    S,
-    Sequence,
-    numerator_relations,
-):
-    def reduce_numerator(
-        integrand: Integrand,
-        *,
-        loop_scalar_products: Sequence[Expression],
-    ) -> NumeratorReduction:
-        """Rewrite a numerator as coefficients times shifted integrals.
+@app.function
+def reduce_numerator(
+    integrand: "Integrand",
+    *,
+    loop_scalar_products: "Sequence[Expression]",
+) -> "NumeratorReduction":
+    """Rewrite a numerator as coefficients times shifted integrals.
 
-        A label monomial with powers ``n_i`` cancels the corresponding
-        denominator powers and therefore produces indices ``1 - n_i``.
-        """
+    A label monomial with powers ``n_i`` cancels the corresponding
+    denominator powers and therefore produces indices ``1 - n_i``.
+    """
 
-        if len(integrand.denominators) != len(loop_scalar_products):
-            raise ValueError(
-                "Choose one independent denominator for each loop scalar product"
-            )
-        labels = [
-            S("Prop")(index) for index in range(len(integrand.denominators))
-        ]
-        relations = numerator_relations(
-            integrand.denominators,
-            labels,
-            loop_scalar_products,
+    from symbolica import S
+
+    if len(integrand.denominators) != len(loop_scalar_products):
+        raise ValueError(
+            "Choose one independent denominator for each loop scalar product"
         )
-        reduced = integrand.numerator.expand()
-        for loop_product, replacement in relations:
-            reduced = reduced.replace(loop_product, replacement)
-        reduced = reduced.expand()
+    labels = [
+        S("Prop")(index) for index in range(len(integrand.denominators))
+    ]
+    relations = numerator_relations(
+        integrand.denominators,
+        labels,
+        loop_scalar_products,
+    )
+    reduced = integrand.numerator.expand()
+    for loop_product, replacement in relations:
+        reduced = reduced.replace(loop_product, replacement)
+    reduced = reduced.expand()
 
-        terms = []
-        polynomial = reduced.to_polynomial(vars=labels)
-        for powers, coefficient in polynomial.coefficient_list(labels):
-            terms.append(
-                ReducedIntegralTerm(
-                    coefficient=coefficient.to_expression(),
-                    propagators=integrand.denominators,
-                    integral_indices=tuple(1 - int(power) for power in powers),
-                )
+    terms = []
+    polynomial = reduced.to_polynomial(vars=labels)
+    for powers, coefficient in polynomial.coefficient_list(labels):
+        terms.append(
+            ReducedIntegralTerm(
+                coefficient=coefficient.to_expression(),
+                propagators=integrand.denominators,
+                integral_indices=tuple(1 - int(power) for power in powers),
             )
-        return NumeratorReduction(terms, relations, reduced)
-
-    return (reduce_numerator,)
+        )
+    return NumeratorReduction(terms, relations, reduced)
 
 
 @app.cell
-def _(loop_scalar_products, partial_fractions, reduce_numerator):
+def _(loop_scalar_products, partial_fractions):
     numerator_reductions = [
         reduce_numerator(
             _child.integrand,
@@ -1417,39 +1409,67 @@ def _(mo, numerator_reductions, partial_fractions):
     return
 
 
-@app.cell
-def _(
-    IntegralContribution,
-    PreIBPResult,
-    delta,
-    integrand,
+@app.function
+def prepare_pre_ibp(
+    *,
+    numerator,
     loop_denominators,
-    loop_propagator_indices,
     loop_scalar_products,
-    numerator_reductions,
-    partial_fractions,
-):
-    _contributions = []
-    for _child, _reduction in zip(
+    loop_propagator_indices,
+    delta,
+) -> "PreIBPResult":
+    """Run the exact partial-fraction and numerator preparation for IBP."""
+
+    loop_denominators = list(loop_denominators)
+    loop_scalar_products = list(loop_scalar_products)
+    loop_propagator_indices = list(loop_propagator_indices)
+    if len(loop_denominators) != len(loop_scalar_products) + 1:
+        raise ValueError(
+            "Preparing every affine child needs one more denominator than "
+            "independent loop scalar products"
+        )
+    if len(loop_propagator_indices) != len(loop_denominators):
+        raise ValueError("Each loop denominator needs one graph-source index")
+    if len(set(loop_propagator_indices)) != len(loop_propagator_indices):
+        raise ValueError("Loop graph-source indices must be unique")
+
+    integrand = Integrand(
+        numerator=numerator,
+        denominators=loop_denominators,
+    )
+    partial_fractions = partial_fraction(
+        integrand,
+        removed_indices=range(len(loop_denominators)),
+        loop_scalar_products=loop_scalar_products,
+    )
+    numerator_reductions = [
+        reduce_numerator(
+            child.integrand,
+            loop_scalar_products=loop_scalar_products,
+        )
+        for child in partial_fractions
+    ]
+    contributions = []
+    for child, reduction in zip(
         partial_fractions,
         numerator_reductions,
         strict=True,
     ):
-        _global_sources = tuple(
-            loop_propagator_indices[_index]
-            for _index in _child.retained_indices
+        global_sources = tuple(
+            loop_propagator_indices[index]
+            for index in child.retained_indices
         )
-        _contributions.extend(
+        contributions.extend(
             IntegralContribution(
-                source_indices=_global_sources,
-                propagators=_term.propagators,
-                integral_indices=_term.integral_indices,
-                coefficient=_term.coefficient,
+                source_indices=global_sources,
+                propagators=term.propagators,
+                integral_indices=term.integral_indices,
+                coefficient=term.coefficient,
             )
-            for _term in _reduction.terms
+            for term in reduction.terms
         )
-    contributions = _contributions
-    pre_ibp = PreIBPResult(
+
+    return PreIBPResult(
         denominators=loop_denominators,
         loop_scalar_products=loop_scalar_products,
         delta=delta,
@@ -1458,16 +1478,54 @@ def _(
         numerator_reductions=numerator_reductions,
         contributions=contributions,
     )
+
+
+@app.cell
+def _(
+    delta,
+    loop_denominators,
+    loop_propagator_indices,
+    loop_scalar_products,
+    numerator,
+):
+    pre_ibp = prepare_pre_ibp(
+        numerator=numerator,
+        loop_denominators=loop_denominators,
+        loop_scalar_products=loop_scalar_products,
+        loop_propagator_indices=loop_propagator_indices,
+        delta=delta,
+    )
     return (pre_ibp,)
+
+
+@app.function
+def partition_cuts(pre_ibp, projected_cutsets):
+    """Partition cuts into affine blocks and analytic boundary masters."""
+
+    reducible_cut_names = []
+    direct_cut_names = []
+    denominator_count = len(pre_ibp.denominators)
+    for cut_name, projected_mask in projected_cutsets.items():
+        if len(projected_mask) != denominator_count:
+            raise ValueError(
+                f"Cut {cut_name!r} has {len(projected_mask)} projected entries; "
+                f"expected {denominator_count}"
+            )
+        if any(value not in (0, 1) for value in projected_mask):
+            raise ValueError("Projected cut masks must contain zeroes and ones")
+        if sum(projected_mask) < denominator_count:
+            reducible_cut_names.append(cut_name)
+        else:
+            direct_cut_names.append(cut_name)
+    return reducible_cut_names, direct_cut_names
 
 
 @app.cell
 def _(pre_ibp, projected_cutsets):
-    reducible_cut_names = [
-        _cut_name
-        for _cut_name, _projected_mask in projected_cutsets.items()
-        if sum(_projected_mask) <= len(pre_ibp.denominators) - 1
-    ]
+    reducible_cut_names, direct_cut_names = partition_cuts(
+        pre_ibp,
+        projected_cutsets,
+    )
     contributions_by_cut = {
         _cut_name: list(pre_ibp.contributions)
         for _cut_name in reducible_cut_names
@@ -1484,6 +1542,14 @@ def _(pre_ibp, projected_cutsets):
             for _cut_name, _terms in contributions_by_cut.items()
             for _term in _terms
         ]
+        + [
+            {
+                "cut": _cut_name,
+                "graph sources": "all loop propagators",
+                "indices": "analytic boundary master",
+            }
+            for _cut_name in direct_cut_names
+        ]
     )
     return (contributions_by_cut,)
 
@@ -1495,8 +1561,8 @@ def _(mo):
 
     Each project is keyed by its cut and its retained graph propagators in the
     native order \((D_3,D_4,D_5,D_6)\). Cut `00` requires all four loop
-    propagators and is evaluated directly rather than through a
-    three-propagator child.
+    propagators and is evaluated as the analytic maximal-cut master rather than
+    through a three-propagator child.
 
     Every Kira project requests the fixed complete domain
     \(\{1,0,-1\}^3\). This keeps manifests stable while the editable numerator
@@ -1696,24 +1762,21 @@ def _(mo):
     return
 
 
-@app.cell
-def _(Expression, Sequence):
-    def apply_kinematic_rules(
-        expression: Expression,
-        rules: Sequence[tuple[Expression, Expression]],
-    ) -> Expression:
-        """Apply an explicit ordered set of kinematic replacements."""
+@app.function
+def apply_kinematic_rules(
+    expression: "Expression",
+    rules: "Sequence[tuple[Expression, Expression]]",
+) -> "Expression":
+    """Apply an explicit ordered set of kinematic replacements."""
 
-        result = expression
-        for source, target in rules:
-            result = result.replace(source, target)
-        return result.expand()
-
-    return (apply_kinematic_rules,)
+    result = expression
+    for source, target in rules:
+        result = result.replace(source, target)
+    return result.expand()
 
 
 @app.cell
-def _(E, p1, p2, square):
+def _(E, p1, p2):
     on_shell_rules_by_cut = {
         "11": (
             (square(p1), E("0")),
@@ -1730,57 +1793,48 @@ def _(E, p1, p2, square):
     return (on_shell_rules_by_cut,)
 
 
-@app.cell
-def _(IntegralContribution):
-    def contribution_to_kira_expression(
-        contribution: IntegralContribution,
-        cut_name: str,
-        projects,
-    ):
-        """Turn a family/index contribution into an exact Kira integral atom."""
-
-        family = projects[(cut_name, contribution.source_indices)].family
-        target = family(*contribution.integral_indices)
-        return contribution.coefficient * target
-
-    return (contribution_to_kira_expression,)
-
-
-@app.cell
-def _(E, apply_kinematic_rules, contribution_to_kira_expression):
-    def assemble_ibp_expression(
-        contributions,
-        cut_name,
-        projects,
-        kinematic_rules,
-    ):
-        """Assemble the on-shell multi-family expression submitted to IBP rules."""
-
-        return sum(
-            (
-                apply_kinematic_rules(
-                    contribution_to_kira_expression(
-                        contribution,
-                        cut_name,
-                        projects,
-                    ),
-                    kinematic_rules,
-                )
-                for contribution in contributions
-            ),
-            E("0"),
-        ).expand()
-
-    return (assemble_ibp_expression,)
-
-
-@app.cell
-def _(
-    assemble_ibp_expression,
-    contributions_by_cut,
-    kira_projects,
-    on_shell_rules_by_cut,
+@app.function
+def contribution_to_kira_expression(
+    contribution: "IntegralContribution",
+    cut_name: str,
+    projects,
 ):
+    """Turn a family/index contribution into an exact Kira integral atom."""
+
+    family = projects[(cut_name, contribution.source_indices)].family
+    target = family(*contribution.integral_indices)
+    return contribution.coefficient * target
+
+
+@app.function
+def assemble_ibp_expression(
+    contributions,
+    cut_name,
+    projects,
+    kinematic_rules,
+):
+    """Assemble the on-shell multi-family expression submitted to IBP rules."""
+
+    from symbolica import E
+
+    return sum(
+        (
+            apply_kinematic_rules(
+                contribution_to_kira_expression(
+                    contribution,
+                    cut_name,
+                    projects,
+                ),
+                kinematic_rules,
+            )
+            for contribution in contributions
+        ),
+        E("0"),
+    ).expand()
+
+
+@app.cell
+def _(contributions_by_cut, kira_projects, on_shell_rules_by_cut):
     ibp_inputs_by_cut = {
         _cut_name: assemble_ibp_expression(
             _contributions,
@@ -1896,52 +1950,47 @@ def _(mo):
     return
 
 
-@app.cell
-def _(IBPReductionTerm, apply_kinematic_rules):
-    def apply_ibp_reductions(
-        contributions,
-        cut_name,
-        projects,
-        reductions,
-        kinematic_rules,
-    ):
-        """Apply complete Kira rules term by term without losing provenance."""
+@app.function
+def apply_ibp_reductions(
+    contributions,
+    cut_name,
+    projects,
+    reductions,
+    kinematic_rules,
+):
+    """Apply complete Kira rules term by term without losing provenance."""
 
-        terms = []
-        for contribution in contributions:
-            project_key = (cut_name, contribution.source_indices)
-            project = projects[project_key]
-            result = reductions[project_key].require_complete()
-            target = project.family(*contribution.integral_indices)
-            if target not in result.rules:
-                raise ValueError(
-                    f"Missing Kira rule for {target.format_plain()}"
-                )
-            coefficient = apply_kinematic_rules(
-                contribution.coefficient,
-                kinematic_rules,
+    terms = []
+    for contribution in contributions:
+        project_key = (cut_name, contribution.source_indices)
+        project = projects[project_key]
+        result = reductions[project_key].require_complete()
+        target = project.family(*contribution.integral_indices)
+        if target not in result.rules:
+            raise ValueError(
+                f"Missing Kira rule for {target.format_plain()}"
             )
-            terms.append(
-                IBPReductionTerm(
-                    project_key=project_key,
-                    coefficient=coefficient,
-                    target=target,
-                    reduced_integral=result.rules[target],
-                )
+        coefficient = apply_kinematic_rules(
+            contribution.coefficient,
+            kinematic_rules,
+        )
+        terms.append(
+            IBPReductionTerm(
+                project_key=project_key,
+                coefficient=coefficient,
+                target=target,
+                reduced_integral=result.rules[target],
             )
-        return terms
-
-    return (apply_ibp_reductions,)
+        )
+    return terms
 
 
 @app.cell
 def _(
     E,
-    apply_ibp_reductions,
     contributions_by_cut,
     kira_projects,
     kira_reductions,
-    normalize_rational,
     on_shell_rules_by_cut,
 ):
     ibp_terms_by_cut = {
@@ -1975,7 +2024,8 @@ def _(mo):
     lines. The cut is then applied to the reduced masters in global graph
     space: a family or master that lacks any required positive exponent is set
     to zero. Cuts `11`, `10`, and `01` have three-propagator children. Cut `00`
-    requires all four loop lines and therefore has a separate direct branch.
+    requires all four loop lines and therefore has a separate analytic
+    maximal-cut master branch outside these three-propagator Kira families.
 
     `cut_filter_masters` converts each local master-index vector back to a map
     from global graph source to exponent. A master survives only when every
@@ -1986,50 +2036,48 @@ def _(mo):
     return
 
 
-@app.cell
-def _(E, Replacement, normalize_rational):
-    def cut_filter_masters(
-        expression,
-        *,
-        masters_by_project,
-        sources_by_project,
-        required_source_indices,
-    ):
-        """Drop masters incompatible with a cut in global propagator space."""
+@app.function
+def cut_filter_masters(
+    expression,
+    *,
+    masters_by_project,
+    sources_by_project,
+    required_source_indices,
+):
+    """Drop masters incompatible with a cut in global propagator space."""
 
-        kept = []
-        dropped = []
-        replacements = []
-        for project_key, masters in sorted(masters_by_project.items()):
-            source_indices = sources_by_project[project_key]
-            for master in masters:
-                powers = tuple(int(argument) for argument in master)
-                powers_by_source = dict(
-                    zip(source_indices, powers, strict=True)
-                )
-                survives = all(
-                    powers_by_source.get(source_index, 0) > 0
-                    for source_index in required_source_indices
-                )
-                if survives:
-                    kept.append((project_key, master))
-                else:
-                    dropped.append((project_key, master))
-                    replacements.append(Replacement(master, E("0")))
-        filtered = (
-            expression.replace_multiple(replacements, repeat=False)
-            if replacements
-            else expression
-        )
-        return normalize_rational(filtered), kept, dropped
+    from symbolica import E, Replacement
 
-    return (cut_filter_masters,)
+    kept = []
+    dropped = []
+    replacements = []
+    for project_key, masters in sorted(masters_by_project.items()):
+        source_indices = sources_by_project[project_key]
+        for master in masters:
+            powers = tuple(int(argument) for argument in master)
+            powers_by_source = dict(
+                zip(source_indices, powers, strict=True)
+            )
+            survives = all(
+                powers_by_source.get(source_index, 0) > 0
+                for source_index in required_source_indices
+            )
+            if survives:
+                kept.append((project_key, master))
+            else:
+                dropped.append((project_key, master))
+                replacements.append(Replacement(master, E("0")))
+    filtered = (
+        expression.replace_multiple(replacements, repeat=False)
+        if replacements
+        else expression
+    )
+    return normalize_rational(filtered), kept, dropped
 
 
 @app.cell
 def _(
     contributions_by_cut,
-    cut_filter_masters,
     cutsets,
     kira_reductions,
     loop_propagator_indices,
@@ -2089,21 +2137,20 @@ def _(mo):
     return
 
 
-@app.cell
-def _(Replacement):
-    def identify_masters(expression, identifications):
-        """Apply explicit analytic identifications to surviving masters."""
+@app.function
+def identify_masters(expression, identifications):
+    """Apply explicit analytic identifications to surviving masters."""
 
-        replacements = [
-            Replacement(master, value) for master, value in identifications
-        ]
-        return (
-            expression.replace_multiple(replacements, repeat=False)
-            if replacements
-            else expression
-        )
+    from symbolica import Replacement
 
-    return (identify_masters,)
+    replacements = [
+        Replacement(master, value) for master, value in identifications
+    ]
+    return (
+        expression.replace_multiple(replacements, repeat=False)
+        if replacements
+        else expression
+    )
 
 
 @app.cell(hide_code=True)
@@ -2131,8 +2178,9 @@ def _(mo):
     \]
 
     We keep every master identification visible and substitute the analytic
-    values imported from `masters.py`. The fully cut `00` sector remains a
-    direct four-line calculation.
+    values imported from `masters.py`. The fully cut `00` sector is the
+    unit-numerator maximal-cut master `M00(s)` multiplied by the numerator
+    evaluated on its four-line cut support; it does not require Kira.
     """)
     return
 
@@ -2245,11 +2293,9 @@ def _(
     dot,
     epsilon,
     euler_gamma,
-    identify_masters,
     massive_cut_bubble,
     massive_cut_triangle,
     mu_squared,
-    normalize_rational,
     p1,
     p2,
     q,
@@ -2353,7 +2399,7 @@ def _(mo):
 
 
 @app.cell
-def _(S, dot, p1, p2, square):
+def _(S, dot, p1, p2):
     ipp1p1, ipp1p2, ipp2p2 = S(
         "ipp1p1", "ipp1p2", "ipp2p2"
     )
@@ -2374,88 +2420,88 @@ def _(S, dot, p1, p2, square):
     return ipp1p2, to_historical_kinematics
 
 
-@app.cell
-def _(E, Expression, PreIBPResult, S, normalize_rational):
-    def validate_pre_ibp(result: PreIBPResult) -> dict[str, Expression]:
-        """Validate every algebraic handoff represented by a pre-IBP result."""
+@app.function
+def validate_pre_ibp(
+    result: "PreIBPResult",
+) -> "dict[str, Expression]":
+    """Validate every algebraic handoff represented by a pre-IBP result."""
 
-        checks = {
-            "affine propagator relation": normalize_rational(
-                result.denominators[0]
-                - result.denominators[1]
-                - result.denominators[2]
-                + result.denominators[3]
-                + result.delta
-            ),
-            "partial-fraction reconstruction": normalize_rational(
-                sum(
-                    (
-                        child.integrand.as_expression()
-                        for child in result.partial_fractions
-                    ),
-                    E("0"),
-                )
-                - result.integrand.as_expression()
-            ),
-            "numerator-rewrite reconstruction": normalize_rational(
-                sum(
-                    (
-                        term.as_expression()
-                        for reduction in result.numerator_reductions
-                        for term in reduction.terms
-                    ),
-                    E("0"),
-                )
-                - result.integrand.as_expression()
-            ),
-            "IBP-input reconstruction": normalize_rational(
-                sum(
-                    (
-                        contribution.as_expression()
-                        for contribution in result.contributions
-                    ),
-                    E("0"),
-                )
-                - result.integrand.as_expression()
-            ),
-        }
-        for child_index, (child, reduction) in enumerate(zip(
-            result.partial_fractions,
-            result.numerator_reductions,
-            strict=True,
-        ), start=1):
-            labels = [
-                S("Prop")(index)
-                for index in range(len(child.integrand.denominators))
-            ]
-            for relation_index, (target, replacement) in enumerate(
-                reduction.relations, start=1
-            ):
-                reconstructed = replacement
-                for label, propagator in zip(
-                    labels,
-                    child.integrand.denominators,
-                    strict=True,
-                ):
-                    reconstructed = reconstructed.replace(label, propagator)
-                checks[
-                    f"child {child_index} relation {relation_index}"
-                ] = normalize_rational(reconstructed - target)
+    from symbolica import E, S
 
-        failures = {
-            name: residual
-            for name, residual in checks.items()
-            if residual != E("0")
-        }
-        if failures:
-            details = ", ".join(
-                f"{name}: {value}" for name, value in failures.items()
+    checks = {
+        "affine propagator relation": normalize_rational(
+            result.denominators[0]
+            - result.denominators[1]
+            - result.denominators[2]
+            + result.denominators[3]
+            + result.delta
+        ),
+        "partial-fraction reconstruction": normalize_rational(
+            sum(
+                (
+                    child.integrand.as_expression()
+                    for child in result.partial_fractions
+                ),
+                E("0"),
             )
-            raise ValueError(f"Cross-box preprocessing validation failed: {details}")
-        return checks
+            - result.integrand.as_expression()
+        ),
+        "numerator-rewrite reconstruction": normalize_rational(
+            sum(
+                (
+                    term.as_expression()
+                    for reduction in result.numerator_reductions
+                    for term in reduction.terms
+                ),
+                E("0"),
+            )
+            - result.integrand.as_expression()
+        ),
+        "IBP-input reconstruction": normalize_rational(
+            sum(
+                (
+                    contribution.as_expression()
+                    for contribution in result.contributions
+                ),
+                E("0"),
+            )
+            - result.integrand.as_expression()
+        ),
+    }
+    for child_index, (child, reduction) in enumerate(zip(
+        result.partial_fractions,
+        result.numerator_reductions,
+        strict=True,
+    ), start=1):
+        labels = [
+            S("Prop")(index)
+            for index in range(len(child.integrand.denominators))
+        ]
+        for relation_index, (target, replacement) in enumerate(
+            reduction.relations, start=1
+        ):
+            reconstructed = replacement
+            for label, propagator in zip(
+                labels,
+                child.integrand.denominators,
+                strict=True,
+            ):
+                reconstructed = reconstructed.replace(label, propagator)
+            checks[
+                f"child {child_index} relation {relation_index}"
+            ] = normalize_rational(reconstructed - target)
 
-
-    return (validate_pre_ibp,)
+    failures = {
+        name: residual
+        for name, residual in checks.items()
+        if residual != E("0")
+    }
+    if failures:
+        details = ", ".join(
+            f"{name}: {value}" for name, value in failures.items()
+        )
+        raise ValueError(f"Cross-box preprocessing validation failed: {details}")
+    return checks
 
 
 @app.cell
@@ -2468,12 +2514,9 @@ def _(
     kira_projects,
     kira_reductions,
     loop_propagator_indices,
-    normalize_rational,
     pre_ibp,
     projected_cutsets,
     required_loop_sources_by_cut,
-    square,
-    validate_pre_ibp,
 ):
     _checks = dict(validate_pre_ibp(pre_ibp))
     assert loop_propagator_indices == [2, 3, 4, 5]
@@ -2676,15 +2719,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    E,
-    Integrand,
-    S,
-    normalize_rational,
-    partial_fraction,
-    partial_fraction_coefficients,
-    prod,
-):
+def _(E, S, prod):
     _validation_rows = []
     for _count in range(2, 8):
         _loop_products = [
@@ -2886,21 +2921,14 @@ def _(mo):
 @app.cell
 def _(
     E,
-    IntegralContribution,
-    Integrand,
-    PreIBPResult,
     delta,
     dot,
     loop_denominators,
     loop_propagator_indices,
     loop_scalar_products,
-    normalize_rational,
     p1,
     p2,
-    partial_fraction,
     q,
-    reduce_numerator,
-    validate_pre_ibp,
 ):
     _reference_delta = q**2 - 2 * dot(p1, p2)
     _reference_integrand = Integrand(E("1"), loop_denominators)
@@ -3033,16 +3061,11 @@ def _(
     S,
     analytic_identifications_by_cut,
     analytic_master_values_by_cut,
-    apply_ibp_reductions,
-    assemble_ibp_expression,
     contributions_by_cut,
-    cut_filter_masters,
-    identify_masters,
     ipp1p2,
     kira_projects,
     kira_reductions,
     mathematica_reference_pre_ibp,
-    normalize_rational,
     on_shell_rules_by_cut,
     q,
     required_loop_sources_by_cut,
@@ -3318,7 +3341,6 @@ def _(
     mathematica_reference_cut_expression_fire,
     mathematica_reference_final_expression,
     mathematica_scalar_cut_oracle,
-    normalize_rational,
     q,
 ):
     _d = S("d")
@@ -3371,7 +3393,6 @@ def _(
     ipp1p2,
     mathematica_reference_analytic_expression,
     mu_squared,
-    normalize_rational,
     q,
 ):
     _s = S("s")
@@ -3526,11 +3547,11 @@ def _(mo):
         "Current boundary: the six-line graph, all four cut masks, all twelve "
         "native graph-order reductions, and the analytic master evaluations "
         "for cuts 11, 10, and 01 are complete. The final appendix maps those "
-        "projects to the historical topo20--31 oracle. Cut 00 is a direct "
-        "four-line contribution, "
-        "not a missing Kira rule and not zero by default. Reproducing the later "
-        "physical Mathematica sum still requires porting its contracted "
-        "xboxNumContr numerator, direct cut measure, and distribution dressing.",
+        "projects to the historical topo20--31 oracle. Cut 00 is the analytic "
+        "maximal-cut master M00(s), not a missing Kira rule and not zero by "
+        "default. The companion dy_topologies.py notebook supplies the physical "
+        "metric-contracted numerator, virtuality integrations, and endpoint "
+        "distribution dressing for all four cuts.",
         kind="info",
     )
     return

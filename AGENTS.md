@@ -14,7 +14,7 @@ asks to modify a sibling repository.
 - Portable DY/Kira application: `calculations/dy/python`
 - Mathematica source snapshot: `calculations/dy/mathematica`
 - Cross-box helper source and walkthrough: `notebooks/ludy.py`
-- Root multi-topology runner: `notebooks/dy_topologies.py`
+- Root physical DY diagram runner: `notebooks/dy_topologies.py`
 - Analytic master implementations: `calculations/dy/python/masters.py`
 - General cone notebook: `notebooks/collinear-cone.py`
 - GammaLoop: `/Users/lcnbr/dev/work/bern/gammaloop/main`
@@ -35,7 +35,7 @@ The root uv sources intentionally use the relative sibling paths
 public, exact GammaLoop revision while uv overlays the editable local source.
 If the working copies move, update the uv paths. This root environment serves
 only the general notebooks, including the cross-box source/walkthrough and
-multi-topology runner. The DY/Kira application uses its own environment and
+physical diagram runner. The DY/Kira application uses its own environment and
 requires neither sibling.
 
 The Mathematica directory is a curated source snapshot. Preserve the complete
@@ -118,9 +118,10 @@ Mathematica/FIRE comparisons and other oracle code in the final validation
 appendix. Import analytic master evaluators from
 `calculations/dy/python/masters.py` rather than duplicating them.
 
-`notebooks/dy_topologies.py` is a root-environment runner that imports the
-public helper surface from `notebooks/ludy.py`. Do not copy helper
-implementations into the runner.
+`notebooks/dy_topologies.py` is a root-environment physical diagram runner that
+imports the public helper surface from `notebooks/ludy.py`. Keep Kira behind
+its explicit run control, keep process normalization separate from the loop
+numerator, and do not copy helper implementations into the runner.
 
 ## uv Dependency Wiring
 

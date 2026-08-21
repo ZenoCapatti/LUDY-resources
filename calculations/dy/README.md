@@ -44,29 +44,34 @@ complete Kira projects in native graph order, names each project from its cut
 and retained graph sources, applies the exact reductions for cuts `11`, `10`,
 and `01`, filters masters in global graph space, and evaluates the surviving
 cut bubble or triangle. Cut `00` requires all four loop lines and is therefore
-shown as a direct branch rather than incorrectly represented by a
-three-propagator IBP child. The affine solver accepts any number of propagators
-when the system is unique; an explicit coefficient list can select a relation
-for an overcomplete set. The analytic bubble and triangle evaluators are
-imported from `python/masters.py`, their single source of implementation. Only
-the final validation appendix maps native graph order `(D3,D4,D5,D6)` to the
-historical FIRE order `(D3,D4,D6,D5)` and names `topo20`--`topo31`.
+the analytic maximal-cut master `M00(s)`, rather than being incorrectly
+represented by a three-propagator IBP child. The affine solver accepts any
+number of propagators when the system is unique; an explicit coefficient list
+can select a relation for an overcomplete set. The analytic bubble, triangle,
+and maximal-cut evaluators are imported from `python/masters.py`, their single
+source of implementation. Only the final validation appendix maps native graph
+order `(D3,D4,D5,D6)` to the historical FIRE order `(D3,D4,D6,D5)` and names
+`topo20`--`topo31`.
 
-`notebooks/dy_topologies.py` provides the root-environment multi-topology
-runner. It imports the public project-building and Kira-running helpers from
-`notebooks/ludy.py`, allowing several topologies to be inspected and run
-without copying the cross-box helpers. The separately locked
-`python/notebook.py` workflow remains self-contained and does not depend on
-either root notebook.
+`notebooks/dy_topologies.py` provides the root-environment physical diagram
+runner. It imports the public graph, numerator-reduction, project-building,
+Kira, and validation helpers from `notebooks/ludy.py`. The current calculation
+uses the paper's metric-contracted crossed-box trace, reduces the three
+three-line cuts, evaluates the analytic maximal-cut master `M00(s)` with its
+separate cut numerator, integrates the leading beam virtualities, and assembles
+the endpoint delta/plus coefficients.
+The separately locked `python/notebook.py` workflow remains self-contained and
+does not depend on either root notebook.
 
 The corresponding Mathematica section is a semantic validation oracle rather
-than an implementation template: the editable Python numerator differs, while
-the independent validation path uses Mathematica's active scalar numerator
-`1` and validates the routed cut-`11` bubble result. These comparisons, the
-generic helper checks, and the remaining oracles live together in the final
-validation appendix of `notebooks/ludy.py`. This is deliberately not a claim
-that the later historical `xboxNumContr` calculation (whose notebook
-also carries a projector warning) has been ported in full. Because it uses
+than an implementation template. The scalar historical route and generic
+helper checks remain in the final validation appendix of `notebooks/ludy.py`.
+The physical runner now ports the transverse, metric-contracted part of the
+later `xboxNumContr` calculation and verifies its maximal-cut limit; it does
+not port the warned longitudinal projector. This produces a physical
+crossed-box contribution, not yet the complete DY coefficient: the remaining
+diagram set, gauge cancellation, UV renormalization, and collinear
+factorization still have to be added progressively. Because the runner uses
 Community/Spenso, run it from the repository-root environment rather than the
 portable Kira app.
 

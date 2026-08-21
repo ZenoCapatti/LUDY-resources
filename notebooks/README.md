@@ -25,17 +25,27 @@ locked calculations under `calculations/`.
   objects reach Spenso's Typst printer instead of being interpolated into
   Markdown code strings.
   Cuts `11`, `10`, and `01` use twelve projects named from their cut and graph
-  sources; fully cut `00` is explicitly routed to a direct four-line branch.
+  sources; fully cut `00` is explicitly routed to the analytic maximal-cut
+  master branch outside Kira.
   The Mathematica/FIRE comparisons, generic helper checks, and other oracle
   code are collected in a final validation appendix rather than interleaved
   with the walkthrough.
   Evaluating this root notebook automatically runs or resumes its twelve Kira
   projects. Complete outputs are reused only when their persisted project
   manifests still match the notebook inputs exactly.
-- `dy_topologies.py` is the root-environment multi-topology runner. It imports
-  the public project-building and Kira-running helpers from `ludy.py`, then
-  applies them to selectable topologies without duplicating helper
-  implementations or the cross-box walkthrough.
+- `dy_topologies.py` is the root-environment physical DY runner. It imports the
+  public graph, numerator-reduction, Kira, and validation helpers from
+  `ludy.py` rather than duplicating them. Its first diagram is the physical
+  crossed box: the paper's metric-contracted trace is reduced for cuts `11`,
+  `10`, and `01`, while the maximal cut `00` is represented by the analytic
+  unit-numerator master `M00(s)` and its diagram-specific cut coefficient. The
+  notebook then attaches the two external virtuality measures and collects the
+  result in a typed endpoint-distribution basis.
+  Couplings, colour, incoming averages, graph sign, density Jacobian, and the
+  optional DIS `1/(4 pi)` observable factor stay in a visible normalization
+  ledger outside the loop numerator. Kira runs only after the explicit button
+  is pressed and uses the fresh ignored root
+  `runs/dy-cross-box-physical-kirapy/`.
 - `collinear-cone.py` is the independent interactive cone visualization.
 
 Run either notebook from the repository root so the editable sibling sources

@@ -440,6 +440,13 @@ def _(d, pi, spenso_table):
             "2π factor": (2 * pi) ** (1 - d),
         },
         {
+            "object": "cross-box cut + two pᵢ² integrals",
+            "loops": 1,
+            "cut edges": 4,
+            "virtuality integrals": 2,
+            "2π factor": (2 * pi) ** (2 - d),
+        },
+        {
             "object": "DIS-only observable factor",
             "loops": 0,
             "cut edges": 0,
@@ -594,6 +601,88 @@ def massive_cut_triangle(
     )
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Maximal four-line cross-box master
+
+    Current cut `00` (historical `resxbox11`) puts all four internal lines on
+    shell.  It is therefore a cut or boundary master rather than a conventional
+    Kira master of one of the three-denominator families.  For unit numerator
+    and positive leading-power scale \(s\), define
+
+    \[
+    \begin{aligned}
+      M_{00}^{\delta_z}={}&
+      \frac{4}{(2\pi)^3}\,
+      \pi^{-(d-4)/2}
+      (\mu_R^2e^{\gamma_E})^\epsilon s^{-\epsilon}
+      \frac{\pi^{4-\epsilon}}
+      {[\lambda(0,0,s)]^{1/2-\epsilon}\Gamma(1-\epsilon)}
+      \frac1s.
+    \end{aligned}
+    \]
+
+    The final \(1/s\) is the Jacobian
+    \(\delta(s-m^2)=\delta(1-z)/s\); this channel therefore has no soft plus
+    distribution to expand.  A diagram supplies the separate coefficient
+    \(N_{00}\) obtained by evaluating its numerator on the maximal-cut support,
+    and the complete leading contribution before process weights is
+
+    \[
+      C_{00}^{\delta_z}=N_{00}M_{00}^{\delta_z}
+      J(\Lambda_1^2)J(\Lambda_2^2).
+    \]
+
+    For the physical crossed-box trace \(N_{00}=-4(d-2)s^2\) and
+    \(d=4-2\epsilon\), its bare leading pole is \(-1/(\pi\epsilon^2)\).
+    Couplings, colour, spin averages, and the graph sign remain outside the
+    master and its diagram coefficient.
+    """)
+    return
+
+
+@app.function
+def maximal_cross_box_cut_master(
+    momentum_squared: "Expression",
+    *,
+    dimension: "Expression",
+    epsilon: "Expression",
+    mu_squared: "Expression",
+    euler_gamma: "Expression",
+) -> "Expression":
+    """Unit-numerator master for the maximal four-line cross-box cut.
+
+    ``momentum_squared`` is the positive leading-power light-cone scale ``s``.
+    The returned coefficient of ``delta(1-z)`` contains the loop measure, four
+    real cut-edge factors, and the Jacobian
+    ``delta(s-m^2) = delta(1-z)/s``. It deliberately excludes the diagram
+    numerator, the two external ``dp_i^2/(2*pi)`` integrations and their
+    ``(p_i^2)^(-1-epsilon)`` singularities, and all graph/process weights.
+
+    Fractional powers follow the same positive-branch convention as the
+    historical Mathematica calculation.
+    """
+
+    from symbolica import E as _E, Expression as _Expression
+
+    pi = _Expression.PI
+    loop_cut_measure = (
+        4
+        / (2 * pi) ** 3
+        / pi ** ((dimension - 4) / 2)
+        * cut_normalization(mu_squared, epsilon, euler_gamma)
+        * momentum_squared ** (-epsilon)
+        * pi ** (4 - epsilon)
+        / (
+            kallen(0, 0, momentum_squared)
+            ** (_E("1/2") - epsilon)
+            * (1 - epsilon).gamma()
+        )
+    )
+    return (loop_cut_measure / momentum_squared).cancel()
+
+
 @app.cell
 def _(
     d,
@@ -661,6 +750,17 @@ def _(
                 p1_squared,
                 s,
                 mass_squared,
+                dimension=d,
+                epsilon=epsilon,
+                mu_squared=mu_squared,
+                euler_gamma=euler_gamma,
+            ),
+        },
+        {
+            "master": "M00(s)",
+            "kind": "maximal four-line cut master",
+            "expression": maximal_cross_box_cut_master(
+                s,
                 dimension=d,
                 epsilon=epsilon,
                 mu_squared=mu_squared,
@@ -1630,9 +1730,10 @@ def _(mo):
     the surrounding routing has already remapped that sector to topology 7,
     whose following evaluation is the `Bcut(p1²)` entry below.  For the
     cross-box labels, current cut `11` is Mathematica `resxbox00`, current `10`
-    is `resxbox10`, and current `01` is `resxbox01`.  Current cut `00`
-    (Mathematica `resxbox11`) is a direct four-line cut, rather than one of
-    these three-propagator analytic master identifications.
+    is `resxbox10`, and current `01` is `resxbox01`. Current cut `00`
+    (Mathematica `resxbox11`) identifies the analytic maximal-cut master
+    `M00(s)`. It is a boundary master outside the three-propagator Kira
+    families, not a missing Kira reduction.
     """)
     return
 
@@ -1699,6 +1800,11 @@ def _(mo):
             "source": "topo28(1,1,1)",
             "analytic master": "Tcutm(p₁²,s,q²)",
             "context": "current cut 01 / Mathematica resxbox01",
+        },
+        {
+            "source": "all four cross-box loop lines cut",
+            "analytic master": "M00(s)",
+            "context": "current cut 00 / Mathematica resxbox11; no Kira",
         },
     )
     mo.ui.table(master_identifications, pagination=False)
@@ -2002,6 +2108,110 @@ def _(epsilon_expansions, spenso_table):
     return
 
 
+@app.function
+def virtuality_integral_factor(
+    cutoff_squared: "Expression",
+    epsilon: "Expression",
+) -> "Expression":
+    """Integrate v^(-1-epsilon) with the physical dv/(2*pi) measure."""
+
+    from symbolica import Expression as _Expression
+
+    return -(
+        cutoff_squared ** (-epsilon)
+        / (2 * _Expression.PI * epsilon)
+    )
+
+
+@app.cell
+def _(
+    E,
+    S,
+    canonical_zero,
+    d,
+    epsilon,
+    euler_gamma,
+    mu_squared,
+    pi,
+    s,
+    spenso_table,
+):
+    _numerator_on_cut, _lambda1_squared, _lambda2_squared = S(
+        "Nmax",
+        "Lambda1sq",
+        "Lambda2sq",
+    )
+    _native_maximal_cut_master = maximal_cross_box_cut_master(
+        s,
+        dimension=d,
+        epsilon=epsilon,
+        mu_squared=mu_squared,
+        euler_gamma=euler_gamma,
+    )
+    _native_delta_coefficient = (
+        _numerator_on_cut
+        * _native_maximal_cut_master
+        * virtuality_integral_factor(_lambda1_squared, epsilon)
+        * virtuality_integral_factor(_lambda2_squared, epsilon)
+    ).cancel()
+
+    # DY_calculation.nb, resxbox11: the two explicit 1/(2*pi) factors are
+    # applied later in xboxfull4, and delta(s-m^2)=delta(1-z)/s.  The notebook
+    # made positivity assumptions before splitting the product power, so the
+    # same positive-branch factorization is written explicitly here.
+    _historical_delta_coefficient = (
+        _numerator_on_cut
+        * 4
+        / (2 * pi) ** 3
+        / pi ** ((d - 4) / 2)
+        * (mu_squared * euler_gamma.exp()) ** epsilon
+        * _lambda1_squared ** (-epsilon)
+        * _lambda2_squared ** (-epsilon)
+        * s ** (-epsilon)
+        * pi ** (4 - epsilon)
+        / (
+            (s**2) ** (E("1/2") - epsilon)
+            * (1 - epsilon).gamma()
+        )
+        / epsilon**2
+        / (2 * pi) ** 2
+        / s
+    ).cancel()
+    _historical_direct_cut_residual = canonical_zero(
+        _native_delta_coefficient - _historical_delta_coefficient
+    )
+    assert _historical_direct_cut_residual == 0
+
+    _physical_trace_on_cut = -4 * (d - 2) * s**2
+    _dimensionally_regularized_direct_cut = _native_delta_coefficient.replace(
+        _numerator_on_cut,
+        _physical_trace_on_cut,
+    ).replace(d, 4 - 2 * epsilon)
+    _leading_pole_at_positive_s = (
+        _dimensionally_regularized_direct_cut * epsilon**2
+    ).replace(epsilon, 0).replace(s, E("5"))
+    _leading_pole_residual = canonical_zero(
+        _leading_pole_at_positive_s + 1 / pi
+    )
+    assert _leading_pole_residual == 0
+
+    spenso_table(
+        [
+            {
+                "check": "maximal-cut master / Mathematica resxbox11",
+                "residual": _historical_direct_cut_residual,
+            },
+            {
+                "check": "epsilon^2 direct-cut coefficient at positive s",
+                "expected": -1 / pi,
+                "residual": _leading_pole_residual,
+            },
+        ],
+        pagination=False,
+    )
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -2015,17 +2225,22 @@ def _(mo):
       {\rm LP}\,I_4 &=
         a_4(s,z,\epsilon,\mu_R^2)\,
         v_1^{-1-\epsilon}v_2^{-1-\epsilon},\\
-      {\rm LP}\,I_3 &=
-        a_3(s,z,\epsilon,\mu_R^2)\,
-        v_1^{-1-\epsilon}\widehat\delta_\partial(v_2),\\
       {\rm LP}\,I_2 &=
         a_2(s,z,\epsilon,\mu_R^2)\,
+        v_1^{-1-\epsilon}\widehat\delta_\partial(v_2),\\
+      {\rm LP}\,I_3 &=
+        a_3(s,z,\epsilon,\mu_R^2)\,
         v_2^{-1-\epsilon}\widehat\delta_\partial(v_1),\\
       {\rm LP}\,I_1 &=
         a_1(s,z,\epsilon,\mu_R^2)\,
         \widehat\delta_\partial(v_1)\widehat\delta_\partial(v_2).
     \end{aligned}
     \]
+
+    In the manuscript's naming, (I_2) is current cut `01` and (I_3) is
+    current cut `10`. The cut names and their explicit virtuality support are
+    used in code so that the historical label reversal cannot silently swap
+    the two beams.
 
     Here the one-sided cut delta is defined by
     \(\int_0^{\Lambda^2}dv\,\widehat\delta_\partial(v)/(2\pi)=1\).
@@ -2052,7 +2267,14 @@ def _(mo):
 
 
 @app.cell
-def _(S, canonical_zero, epsilon, lambda_squared, pi, spenso_table):
+def _(
+    S,
+    canonical_zero,
+    epsilon,
+    lambda_squared,
+    spenso_table,
+    virtuality_integral_factor,
+):
     _virtuality, _a1, _a2, _a3, _a4 = S("v", "a1", "a2", "a3", "a4")
     _antiderivative = -_virtuality ** (-epsilon) / epsilon
     _antiderivative_residual = canonical_zero(
@@ -2061,8 +2283,9 @@ def _(S, canonical_zero, epsilon, lambda_squared, pi, spenso_table):
     )
     assert _antiderivative_residual == 0
 
-    _virtuality_factor = -(
-        lambda_squared ** (-epsilon) / (2 * pi * epsilon)
+    _virtuality_factor = virtuality_integral_factor(
+        lambda_squared,
+        epsilon,
     )
     spenso_table(
         [
@@ -2078,6 +2301,230 @@ def _(S, canonical_zero, epsilon, lambda_squared, pi, spenso_table):
             {"check": "integrated LP I₃", "value": _a3 * _virtuality_factor},
             {"check": "integrated LP I₂", "value": _a2 * _virtuality_factor},
             {"check": "integrated LP I₁", "value": _a1},
+        ],
+        pagination=False,
+    )
+    return
+
+
+@app.class_definition
+@__import__("dataclasses").dataclass(frozen=True, slots=True)
+class EndpointExpansion:
+    """Coefficients in the delta/plus basis for one endpoint power.
+
+    This is metadata about a distributional expansion, not a Symbolica
+    expression.  In particular, it does not define test-function action and
+    its coefficients must not be multiplied termwise by an arbitrary
+    z-dependent prefactor.
+    """
+
+    exponent_multiple: int
+    delta_coefficient: "Expression"
+    plus_coefficients: tuple["Expression", ...]
+
+    @property
+    def order(self) -> int:
+        """Highest represented D_n coefficient."""
+
+        return len(self.plus_coefficients) - 1
+
+
+@app.class_definition
+@__import__("dataclasses").dataclass(frozen=True, slots=True)
+class EndpointDistribution:
+    """A delta/plus basis with an ordinary locally integrable remainder.
+
+    The delta and plus coefficients are metadata, not Symbolica distribution
+    atoms. The regular_part field is the only ordinary Symbolica expression
+    in the represented distribution.
+    """
+
+    delta_coefficient: "Expression"
+    plus_coefficients: tuple["Expression", ...]
+    regular_part: "Expression"
+
+    @property
+    def order(self) -> int:
+        """Highest represented D_n coefficient."""
+
+        return len(self.plus_coefficients) - 1
+
+
+@app.function
+def endpoint_distribution_expansion(
+    exponent_multiple: int,
+    epsilon: "Expression",
+    *,
+    order: int,
+) -> "EndpointExpansion":
+    r"""Describe ``(1-z)^(-1-a*epsilon)`` through ``D_order``.
+
+    The returned record stores the coefficient of ``delta(1-z)`` and then
+    the coefficients of ``D_0(z), ..., D_order(z)``.  It intentionally does
+    not manufacture symbolic delta or plus-distribution function heads.
+    """
+
+    from math import factorial
+
+    if (
+        isinstance(exponent_multiple, bool)
+        or not isinstance(exponent_multiple, int)
+        or exponent_multiple <= 0
+    ):
+        raise ValueError("exponent_multiple must be a positive integer")
+    if isinstance(order, bool) or not isinstance(order, int) or order < 0:
+        raise ValueError("order must be a non-negative integer")
+
+    return EndpointExpansion(
+        exponent_multiple=exponent_multiple,
+        delta_coefficient=-1 / (exponent_multiple * epsilon),
+        plus_coefficients=tuple(
+            (-exponent_multiple * epsilon) ** n / factorial(n)
+            for n in range(order + 1)
+        ),
+    )
+
+
+@app.function
+def apply_endpoint_expansion(
+    expansion: "EndpointExpansion",
+    regular_prefactor: "Expression",
+    z: "Expression",
+) -> "EndpointDistribution":
+    r"""Multiply an endpoint expansion by a prefactor smooth at z=1.
+
+    This implements
+
+    g(z) D_n(z) = g(1) D_n(z)
+      + (g(z)-g(1)) log(1-z)^n/(1-z)
+
+    coefficient by coefficient. The second term is returned as the ordinary,
+    locally integrable regular_part; no symbolic delta or plus-distribution
+    heads are manufactured. The caller is responsible for ensuring that g is
+    smooth at the endpoint, so the displayed quotient has a removable limit.
+    Its logarithms may still diverge integrably. Epsilon dependence in g is
+    allowed.
+    """
+
+    from symbolica import E as _E, Expression as _Expression
+
+    if not isinstance(expansion, EndpointExpansion):
+        raise TypeError("expansion must be an EndpointExpansion")
+    if not isinstance(regular_prefactor, _Expression):
+        raise TypeError("regular_prefactor must be a Symbolica Expression")
+    if not isinstance(z, _Expression):
+        raise TypeError("z must be a Symbolica Expression")
+
+    endpoint_prefactor = regular_prefactor.replace(z, 1)
+    if endpoint_prefactor.contains(z):
+        raise ValueError("could not evaluate the prefactor at z=1")
+    prefactor_remainder = (
+        (regular_prefactor - endpoint_prefactor) / (1 - z)
+    ).cancel()
+    regular_part = sum(
+        (
+            coefficient
+            * prefactor_remainder
+            * (1 - z).log() ** n
+            for n, coefficient in enumerate(expansion.plus_coefficients)
+        ),
+        _E("0"),
+    ).expand()
+    return EndpointDistribution(
+        delta_coefficient=(
+            endpoint_prefactor * expansion.delta_coefficient
+        ).expand(),
+        plus_coefficients=tuple(
+            (endpoint_prefactor * coefficient).expand()
+            for coefficient in expansion.plus_coefficients
+        ),
+        regular_part=regular_part,
+    )
+
+
+@app.cell
+def _(
+    S,
+    apply_endpoint_expansion,
+    canonical_zero,
+    endpoint_distribution_expansion,
+    epsilon,
+    spenso_table,
+    z,
+):
+    _endpoint_value, _endpoint_slope = S("g1", "gprime")
+    _expansion = endpoint_distribution_expansion(2, epsilon, order=2)
+    _smooth_prefactor = _endpoint_value + _endpoint_slope * (1 - z)
+    _applied = apply_endpoint_expansion(
+        _expansion,
+        _smooth_prefactor,
+        z,
+    )
+    _expected_regular_part = _endpoint_slope * (
+        1
+        - 2 * epsilon * (1 - z).log()
+        + 2 * epsilon**2 * (1 - z).log() ** 2
+    )
+    _delta_residual = canonical_zero(
+        _applied.delta_coefficient
+        + _endpoint_value / (2 * epsilon)
+    )
+    _plus_residuals = tuple(
+        canonical_zero(actual - expected)
+        for actual, expected in zip(
+            _applied.plus_coefficients,
+            (
+                _endpoint_value,
+                -2 * epsilon * _endpoint_value,
+                2 * epsilon**2 * _endpoint_value,
+            ),
+            strict=True,
+        )
+    )
+    _regular_residual = canonical_zero(
+        _applied.regular_part - _expected_regular_part
+    )
+    _exact_constant_test_moment = (
+        -_endpoint_value / (2 * epsilon)
+        + _endpoint_slope / (1 - 2 * epsilon)
+    )
+    _expanded_constant_test_moment = _exact_constant_test_moment.series(
+        epsilon,
+        0,
+        2,
+    ).to_expression().expand()
+    _represented_constant_test_moment = (
+        _applied.delta_coefficient
+        + _endpoint_slope * (1 + 2 * epsilon + 4 * epsilon**2)
+    )
+    _constant_test_moment_residual = canonical_zero(
+        _expanded_constant_test_moment
+        - _represented_constant_test_moment
+    )
+    assert _applied.order == 2
+    assert _delta_residual == 0
+    assert all(residual == 0 for residual in _plus_residuals)
+    assert _regular_residual == 0
+    assert _constant_test_moment_residual == 0
+
+    spenso_table(
+        [
+            {
+                "check": "smooth-prefactor delta coefficient",
+                "residual": _delta_residual,
+            },
+            {
+                "check": "smooth-prefactor plus coefficients",
+                "residual": _plus_residuals,
+            },
+            {
+                "check": "ordinary regular remainder",
+                "residual": _regular_residual,
+            },
+            {
+                "check": "constant test-function moment through epsilon^2",
+                "residual": _constant_test_moment_residual,
+            },
         ],
         pagination=False,
     )
@@ -2111,8 +2558,20 @@ def _(mo):
     The proposed formula is therefore correct for \(a=1\).  The unexpanded
     FLU result in PDF equation (129) contains
     \((1-z)^{d-5}=(1-z)^{-1-2\epsilon}\), so that specific expression needs
-    \(a=2\).  Since Symbolica does not natively encode plus distributions, the
-    notebook validates the expansion through exact test-function moments.
+    \(a=2\).  `EndpointExpansion` carries only the coefficients in this
+    displayed basis: it is deliberately not a fake Symbolica distribution.
+    For a prefactor \(g(z)\) smooth at \(z=1\),
+
+    \[
+      g(z)\mathcal D_n(z)
+      =g(1)\mathcal D_n(z)
+       +\frac{g(z)-g(1)}{1-z}\log^n(1-z).
+    \]
+
+    `apply_endpoint_expansion` uses this identity to return rescaled
+    delta/plus coefficients together with the ordinary, locally integrable
+    remainder.  The notebook validates both the coefficients and exact
+    test-function moments.
     """)
     return
 
@@ -2144,30 +2603,47 @@ def _(mo):
 
 @app.cell
 def _(
-    E,
-    canonical_zero,
+    endpoint_distribution_expansion,
     epsilon,
-    math,
     soft_distribution_order,
     soft_exponent_multiple,
 ):
     _a = soft_exponent_multiple.value
+    _endpoint_expansion = endpoint_distribution_expansion(
+        _a,
+        epsilon,
+        order=soft_distribution_order.value,
+    )
     soft_distribution_coefficients = [
         {
             "distribution": "δ(1-z)",
-            "coefficient": -1 / (_a * epsilon),
+            "coefficient": _endpoint_expansion.delta_coefficient,
         }
     ]
     soft_distribution_coefficients.extend(
         {
             "distribution": f"D_{_order}(z)",
-            "coefficient": (
-                (-_a * epsilon) ** _order
-                / math.factorial(_order)
-            ),
+            "coefficient": _coefficient,
         }
-        for _order in range(soft_distribution_order.value + 1)
+        for _order, _coefficient in enumerate(
+            _endpoint_expansion.plus_coefficients
+        )
     )
+
+    assert _endpoint_expansion.exponent_multiple == _a
+    assert _endpoint_expansion.order == soft_distribution_order.value
+    assert _endpoint_expansion.plus_coefficients[0] == 1
+    return (soft_distribution_coefficients,)
+
+
+@app.cell
+def _(
+    E,
+    canonical_zero,
+    epsilon,
+    soft_exponent_multiple,
+):
+    _a = soft_exponent_multiple.value
 
     _z_moment_1 = -1 / (
         _a * epsilon * (1 - _a * epsilon)
@@ -2214,7 +2690,7 @@ def _(
             "residual": _moment_2_residual,
         },
     )
-    return soft_distribution_coefficients, soft_distribution_moments
+    return (soft_distribution_moments,)
 
 
 @app.cell
@@ -2359,7 +2835,8 @@ def _(mo):
         "Scope: this notebook derives and evaluates the closed-form basis "
         "explicitly present in the retained Mathematica workflow. Preferred "
         "Kira masters without one of the catalogued identifications remain "
-        "unevaluated here; cut 00 remains a direct four-line contribution.",
+        "unevaluated here. Cut 00 is the evaluated analytic maximal-cut "
+        "master M00(s), outside the three-propagator Kira families.",
         kind="neutral",
     )
     return
