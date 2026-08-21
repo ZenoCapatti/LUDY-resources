@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "PyYAML>=6.0",
-    "symbolica @ git+https://github.com/alphal00p/symbolica.git@63fc4bf82163e25cfe30db0ec1b44b86ee5afed0",
+    "symbolica @ git+https://github.com/alphal00p/symbolica.git@520129d681389ed1cec26e1b0885591c73bc6e9b",
 ]
 classifiers = [
     "Private :: Do Not Upload",

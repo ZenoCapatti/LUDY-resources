@@ -22,7 +22,6 @@ def _(E, Expression, mo):
     import re as _re
 
     import typst as _typst
-    from symbolica import PrintMode as _PrintMode
 
     _typst_compiler = _typst.Compiler(ignore_system_fonts=True)
     _body_pattern = _re.compile(
@@ -33,72 +32,9 @@ def _(E, Expression, mo):
         r"<style(?:\s[^>]*)?>.*?</style>",
         _re.DOTALL,
     )
-    _function_call_pattern = _re.compile(
-        r'op\("(?:[^"\\]|\\.)*"\)\('
-    )
-
-    def _group_typst_function_applications(math):
-        """Make Symbolica's operator applications atomic for Typst.
-
-        Typst otherwise parses ``1/op("gamma")(x)`` as ``(1/gamma) x``.
-        Insert grouping parentheses around every complete application, while
-        respecting nested calls and quoted Symbolica names.
-        """
-
-        spans = []
-        for match in _function_call_pattern.finditer(math):
-            argument_start = match.end() - 1
-            depth = 0
-            quoted = False
-            escaped = False
-            for index in range(argument_start, len(math)):
-                character = math[index]
-                if quoted:
-                    if escaped:
-                        escaped = False
-                    elif character == "\\":
-                        escaped = True
-                    elif character == '"':
-                        quoted = False
-                    continue
-                if character == '"':
-                    quoted = True
-                elif character == "(":
-                    depth += 1
-                elif character == ")":
-                    depth -= 1
-                    if depth == 0:
-                        spans.append((match.start(), index + 1))
-                        break
-            else:
-                raise ValueError("unbalanced Typst function application")
-
-        opening_at = {}
-        closing_at = {}
-        for start, end in spans:
-            opening_at[start] = opening_at.get(start, 0) + 1
-            closing_at[end] = closing_at.get(end, 0) + 1
-
-        grouped = []
-        for index, character in enumerate(math):
-            grouped.append("(" * opening_at.get(index, 0))
-            grouped.append(character)
-            grouped.append(")" * closing_at.get(index + 1, 0))
-        return "".join(grouped)
 
     def _typst_math(expression):
-        formatted = expression.format(
-            mode=_PrintMode.Typst,
-            color_builtin_symbols=False,
-            bracket_level_colors=None,
-            show_namespaces=False,
-            max_terms=None,
-            num_exp_as_superscript=False,
-        )
-        # Symbolica's scalar middot needs spaces to be a Typst operator rather
-        # than part of a variable name such as ``pi·s``.
-        formatted = formatted.replace("·", " dot ")
-        return _group_typst_function_applications(formatted)
+        return expression.to_typst()
 
     @_lru_cache(maxsize=256)
     def _render_typst_html(math):

@@ -120,7 +120,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
-    { name = "symbolica", git = "https://github.com/alphal00p/symbolica.git?rev=63fc4bf82163e25cfe30db0ec1b44b86ee5afed0" },
+    { name = "symbolica", git = "https://github.com/alphal00p/symbolica.git?rev=520129d681389ed1cec26e1b0885591c73bc6e9b" },
 ]
 
 [package.metadata.requires-dev]
@@ -173,7 +173,7 @@ build = [
 requires-dist = [
     { name = "kirapy", editable = "../../../packages/kirapy" },
     { name = "marimo", specifier = ">=0.23.15" },
-    { name = "symbolica", git = "https://github.com/alphal00p/symbolica.git?rev=63fc4bf82163e25cfe30db0ec1b44b86ee5afed0" },
+    { name = "symbolica", git = "https://github.com/alphal00p/symbolica.git?rev=520129d681389ed1cec26e1b0885591c73bc6e9b" },
     { name = "typst", specifier = ">=0.15,<0.16" },
 ]
 
@@ -411,7 +411,7 @@ wheels = [
 [[package]]
 name = "symbolica"
 version = "2.2.0"
-source = { git = "https://github.com/alphal00p/symbolica.git?rev=63fc4bf82163e25cfe30db0ec1b44b86ee5afed0#63fc4bf82163e25cfe30db0ec1b44b86ee5afed0" }
+source = { git = "https://github.com/alphal00p/symbolica.git?rev=520129d681389ed1cec26e1b0885591c73bc6e9b#520129d681389ed1cec26e1b0885591c73bc6e9b" }
 
 [[package]]
 name = "tomlkit"
