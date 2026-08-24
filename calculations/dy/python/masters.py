@@ -443,6 +443,21 @@ def sphere_volume(dimension: "Expression") -> "Expression":
     )
 
 
+@app.function
+def apply_replacement_rules(
+    expression: "Expression",
+    rules: "tuple[tuple[Expression, Expression], ...]",
+) -> "Expression":
+    """Apply one simultaneous, non-repeating set of exact rules."""
+
+    from symbolica import Replacement as _Replacement
+
+    return expression.replace_multiple(
+        [_Replacement(source, target) for source, target in rules],
+        repeat=False,
+    )
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -467,8 +482,9 @@ def _(mo):
     retaining $p_2^2$ is not copied because its equations (42)--(46) omit a
     required $sqrt(s)$; a new exact two-virtuality light-cone extension is
     derived below.  The
-    maximal-box, LU, zero-bin, and FLU notes remain context rather than new
-    completed analytic masters.
+    later maximal-box, LU, zero-bin, and FLU notes mostly remain context.  The
+    completed four-line endpoint factor is isolated below as the boundary
+    master `M00`.
     """)
     return
 
@@ -504,7 +520,7 @@ def _(epsilon, euler_gamma, mo, spenso_table):
             "PDF pages": "3--11",
             "equations": "(47)--(147)",
             "content": "maximal box, LU, zero-bin, FLU",
-            "status": "context or unfinished work; not a master definition",
+            "status": "direct endpoint retained as M00; remaining notes are context",
         },
     )
     _scheme_conversion = (-2 * epsilon * euler_gamma).exp()
@@ -605,6 +621,106 @@ def _(d, pi, spenso_table):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    == Light-cone derivations interleaved with the master definitions
+
+    Choose null reference vectors $n_+$ and $n_-$ with
+    $n_+^2=n_-^2=0$ and $2 n_+ dot n_-=Q$.  Every loop momentum is written as
+
+    $
+      k = alpha n_+ + beta n_- + k_perp, quad
+      kappa_perp^2 equiv -k_perp^2 >= 0,
+    $
+
+    so that
+
+    $
+      k^2 = Q alpha beta-kappa_perp^2, quad
+      upright(d)^d k = frac(Q,2)
+        upright(d) alpha upright(d) beta upright(d)^(d-2)k_perp.
+    $
+
+    Each master below starts from this decomposition.  The accompanying code
+    uses exact Symbolica replacement rules—simultaneously for independent
+    substitutions and in stages for dependent cut solutions—and asserts an
+    exact zero residual against the implementation.  The theta-function support
+    is stated in prose because it is not encoded by an algebraic replacement
+    rule.  Every closed-form cut comparison first imposes
+    $d=4-2epsilon$; the public functions retain both arguments so that this
+    dimensional-regularization slice stays visible at each call site.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    === Master 1 — uncut massless bubble $B(p^2)$
+
+    Start from
+
+    $
+      B(p^2) = frac(overline(S)_epsilon,i)
+      integral frac(upright(d)^d k, (2 pi)^d)
+      frac(1, k^2 (k-p)^2).
+    $
+
+    The factor $1/i$ strips the conventional overall Minkowski phase, matching
+    the real historical master returned by the function below.
+
+    First make the light-front contour explicit.  Choose $p_perp=0$, set
+    $k^+=x p^+$ and $p^+p^-=p^2$.  The two denominators are
+
+    $
+      D_0=x p^+ k^- - kappa_perp^2 + i 0, quad
+      D_1=(1-x)p^+(p^- - k^-)-kappa_perp^2+i 0.
+    $
+
+    The $D_0$ pole is $k^-_*=kappa_perp^2/(x p^+)$, and its replacement in
+    the second denominator gives
+
+    $
+      k^-=k^-_* quad => quad D_1
+      = frac(x(1-x)p^2-kappa_perp^2,x).
+    $
+
+    Only $0<x<1$ puts the two poles on opposite sides of the contour.  The
+    $k^-$ residue leaves a transverse integral.  The following equivalent
+    Feynman-parameter route evaluates the same contour result:
+
+    $
+      frac(1,k^2(k-p)^2)
+      = integral_0^1 upright(d) x
+        [x k^2+(1-x)(k-p)^2]^(-2).
+    $
+
+    The exact shift $k=ell+(1-x)p$ is applied below as a simultaneous pair of
+    rules for $k^2$ and $k dot p$; it turns the denominator into
+    $ell^2+x(1-x)p^2$.  Decomposing $ell$ in the null basis above and performing
+    the longitudinal contour and transverse radial integral yields
+
+    $
+      integral upright(d)^d ell [ell^2+x(1-x)p^2]^(-2)
+      = pi^(d/2) Gamma(2-d/2)
+        [-x(1-x)p^2]^(d/2-2).
+    $
+
+    The remaining parameter integral is
+
+    $
+      integral_0^1 upright(d) x [x(1-x)]^(d/2-2)
+      = frac(Gamma((d-2)/2)^2, Gamma(d-2)).
+    $
+
+    This is the uncut counterpart of the delta-supported derivations below;
+    the light-cone energy integrations are contour integrals rather than
+    on-shell replacements.
+    """)
+    return
+
+
 @app.function
 def uncut_bubble(
     momentum_squared: "Expression",
@@ -630,6 +746,161 @@ def uncut_bubble(
     )
 
 
+@app.cell
+def _(
+    S,
+    apply_replacement_rules,
+    canonical_zero,
+    d,
+    epsilon,
+    euler_gamma,
+    kappa_squared,
+    mu_squared,
+    p_squared,
+    pi,
+    spenso_table,
+    x,
+):
+    _lc_p_plus, _lc_k_minus = S("lc_p_plus", "lc_k_minus")
+    _first_lightfront_denominator = (
+        x * _lc_p_plus * _lc_k_minus - kappa_squared
+    )
+    _second_lightfront_denominator = (
+        (1 - x)
+        * _lc_p_plus
+        * (p_squared / _lc_p_plus - _lc_k_minus)
+        - kappa_squared
+    )
+    _k_minus_pole = kappa_squared / (x * _lc_p_plus)
+    assert canonical_zero(
+        apply_replacement_rules(
+            _first_lightfront_denominator,
+            ((_lc_k_minus, _k_minus_pole),),
+        )
+    ) == 0
+    _second_on_pole = canonical_zero(
+        apply_replacement_rules(
+            _second_lightfront_denominator,
+            ((_lc_k_minus, _k_minus_pole),),
+        )
+    )
+    _pole_residual = canonical_zero(
+        x * _second_on_pole
+        - x * (1 - x) * p_squared
+        + kappa_squared
+    )
+    assert _pole_residual == 0
+
+    _lc_k_squared, _lc_k_dot_p, _lc_ell_squared, _lc_ell_dot_p = S(
+        "lc_k_squared",
+        "lc_k_dot_p",
+        "lc_ell_squared",
+        "lc_ell_dot_p",
+    )
+    _combined_denominator = (
+        x * _lc_k_squared
+        + (1 - x)
+        * (_lc_k_squared - 2 * _lc_k_dot_p + p_squared)
+    )
+    _shift_rules = (
+        (
+            _lc_k_squared,
+            _lc_ell_squared
+            + 2 * (1 - x) * _lc_ell_dot_p
+            + (1 - x) ** 2 * p_squared,
+        ),
+        (
+            _lc_k_dot_p,
+            _lc_ell_dot_p + (1 - x) * p_squared,
+        ),
+    )
+    _shifted_denominator = canonical_zero(
+        apply_replacement_rules(_combined_denominator, _shift_rules)
+    )
+    assert canonical_zero(
+        _shifted_denominator
+        - _lc_ell_squared
+        - x * (1 - x) * p_squared
+    ) == 0
+
+    _parameter_integral = (
+        ((d - 2) / 2).gamma() ** 2 / (d - 2).gamma()
+    )
+    _loop_integral = (
+        pi ** (d / 2)
+        * ((4 - d) / 2).gamma()
+        * (-p_squared) ** ((d - 4) / 2)
+    )
+    _derived_bubble = (
+        loop_normalization(mu_squared, epsilon, euler_gamma)
+        / (2 * pi) ** d
+        * _loop_integral
+        * _parameter_integral
+    )
+    _bubble_residual = canonical_zero(
+        _derived_bubble
+        - uncut_bubble(
+            p_squared,
+            dimension=d,
+            epsilon=epsilon,
+            mu_squared=mu_squared,
+            euler_gamma=euler_gamma,
+        )
+    )
+    assert _bubble_residual == 0
+    spenso_table(
+        [
+            {"step": "D₀ light-front pole", "value": _k_minus_pole},
+            {"step": "D₁ on the D₀ pole", "value": _second_on_pole},
+            {"step": "pole residual", "value": _pole_residual},
+            {"step": "combined denominator", "value": _combined_denominator},
+            {"step": "after k=ℓ+(1-x)p rules", "value": _shifted_denominator},
+            {"step": "light-cone/radial loop factor", "value": _loop_integral},
+            {"step": "x beta integral", "value": _parameter_integral},
+            {"step": "definition residual", "value": _bubble_residual},
+        ],
+        pagination=False,
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    === Master 2 — massless cut bubble $B_(upright("cut"))(P^2)$
+
+    Put $P=n_++n_-$, so $Q=P^2$, and decompose
+    $k=x n_+ + beta n_- + k_perp$.  The two real-cut constraints are
+
+    $
+      C_0 = Q x beta-kappa_perp^2, quad
+      C_1 = Q(1-x)(1-beta)-kappa_perp^2.
+    $
+
+    The first delta gives $beta=kappa_perp^2/(Q x)$.  Applying that rule to
+    $C_1$ gives
+
+    $
+      C_0=0 quad => quad C_1
+      = Q(1-x)-frac(kappa_perp^2,x), quad
+      kappa_perp^2=Q x(1-x).
+    $
+
+    The positive-energy branch has $0<x<1$.  The two longitudinal delta
+    Jacobians and the angular integral leave
+
+    $
+      frac(Omega_(d-3),4) (P^2)^((d-4)/2)
+      integral_0^1 upright(d)x [x(1-x)]^((d-4)/2).
+    $
+
+    With $d=4-2epsilon$, the beta integral and the duplication identity for
+    $Gamma(2-2epsilon)$ produce the closed form below.  No rest-frame energy
+    variable is needed.
+    """)
+    return
+
+
 @app.function
 def massless_cut_bubble(
     momentum_squared: "Expression",
@@ -653,6 +924,206 @@ def massless_cut_bubble(
         * _Expression.PI**pi_power
         / (_E("3/2") - epsilon).gamma()
     )
+
+
+@app.cell
+def _(
+    E,
+    apply_replacement_rules,
+    beta,
+    canonical_zero,
+    d,
+    epsilon,
+    euler_gamma,
+    kappa_squared,
+    mu_squared,
+    p_squared,
+    pi,
+    spenso_table,
+    x,
+):
+    _first_cut = p_squared * x * beta - kappa_squared
+    _second_cut = (
+        p_squared * (1 - x) * (1 - beta) - kappa_squared
+    )
+    _beta_solution = kappa_squared / (p_squared * x)
+    _second_cut_reduced = canonical_zero(
+        apply_replacement_rules(
+            _second_cut,
+            ((beta, _beta_solution),),
+        )
+    )
+    _kappa_solution = p_squared * x * (1 - x)
+    assert canonical_zero(
+        _second_cut_reduced
+        - p_squared * (1 - x)
+        + kappa_squared / x
+    ) == 0
+    assert canonical_zero(
+        apply_replacement_rules(
+            _second_cut_reduced,
+            ((kappa_squared, _kappa_solution),),
+        )
+    ) == 0
+
+    _dimensionally_regularized = 4 - 2 * epsilon
+    _parameter_integral = (
+        ((_dimensionally_regularized - 2) / 2).gamma() ** 2
+        / (_dimensionally_regularized - 2).gamma()
+    )
+    _raw_lightcone_measure = (
+        sphere_volume(_dimensionally_regularized - 3)
+        / 4
+        * p_squared ** ((_dimensionally_regularized - 4) / 2)
+        * _parameter_integral
+    )
+    _positive_lightcone_cut = (
+        loop_normalization(mu_squared, epsilon, euler_gamma)
+        * (2 * pi) ** (2 - _dimensionally_regularized)
+        * _raw_lightcone_measure
+    )
+    _finite_geometry_residual = canonical_zero(
+        _positive_lightcone_cut.replace(epsilon, 0) - 1 / (8 * pi)
+    )
+    assert _finite_geometry_residual == 0
+
+    _beta_integral_dimreg = (
+        (1 - epsilon).gamma() ** 2
+        / (2 - 2 * epsilon).gamma()
+    )
+    _gamma_one_minus_epsilon = (
+        (_dimensionally_regularized - 2) / 2
+    ).gamma()
+    _gamma_duplication_rhs = (
+        2 ** (1 - 2 * epsilon)
+        / pi.sqrt()
+        * (1 - epsilon).gamma()
+        * (E("3/2") - epsilon).gamma()
+    )
+    _beta_after_duplication = canonical_zero(
+        apply_replacement_rules(
+            _beta_integral_dimreg,
+            (((2 - 2 * epsilon).gamma(), _gamma_duplication_rhs),),
+        )
+    )
+    _duplication_residual = canonical_zero(
+        _beta_after_duplication
+        - 2 ** (2 * epsilon - 1)
+        * pi.sqrt()
+        * (1 - epsilon).gamma()
+        / (E("3/2") - epsilon).gamma()
+    )
+    assert _duplication_residual == 0
+
+    _raw_gamma_duplication_rhs = (
+        2 ** (1 - 2 * epsilon)
+        / pi.sqrt()
+        * _gamma_one_minus_epsilon
+        * (E("3/2") - epsilon).gamma()
+    )
+
+    _positive_branch_rules = (
+        (
+            loop_normalization(mu_squared, epsilon, euler_gamma),
+            cut_normalization(mu_squared, epsilon, euler_gamma)
+            * 2 ** (-2 * epsilon)
+            * pi ** (-epsilon),
+        ),
+        (
+            (2 * pi) ** (2 - _dimensionally_regularized),
+            2 ** (2 - _dimensionally_regularized)
+            * pi ** (2 - _dimensionally_regularized),
+        ),
+        (
+            (_dimensionally_regularized - 2).gamma(),
+            _raw_gamma_duplication_rhs,
+        ),
+    )
+    _closed_from_raw_lightcone = canonical_zero(
+        apply_replacement_rules(
+            _positive_lightcone_cut,
+            _positive_branch_rules,
+        )
+    )
+    _definition_residual = canonical_zero(
+        _closed_from_raw_lightcone
+        - massless_cut_bubble(
+            p_squared,
+            dimension=_dimensionally_regularized,
+            epsilon=epsilon,
+            mu_squared=mu_squared,
+            euler_gamma=euler_gamma,
+        )
+    )
+    assert _definition_residual == 0
+    spenso_table(
+        [
+            {"step": "C₀", "value": _first_cut},
+            {"step": "β rule", "value": _beta_solution},
+            {"step": "C₁ after β rule", "value": _second_cut_reduced},
+            {"step": "κ⊥² rule", "value": _kappa_solution},
+            {"step": "raw light-cone measure", "value": _raw_lightcone_measure},
+            {"step": "normalized light-cone cut", "value": _positive_lightcone_cut},
+            {"step": "beta integral after Γ duplication", "value": _beta_after_duplication},
+            {"step": "Γ-duplication residual", "value": _duplication_residual},
+            {"step": "four-dimensional normalization residual", "value": _finite_geometry_residual},
+            {"step": "after dim-reg and Γ rules", "value": _closed_from_raw_lightcone},
+            {"step": "definition residual", "value": _definition_residual},
+        ],
+        pagination=False,
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    === Master 3 — massless cut triangle
+
+    Retain both external virtualities in the light-cone parametrization
+
+    $
+      p_1=n_+ + frac(p_1^2,Q)n_-, quad
+      p_2=n_- + frac(p_2^2,Q)n_+.
+    $
+
+    With $P=p_1+p_2$, the first two cut equations again fix $beta$ and
+    $kappa_perp^2$.  The third massless cut fixes
+
+    $
+      J_3 = Q-frac(p_1^2p_2^2,Q), quad
+      x_* = frac(Q+p_2^2,J_3),
+    $
+
+    and the exact identities are
+
+    $
+      J_3^2=lambda(P^2,p_1^2,p_2^2), quad
+      R_perp^2=p_1^2 x_*(1-x_*)
+      =-frac(p_1^2p_2^2P^2,J_3^2).
+    $
+
+    Here $p_3^2$ is the signed crossed argument of the historical master.  In
+    the DY use $T_(upright("cut"))(p_1^2,p_2^2,-s)$, the replacement
+    $P^2 -> p_3^2$ analytically continues the future-directed branch
+    $P^2 approx +s$ to $p_3^2=-s$; that sign change is crossing, not a
+    leading-virtuality approximation.  The leading-power step is the subsequent
+    Gram projection.  The explicit rules are
+
+    $
+      P^2 -> p_3^2, quad
+      J_3^2 -> lambda(0,0,p_3^2), quad
+      R_perp^2 ->
+        -frac(p_1^2p_2^2p_3^2,lambda(0,0,p_3^2)).
+    $
+
+    Applying them to
+    $Omega_(d-3) R_perp^(d-4)/(4 J_3)$ gives the definition below.  The
+    displayed branch assumes $J_3>0$, $0<x_*<1$, and positive-energy cut
+    support; elsewhere the Jacobian requires an absolute value or analytic
+    continuation.
+    """)
+    return
 
 
 @app.function
@@ -682,6 +1153,180 @@ def massless_cut_triangle(
         * _Expression.PI**pi_power
         / (1 - epsilon).gamma()
     )
+
+
+@app.cell
+def _(
+    E,
+    S,
+    apply_replacement_rules,
+    canonical_zero,
+    epsilon,
+    euler_gamma,
+    mu_squared,
+    p1_squared,
+    p2_squared,
+    p_squared,
+    pi,
+    s_lightcone,
+    spenso_table,
+):
+    _pair_invariant = (
+        s_lightcone
+        + p1_squared
+        + p2_squared
+        + p1_squared * p2_squared / s_lightcone
+    )
+    _third_jacobian = (
+        s_lightcone - p1_squared * p2_squared / s_lightcone
+    )
+    _x_solution = (s_lightcone + p2_squared) / _third_jacobian
+    _exact_radius_squared = p1_squared * _x_solution * (1 - _x_solution)
+    _jacobian_residual = canonical_zero(
+        _third_jacobian**2
+        - kallen(_pair_invariant, p1_squared, p2_squared)
+    )
+    _radius_residual = canonical_zero(
+        _exact_radius_squared
+        + p1_squared
+        * p2_squared
+        * _pair_invariant
+        / _third_jacobian**2
+    )
+    assert _jacobian_residual == 0
+    assert _radius_residual == 0
+
+    _pair_slot, _jacobian_squared_slot = S(
+        "lc_massless_pair_slot",
+        "lc_massless_jacobian_squared_slot",
+    )
+    _radius_template = (
+        -p1_squared
+        * p2_squared
+        * _pair_slot
+        / _jacobian_squared_slot
+    )
+    _historical_kallen = kallen(0, 0, p_squared)
+    _leading_radius_squared = canonical_zero(
+        apply_replacement_rules(
+            _radius_template,
+            (
+                (_pair_slot, p_squared),
+                (_jacobian_squared_slot, _historical_kallen),
+            ),
+        )
+    )
+    assert canonical_zero(
+        _leading_radius_squared
+        + p1_squared * p2_squared * p_squared / _historical_kallen
+    ) == 0
+
+    _dimensionally_regularized = 4 - 2 * epsilon
+    _raw_historical_triangle = (
+        loop_normalization(mu_squared, epsilon, euler_gamma)
+        * (2 * pi) ** (3 - _dimensionally_regularized)
+        * sphere_volume(_dimensionally_regularized - 3)
+        / (4 * _historical_kallen.sqrt())
+        * _leading_radius_squared ** (-epsilon)
+    )
+    _positive_branch_rules = (
+        (
+            loop_normalization(mu_squared, epsilon, euler_gamma),
+            cut_normalization(mu_squared, epsilon, euler_gamma)
+            * 2 ** (-2 * epsilon)
+            * pi ** (-epsilon),
+        ),
+        (
+            (2 * pi) ** (3 - _dimensionally_regularized),
+            2 ** (3 - _dimensionally_regularized)
+            * pi ** (3 - _dimensionally_regularized),
+        ),
+        (
+            ((_dimensionally_regularized - 2) / 2).gamma(),
+            (1 - epsilon).gamma(),
+        ),
+        (
+            _leading_radius_squared ** (-epsilon),
+            (-p1_squared * p2_squared * p_squared) ** (-epsilon)
+            * _historical_kallen**epsilon,
+        ),
+    )
+    _closed_from_raw_lightcone = canonical_zero(
+        apply_replacement_rules(
+            _raw_historical_triangle,
+            _positive_branch_rules,
+        )
+    )
+    _definition_residual = canonical_zero(
+        _closed_from_raw_lightcone
+        - massless_cut_triangle(
+            p1_squared,
+            p2_squared,
+            p_squared,
+            dimension=_dimensionally_regularized,
+            epsilon=epsilon,
+            mu_squared=mu_squared,
+            euler_gamma=euler_gamma,
+        )
+    )
+    assert _definition_residual == 0
+    spenso_table(
+        [
+            {"step": "exact P²", "value": _pair_invariant},
+            {"step": "exact J₃", "value": _third_jacobian},
+            {"step": "J₃²-λ residual", "value": _jacobian_residual},
+            {"step": "x*", "value": _x_solution},
+            {"step": "radius residual", "value": _radius_residual},
+            {"step": "LP replacement for R⊥²", "value": _leading_radius_squared},
+            {"step": "raw crossed light-cone measure", "value": _raw_historical_triangle},
+            {"step": "after dim-reg and branch rules", "value": _closed_from_raw_lightcone},
+            {"step": "definition residual", "value": _definition_residual},
+        ],
+        pagination=False,
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    === Master 4 — massive cut bubble $B_(upright("cutm"))(s,m^2)$
+
+    Use $P=n_++n_-$ with $P^2=s$ and the same loop decomposition.  The two
+    cuts are
+
+    $
+      C_0=s x beta-kappa_perp^2, quad
+      C_m=s(1-x)(1-beta)-kappa_perp^2-m^2.
+    $
+
+    Applying $beta=kappa_perp^2/(s x)$ reduces the massive cut to
+
+    $
+      C_0=0 quad => quad C_m
+      =s(1-x)-frac(kappa_perp^2,x)-m^2,
+    $
+
+    and hence
+
+    $
+      kappa_perp^2=x[s(1-x)-m^2].
+    $
+
+    Its positive support is $0<x<x_*$ with $x_*=1-m^2/s$.  Rescaling
+    $x=x_* y$ exposes the standard two-body radius:
+
+    $
+      kappa_perp^2=4 r_*^2 y(1-y), quad
+      r_* = frac(s-m^2,2 sqrt(s)), quad 0<y<1.
+    $
+
+    The beta integral therefore reconstructs the angular orbit
+    $Omega_(d-2)r_*^(d-3)$ and gives the positive real two-body phase space.
+    The definition below adds the retained historical Cutkosky minus sign;
+    that sign is not part of the light-cone Jacobian.
+    """)
+    return
 
 
 @app.function
@@ -716,6 +1361,170 @@ def massive_cut_bubble(
     )
 
 
+@app.cell
+def _(
+    E,
+    S,
+    apply_replacement_rules,
+    beta,
+    canonical_zero,
+    epsilon,
+    euler_gamma,
+    kappa_squared,
+    mass_squared,
+    mu_squared,
+    pi,
+    s,
+    spenso_table,
+    x,
+):
+    _first_cut = s * x * beta - kappa_squared
+    _massive_cut = s * (1 - x) * (1 - beta) - kappa_squared - mass_squared
+    _beta_solution = kappa_squared / (s * x)
+    _massive_cut_reduced = canonical_zero(
+        apply_replacement_rules(
+            _massive_cut,
+            ((beta, _beta_solution),),
+        )
+    )
+    _kappa_solution = x * (s * (1 - x) - mass_squared)
+    assert canonical_zero(
+        _massive_cut_reduced
+        - s * (1 - x)
+        + kappa_squared / x
+        + mass_squared
+    ) == 0
+    assert canonical_zero(
+        apply_replacement_rules(
+            _massive_cut_reduced,
+            ((kappa_squared, _kappa_solution),),
+        )
+    ) == 0
+
+    _y = S("lc_massive_bubble_y")
+    _x_endpoint = 1 - mass_squared / s
+    _cut_radius = (s - mass_squared) / (2 * s.sqrt())
+    _rescaled_radius = canonical_zero(
+        apply_replacement_rules(
+            _kappa_solution,
+            ((x, _x_endpoint * _y),),
+        )
+    )
+    _rescaling_residual = canonical_zero(
+        _rescaled_radius - 4 * _cut_radius**2 * _y * (1 - _y)
+    )
+    assert _rescaling_residual == 0
+
+    _dimensionally_regularized = 4 - 2 * epsilon
+    _positive_phase_space = (
+        sphere_volume(_dimensionally_regularized - 2)
+        / 4
+        * (2 * pi) ** (2 - _dimensionally_regularized)
+        / s.sqrt()
+        * _cut_radius ** (_dimensionally_regularized - 3)
+    )
+    _positive_normalized_phase_space = (
+        loop_normalization(mu_squared, epsilon, euler_gamma)
+        * _positive_phase_space
+    )
+    _positive_branch_rules = (
+        (
+            loop_normalization(mu_squared, epsilon, euler_gamma),
+            cut_normalization(mu_squared, epsilon, euler_gamma)
+            * 2 ** (-2 * epsilon)
+            * pi ** (-epsilon),
+        ),
+        (
+            (2 * pi) ** (2 - _dimensionally_regularized),
+            2 ** (2 - _dimensionally_regularized)
+            * pi ** (2 - _dimensionally_regularized),
+        ),
+        (
+            ((_dimensionally_regularized - 1) / 2).gamma(),
+            (E("3/2") - epsilon).gamma(),
+        ),
+    )
+    _closed_from_raw_lightcone = -canonical_zero(
+        apply_replacement_rules(
+            _positive_normalized_phase_space,
+            _positive_branch_rules,
+        )
+    )
+    _definition_residual = canonical_zero(
+        _closed_from_raw_lightcone
+        - massive_cut_bubble(
+            s,
+            mass_squared,
+            dimension=_dimensionally_regularized,
+            epsilon=epsilon,
+            mu_squared=mu_squared,
+            euler_gamma=euler_gamma,
+        )
+    )
+    assert _definition_residual == 0
+    spenso_table(
+        [
+            {"step": "C₀", "value": _first_cut},
+            {"step": "Cₘ after β rule", "value": _massive_cut_reduced},
+            {"step": "κ⊥² rule", "value": _kappa_solution},
+            {"step": "x endpoint", "value": _x_endpoint},
+            {"step": "rescaled κ⊥²", "value": _rescaled_radius},
+            {"step": "rescaling residual", "value": _rescaling_residual},
+            {"step": "positive two-body phase space", "value": _positive_phase_space},
+            {"step": "normalized positive phase space", "value": _positive_normalized_phase_space},
+            {"step": "after dim-reg rules and historical sign", "value": _closed_from_raw_lightcone},
+            {"step": "historical-sign definition residual", "value": _definition_residual},
+        ],
+        pagination=False,
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    === Master 5 — massive cut triangle $T_(upright("cutm"))(p_1^2,Q,m^2)$
+
+    Here the historical second argument is the light-cone scale
+    $Q=2p_1 dot p_2$, with $p_2^2=0$ for this master.  Write
+
+    $
+      p_1=n_+ + frac(p_1^2,Q)n_-, quad p_2=n_-, quad
+      k=x n_+ + beta n_- + k_perp.
+    $
+
+    For the routing used by the notebook, the three cut constraints are
+
+    $
+      C_0=Q x beta-kappa_perp^2, \
+      C_1=(1-x)(p_1^2-Q beta)-kappa_perp^2, \
+      C_m=Q(1-x)(1+p_1^2/Q-beta)-kappa_perp^2-m^2.
+    $
+
+    They are solved in stages:
+
+    $
+      beta -> frac(kappa_perp^2,Q x), quad
+      kappa_perp^2 -> x(1-x)p_1^2, quad
+      x -> 1-frac(m^2,Q).
+    $
+
+    Consequently
+
+    $
+      R_perp^2 = frac(p_1^2(Q-m^2)m^2,Q^2), quad
+      J_(upright("long"))=frac(1,2Q).
+    $
+
+    The transverse orbit is
+    $Omega_(d-3)(R_perp^2)^((d-4)/2)$ and yields the definition below after
+    the three cut-edge factors are included.  The supported branch has
+    $Q>m^2>0$, $0<x<1$, and $R_perp^2>=0$.  Notice that $Q$ is not the exact
+    $(p_1+p_2)^2$ when $p_1^2$ is retained.
+    """)
+    return
+
+
 @app.function
 def massive_cut_triangle(
     external_virtuality: "Expression",
@@ -748,41 +1557,199 @@ def massive_cut_triangle(
     )
 
 
+@app.cell
+def _(
+    apply_replacement_rules,
+    beta,
+    canonical_zero,
+    epsilon,
+    euler_gamma,
+    kappa_squared,
+    mass_squared,
+    mu_squared,
+    p1_squared,
+    pi,
+    s_lightcone,
+    spenso_table,
+    x,
+):
+    _first_cut = s_lightcone * x * beta - kappa_squared
+    _second_cut = (
+        (1 - x) * (p1_squared - s_lightcone * beta)
+        - kappa_squared
+    )
+    _massive_cut = (
+        s_lightcone
+        * (1 - x)
+        * (1 + p1_squared / s_lightcone - beta)
+        - kappa_squared
+        - mass_squared
+    )
+    _beta_solution = kappa_squared / (s_lightcone * x)
+    _second_cut_reduced = canonical_zero(
+        apply_replacement_rules(
+            _second_cut,
+            ((beta, _beta_solution),),
+        )
+    )
+    _kappa_solution = x * (1 - x) * p1_squared
+    _massive_after_beta = canonical_zero(
+        apply_replacement_rules(
+            _massive_cut,
+            ((beta, _beta_solution),),
+        )
+    )
+    _massive_after_kappa = canonical_zero(
+        apply_replacement_rules(
+            _massive_after_beta,
+            ((kappa_squared, _kappa_solution),),
+        )
+    )
+    _x_solution = 1 - mass_squared / s_lightcone
+    assert canonical_zero(
+        _second_cut_reduced
+        - (1 - x) * p1_squared
+        + kappa_squared / x
+    ) == 0
+    assert canonical_zero(
+        _massive_after_kappa
+        - (s_lightcone * (1 - x) - mass_squared)
+    ) == 0
+    assert canonical_zero(
+        apply_replacement_rules(
+            _massive_after_kappa,
+            ((x, _x_solution),),
+        )
+    ) == 0
+
+    _radius_squared = canonical_zero(
+        apply_replacement_rules(
+            _kappa_solution,
+            ((x, _x_solution),),
+        )
+    )
+    _gram_factor = p1_squared * (s_lightcone - mass_squared) * mass_squared
+    _radius_residual = canonical_zero(
+        _radius_squared - _gram_factor / s_lightcone**2
+    )
+    assert _radius_residual == 0
+
+    _dimensionally_regularized = 4 - 2 * epsilon
+    _raw_lightcone_triangle = (
+        loop_normalization(mu_squared, epsilon, euler_gamma)
+        * (2 * pi) ** (3 - _dimensionally_regularized)
+        * sphere_volume(_dimensionally_regularized - 3)
+        / (4 * s_lightcone)
+        * _radius_squared ** (-epsilon)
+    )
+    _positive_branch_rules = (
+        (
+            loop_normalization(mu_squared, epsilon, euler_gamma),
+            cut_normalization(mu_squared, epsilon, euler_gamma)
+            * 2 ** (-2 * epsilon)
+            * pi ** (-epsilon),
+        ),
+        (
+            (2 * pi) ** (3 - _dimensionally_regularized),
+            2 ** (3 - _dimensionally_regularized)
+            * pi ** (3 - _dimensionally_regularized),
+        ),
+        (
+            ((_dimensionally_regularized - 2) / 2).gamma(),
+            (1 - epsilon).gamma(),
+        ),
+        (
+            _radius_squared ** (-epsilon),
+            _gram_factor ** (-epsilon) * s_lightcone ** (2 * epsilon),
+        ),
+    )
+    _closed_from_raw_lightcone = canonical_zero(
+        apply_replacement_rules(
+            _raw_lightcone_triangle,
+            _positive_branch_rules,
+        )
+    )
+    _definition_residual = canonical_zero(
+        _closed_from_raw_lightcone
+        - massive_cut_triangle(
+            p1_squared,
+            s_lightcone,
+            mass_squared,
+            dimension=_dimensionally_regularized,
+            epsilon=epsilon,
+            mu_squared=mu_squared,
+            euler_gamma=euler_gamma,
+        )
+    )
+    assert _definition_residual == 0
+    spenso_table(
+        [
+            {"step": "C₀", "value": _first_cut},
+            {"step": "C₁ after β rule", "value": _second_cut_reduced},
+            {"step": "Cₘ after β and κ⊥² rules", "value": _massive_after_kappa},
+            {"step": "x rule", "value": _x_solution},
+            {"step": "on-shell R⊥²", "value": _radius_squared},
+            {"step": "radius residual", "value": _radius_residual},
+            {"step": "raw light-cone measure", "value": _raw_lightcone_triangle},
+            {"step": "after dim-reg and branch rules", "value": _closed_from_raw_lightcone},
+            {"step": "definition residual", "value": _definition_residual},
+        ],
+        pagination=False,
+    )
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    === Maximal four-line cross-box master
+    === Master 6 — maximal four-line cut $M_(00)(s)$
 
-    Current cut `00` (historical `resxbox11`) puts all four internal lines on
-    shell.  It is therefore a cut or boundary master rather than a conventional
-    Kira master of one of the three-denominator families.  For unit numerator
-    and positive leading-power scale $s$, define
+    Current cut `00` puts all four cross-box loop lines on shell.  With
 
     $
-      M_(00)^(delta_z) =
-      frac(4, (2 pi)^3)
-      pi^(-(d-4)/2)
-      (mu_R^2 e^(gamma_E))^epsilon s^(-epsilon)
-      frac(pi^(4-epsilon),
-        [lambda(0,0,s)]^(1/2-epsilon) Gamma(1-epsilon))
-      frac(1, s).
+      D_0=k^2, quad D_1=(k-p_1)^2, quad D_2=(p_2-k)^2, quad
+      D_3=(p_1+p_2-k)^2-m^2,
     $
 
-    The final $1/s$ is the Jacobian
-    $delta(s-m^2) = delta(1-z)/s$; this channel therefore has no soft plus
-    distribution to expand.  A diagram supplies the separate coefficient
-    $N_(00)$ obtained by evaluating its numerator on the maximal-cut support,
-    and the complete leading contribution before process weights is
+    the first three cuts imply the exact scalar-product rules
 
     $
-      C_(00)^(delta_z) = N_(00) M_(00)^(delta_z)
-      J(Lambda_1^2) J(Lambda_2^2).
+      k^2 -> 0, quad k dot p_1 -> frac(p_1^2,2), quad
+      k dot p_2 -> frac(p_2^2,2).
     $
 
-    For the physical crossed-box trace $N_(00) = -4(d-2)s^2$ and
-    $d = 4 - 2 epsilon$, its bare leading pole is $-1/(pi epsilon^2)$.
-    Couplings, colour, spin averages, and the graph sign remain outside the
-    master and its diagram coefficient.
+    These are precisely the invariant form of the three staged light-cone
+    solutions for $beta$, $kappa_perp^2$, and $x$.  Applying the rules to the
+    dependent fourth denominator gives
+
+    $
+      D_0=D_1=D_2=0 quad => quad D_3
+      =2p_1 dot p_2-m^2=s-m^2.
+    $
+
+    Thus the fourth cut is an endpoint delta, not another independent radial
+    localization.  Factoring the leading external-virtuality singularity from
+    the first three cuts leaves
+
+    $
+      T_(upright("stripped")) =
+      frac((mu_R^2 e^(gamma_E))^epsilon s^(-epsilon),
+        4 Gamma(1-epsilon)
+        [lambda(0,0,s)]^(1/2-epsilon)).
+    $
+
+    The final real cut supplies $2 pi delta(s-m^2)$.  With $m^2=z s$ and
+    $s>0$,
+
+    $
+      delta(s-m^2)=frac(delta(1-z),s), quad
+      M_(00)(s)=frac(2 pi,s) T_(upright("stripped")).
+    $
+
+    This boundary master contains the loop measure, all four internal cut-edge
+    factors, and the delta Jacobian.  It excludes the diagram numerator, the
+    two external $upright(d)p_i^2/(2 pi)$ integrations, couplings, colour,
+    spin averages, and the graph sign.
     """)
     return
 
@@ -826,6 +1793,89 @@ def maximal_cross_box_cut_master(
         )
     )
     return (loop_cut_measure / momentum_squared).cancel()
+
+
+@app.cell
+def _(
+    E,
+    S,
+    apply_replacement_rules,
+    canonical_zero,
+    epsilon,
+    euler_gamma,
+    mass_squared,
+    mu_squared,
+    p1_squared,
+    p2_squared,
+    pi,
+    s,
+    spenso_table,
+    z,
+):
+    _k_squared, _k_dot_p1, _k_dot_p2 = S(
+        "lc_maximal_k_squared",
+        "lc_maximal_k_dot_p1",
+        "lc_maximal_k_dot_p2",
+    )
+    _fourth_denominator = (
+        p1_squared
+        + p2_squared
+        + _k_squared
+        + s
+        - 2 * _k_dot_p1
+        - 2 * _k_dot_p2
+        - mass_squared
+    )
+    _three_cut_rules = (
+        (_k_squared, E("0")),
+        (_k_dot_p1, p1_squared / 2),
+        (_k_dot_p2, p2_squared / 2),
+    )
+    _fourth_on_cut = canonical_zero(
+        apply_replacement_rules(_fourth_denominator, _three_cut_rules)
+    )
+    assert canonical_zero(_fourth_on_cut - (s - mass_squared)) == 0
+    _endpoint_polynomial = canonical_zero(
+        apply_replacement_rules(
+            _fourth_on_cut,
+            ((mass_squared, z * s),),
+        )
+    )
+    assert canonical_zero(_endpoint_polynomial - s * (1 - z)) == 0
+
+    _dimensionally_regularized = 4 - 2 * epsilon
+    _stripped_three_cut = (
+        cut_normalization(mu_squared, epsilon, euler_gamma)
+        * s ** (-epsilon)
+        / (
+            4
+            * (1 - epsilon).gamma()
+            * kallen(0, 0, s) ** (E("1/2") - epsilon)
+        )
+    )
+    _derived_maximal_master = 2 * pi / s * _stripped_three_cut
+    _definition_residual = canonical_zero(
+        _derived_maximal_master
+        - maximal_cross_box_cut_master(
+            s,
+            dimension=_dimensionally_regularized,
+            epsilon=epsilon,
+            mu_squared=mu_squared,
+            euler_gamma=euler_gamma,
+        )
+    )
+    assert _definition_residual == 0
+    spenso_table(
+        [
+            {"step": "D₃ before cut rules", "value": _fourth_denominator},
+            {"step": "D₃ after D₀=D₁=D₂=0", "value": _fourth_on_cut},
+            {"step": "after m²→zs", "value": _endpoint_polynomial},
+            {"step": "stripped three-cut factor", "value": _stripped_three_cut},
+            {"step": "M₀₀ definition residual", "value": _definition_residual},
+        ],
+        pagination=False,
+    )
+    return
 
 
 @app.cell
@@ -930,7 +1980,7 @@ def _(analytic_master_formulas, mo, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == Derive the uncut bubble
+    == Feynman-parameter cross-check for the uncut bubble
 
     For the massless two-point integral, Feynman parametrization gives
 
@@ -1018,7 +2068,7 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == Derive the cut bubbles
+    == Rest-frame and historical-sign cross-checks for the cut bubbles
 
     In the rest frame of a timelike momentum $P^2=s$, the two cut
     constraints $k^2=0$ and $(P-k)^2=m^2$ fix
@@ -1253,7 +2303,7 @@ def _(canonical_zero, p1_squared, p2_squared, s_lightcone, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    === Light-cone derivation of the massive cut triangle
+    === Shared light-cone audit for the massive cut triangle
 
     Use the mostly-minus metric and decompose the cut momentum as
 
