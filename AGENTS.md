@@ -172,7 +172,7 @@ These crates exchange Symbolica and PyO3 types across crate boundaries. Keep
 Symbolica Community and its `example_extension` aligned with GammaLoop's
 Symbolica 2.2 and PyO3 0.28 dependency families. Both the crates.io source and
 GammaLoop's explicit upstream-Git source are patched to the state-registry fork
-at revision `520129d681389ed1cec26e1b0885591c73bc6e9b`. The matching
+at revision `e905234770b2cfbcc4f8f8a55274bd9e2b615ecc`. The matching
 `codex/kirapy-state-registry` branch is published on `alphal00p/symbolica`.
 When that pin deliberately moves, update all six patch entries and verify the
 graph:
