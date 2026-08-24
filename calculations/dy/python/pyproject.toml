@@ -6,7 +6,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
     "kirapy",
     "marimo>=0.23.15",
-    "symbolica @ git+https://github.com/alphal00p/symbolica.git@e905234770b2cfbcc4f8f8a55274bd9e2b615ecc",
+    "symbolica @ git+https://github.com/alphal00p/symbolica.git@2e9345b13967cd214b8473f662fa1104d653d5a6",
     "typst>=0.15,<0.16",
 ]
 

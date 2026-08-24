@@ -14,13 +14,27 @@ with app.setup(hide_code=True):
     from symbolica import E, S, Expression
     import typst as _typst
 
-    def render_typst_html(source, *, font_size=15.0, prose=False):
-        """Compile one Typst fragment to themed prose or compact HTML."""
+    _TYPST_FRAGMENT_CSS = r"""
+    <style>
+    .ludy-typst-fragment {
+      color: inherit;
+      display: inline-block;
+      max-width: 100%;
+      overflow-x: auto;
+      vertical-align: middle;
+    }
+    .ludy-typst-fragment > p { margin: 0; }
+    .ludy-typst-error {
+      color: var(--error, #b00020);
+      font-family: var(--monospace-font, ui-monospace, monospace);
+      font-size: 0.875rem;
+      white-space: pre-wrap;
+    }
+    </style>
+    """
 
-        if not isinstance(source, str):
-            raise TypeError("Typst source must be a string")
-
-        state = getattr(_typst, "_ludy_html_renderer_v1", None)
+    def _typst_renderer_state():
+        state = getattr(_typst, "_ludy_html_renderer_v2", None)
         if state is None:
             state = {
                 "compiler": _typst.Compiler(ignore_system_fonts=True),
@@ -38,41 +52,38 @@ with app.setup(hide_code=True):
                     r"<style(?:\s[^>]*)?>.*?</style>",
                     _re.DOTALL | _re.IGNORECASE,
                 ),
+                "heading_pattern": _re.compile(
+                    r"<(/?)h([2-6])(?=[\s>])",
+                    _re.IGNORECASE,
+                ),
+                "mathml_css": "",
             }
-            setattr(_typst, "_ludy_html_renderer_v1", state)
+            setattr(_typst, "_ludy_html_renderer_v2", state)
+        return state
 
-        heading_pattern = state.get("heading_pattern")
-        if heading_pattern is None:
-            heading_pattern = _re.compile(
-                r"<(/?)h([2-6])(?=[\s>])",
-                _re.IGNORECASE,
-            )
-            state["heading_pattern"] = heading_pattern
+    def typst_shared_css():
+        state = _typst_renderer_state()
+        return f'{state["mathml_css"]}{_TYPST_FRAGMENT_CSS}'
 
-        compact_css = r"""
-        <style>
-        .ludy-typst-fragment {
-          color: inherit;
-          display: inline-block;
-          max-width: 100%;
-          overflow-x: auto;
-          vertical-align: middle;
-        }
-        .ludy-typst-fragment > p { margin: 0; }
-        .ludy-typst-error {
-          color: var(--error, #b00020);
-          font-family: var(--monospace-font, ui-monospace, monospace);
-          font-size: 0.875rem;
-          white-space: pre-wrap;
-        }
-        </style>
-        """
+    def render_typst_html(
+        source,
+        *,
+        font_size=15.0,
+        prose=False,
+        include_styles=True,
+    ):
+        """Compile one Typst fragment to themed prose or compact HTML."""
+
+        if not isinstance(source, str):
+            raise TypeError("Typst source must be a string")
+
+        state = _typst_renderer_state()
 
         cleaned_source = _cleandoc(source)
         try:
             with state["lock"]:
-                parts = state["cache"].get(cleaned_source)
-                if parts is None:
+                body = state["cache"].get(cleaned_source)
+                if body is None:
                     compiled = state["compiler"].compile(
                         input=f"{cleaned_source}\n".encode("utf-8"),
                         format="html",
@@ -95,21 +106,22 @@ with app.setup(hide_code=True):
                             state["style_pattern"].findall(head.group(1))
                         )
                     )
-                    parts = mathml_css, body.group(1)
-                    state["cache"][cleaned_source] = parts
+                    if mathml_css:
+                        state["mathml_css"] = mathml_css
+                    body = body.group(1)
+                    state["cache"][cleaned_source] = body
                     if len(state["cache"]) > 512:
                         state["cache"].pop(next(iter(state["cache"])))
-
-            mathml_css, body = parts
+            styles = typst_shared_css() if include_styles else ""
             if prose:
-                body = heading_pattern.sub(
+                body = state["heading_pattern"].sub(
                     lambda match: (
                         f"<{match.group(1)}h{int(match.group(2)) - 1}"
                     ),
                     body,
                 )
                 return (
-                    f"{mathml_css}"
+                    f"{styles}"
                     '<div class="markdown prose dark:prose-invert contents">'
                     f"{body}</div>"
                 )
@@ -120,14 +132,14 @@ with app.setup(hide_code=True):
                 else f"font-size:{float(font_size):g}pt"
             )
             return (
-                f"{mathml_css}{compact_css}"
+                f"{styles}"
                 f'<div class="ludy-typst-fragment" style="{size_style}">'
                 f"{body}</div>"
             )
         except Exception as error:
             diagnostic = str(getattr(error, "diagnostic", None) or error)
             return (
-                f"{compact_css}"
+                f"{_TYPST_FRAGMENT_CSS if include_styles else ''}"
                 '<div class="ludy-typst-error" role="alert">'
                 "<strong>Typst compilation failed</strong>"
                 f"<pre>{_escape_html(diagnostic)}</pre>"
@@ -199,8 +211,14 @@ def _(E, Expression, mo):
             raise TypeError("spenso_math expects a Symbolica Expression")
         return SpensoMath(expression)
 
-    def _spenso_math_cell(expression):
-        return mo.as_html(spenso_math(expression))
+    def _spenso_math_cell(expression, *, include_styles=True):
+        return mo.Html(
+            render_typst_html(
+                f"$ {_typst_math(expression)} $",
+                font_size=13.0,
+                include_styles=include_styles,
+            )
+        )
 
     def _contains_expression(value):
         return isinstance(value, Expression) or (
@@ -208,16 +226,26 @@ def _(E, Expression, mo):
             and any(_contains_expression(item) for item in value)
         )
 
-    def _sequence_cell(values):
+    def _sequence_cell(values, *, include_styles=True):
         opening, closing = ("(", ")") if isinstance(values, tuple) else ("[", "]")
         parts = []
         for index, value in enumerate(values):
             if index:
                 parts.append('<span aria-hidden="true">,</span>')
             if isinstance(value, Expression):
-                parts.append(_spenso_math_cell(value).text)
+                parts.append(
+                    _spenso_math_cell(
+                        value,
+                        include_styles=include_styles,
+                    ).text
+                )
             elif isinstance(value, (list, tuple)) and _contains_expression(value):
-                parts.append(_sequence_cell(value).text)
+                parts.append(
+                    _sequence_cell(
+                        value,
+                        include_styles=include_styles,
+                    ).text
+                )
             else:
                 parts.append(f"<span>{_escape_html(str(value))}</span>")
         return mo.Html(
@@ -227,15 +255,20 @@ def _(E, Expression, mo):
             "</div>"
         )
 
-    def _table_value(value):
+    def _table_value(value, *, include_styles=True):
         if isinstance(value, Expression):
-            return _spenso_math_cell(value)
+            return _spenso_math_cell(value, include_styles=include_styles)
         if isinstance(value, (list, tuple)) and _contains_expression(value):
-            return _sequence_cell(value)
+            return _sequence_cell(value, include_styles=include_styles)
         return value
 
     def spenso_table(data, **kwargs):
-        """Render exact Symbolica expressions richly inside a Marimo table."""
+        """Render exact expressions in one virtualized Marimo table.
+
+        Typst and MathML styles are emitted once beside the table rather than
+        serialized into every formatted cell. Nonessential table controls are
+        disabled by default; callers can override every option explicitly.
+        """
 
         if isinstance(data, dict):
             columns = tuple(data)
@@ -249,12 +282,31 @@ def _(E, Expression, mo):
             columns = ("value",)
         else:
             columns = ()
+
         explicit_formatting = kwargs.pop("format_mapping", None) or {}
-        automatic_formatting = {column: _table_value for column in columns}
-        return mo.ui.table(
-            data,
-            format_mapping={**automatic_formatting, **explicit_formatting},
-            **kwargs,
+        automatic_formatting = {
+            column: (
+                lambda value: _table_value(value, include_styles=False)
+            )
+            for column in columns
+        }
+        kwargs.setdefault("selection", None)
+        kwargs.setdefault("show_download", False)
+        kwargs.setdefault("show_search", False)
+        kwargs.setdefault("show_data_types", False)
+        return mo.vstack(
+            [
+                mo.Html(typst_shared_css()),
+                mo.ui.table(
+                    data,
+                    format_mapping={
+                        **automatic_formatting,
+                        **explicit_formatting,
+                    },
+                    **kwargs,
+                ),
+            ],
+            gap=0,
         )
 
     _scalar_power_probe = _typst_math(1 / Expression.PI**2)

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.15"
+__generated_with = "0.24.0"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
@@ -12,13 +12,27 @@ with app.setup(hide_code=True):
     import marimo as _marimo
     import typst as _typst
 
-    def render_typst_html(source, *, font_size=15.0, prose=False):
-        """Compile one Typst fragment to themed prose or compact HTML."""
+    _TYPST_FRAGMENT_CSS = r"""
+    <style>
+    .ludy-typst-fragment {
+      color: inherit;
+      display: inline-block;
+      max-width: 100%;
+      overflow-x: auto;
+      vertical-align: middle;
+    }
+    .ludy-typst-fragment > p { margin: 0; }
+    .ludy-typst-error {
+      color: var(--error, #b00020);
+      font-family: var(--monospace-font, ui-monospace, monospace);
+      font-size: 0.875rem;
+      white-space: pre-wrap;
+    }
+    </style>
+    """
 
-        if not isinstance(source, str):
-            raise TypeError("Typst source must be a string")
-
-        state = getattr(_typst, "_ludy_html_renderer_v1", None)
+    def _typst_renderer_state():
+        state = getattr(_typst, "_ludy_html_renderer_v2", None)
         if state is None:
             state = {
                 "compiler": _typst.Compiler(ignore_system_fonts=True),
@@ -36,41 +50,38 @@ with app.setup(hide_code=True):
                     r"<style(?:\s[^>]*)?>.*?</style>",
                     _re.DOTALL | _re.IGNORECASE,
                 ),
+                "heading_pattern": _re.compile(
+                    r"<(/?)h([2-6])(?=[\s>])",
+                    _re.IGNORECASE,
+                ),
+                "mathml_css": "",
             }
-            setattr(_typst, "_ludy_html_renderer_v1", state)
+            setattr(_typst, "_ludy_html_renderer_v2", state)
+        return state
 
-        heading_pattern = state.get("heading_pattern")
-        if heading_pattern is None:
-            heading_pattern = _re.compile(
-                r"<(/?)h([2-6])(?=[\s>])",
-                _re.IGNORECASE,
-            )
-            state["heading_pattern"] = heading_pattern
+    def typst_shared_css():
+        state = _typst_renderer_state()
+        return f'{state["mathml_css"]}{_TYPST_FRAGMENT_CSS}'
 
-        compact_css = r"""
-        <style>
-        .ludy-typst-fragment {
-          color: inherit;
-          display: inline-block;
-          max-width: 100%;
-          overflow-x: auto;
-          vertical-align: middle;
-        }
-        .ludy-typst-fragment > p { margin: 0; }
-        .ludy-typst-error {
-          color: var(--error, #b00020);
-          font-family: var(--monospace-font, ui-monospace, monospace);
-          font-size: 0.875rem;
-          white-space: pre-wrap;
-        }
-        </style>
-        """
+    def render_typst_html(
+        source,
+        *,
+        font_size=15.0,
+        prose=False,
+        include_styles=True,
+    ):
+        """Compile one Typst fragment to themed prose or compact HTML."""
+
+        if not isinstance(source, str):
+            raise TypeError("Typst source must be a string")
+
+        state = _typst_renderer_state()
 
         cleaned_source = _cleandoc(source)
         try:
             with state["lock"]:
-                parts = state["cache"].get(cleaned_source)
-                if parts is None:
+                body = state["cache"].get(cleaned_source)
+                if body is None:
                     compiled = state["compiler"].compile(
                         input=f"{cleaned_source}\n".encode("utf-8"),
                         format="html",
@@ -93,21 +104,22 @@ with app.setup(hide_code=True):
                             state["style_pattern"].findall(head.group(1))
                         )
                     )
-                    parts = mathml_css, body.group(1)
-                    state["cache"][cleaned_source] = parts
+                    if mathml_css:
+                        state["mathml_css"] = mathml_css
+                    body = body.group(1)
+                    state["cache"][cleaned_source] = body
                     if len(state["cache"]) > 512:
                         state["cache"].pop(next(iter(state["cache"])))
-
-            mathml_css, body = parts
+            styles = typst_shared_css() if include_styles else ""
             if prose:
-                body = heading_pattern.sub(
+                body = state["heading_pattern"].sub(
                     lambda match: (
                         f"<{match.group(1)}h{int(match.group(2)) - 1}"
                     ),
                     body,
                 )
                 return (
-                    f"{mathml_css}"
+                    f"{styles}"
                     '<div class="markdown prose dark:prose-invert contents">'
                     f"{body}</div>"
                 )
@@ -118,14 +130,14 @@ with app.setup(hide_code=True):
                 else f"font-size:{float(font_size):g}pt"
             )
             return (
-                f"{mathml_css}{compact_css}"
+                f"{styles}"
                 f'<div class="ludy-typst-fragment" style="{size_style}">'
                 f"{body}</div>"
             )
         except Exception as error:
             diagnostic = str(getattr(error, "diagnostic", None) or error)
             return (
-                f"{compact_css}"
+                f"{_TYPST_FRAGMENT_CSS if include_styles else ''}"
                 '<div class="ludy-typst-error" role="alert">'
                 "<strong>Typst compilation failed</strong>"
                 f"<pre>{_escape_html(diagnostic)}</pre>"
@@ -188,8 +200,9 @@ def _():
 
 @app.cell(hide_code=True)
 def _(Representation, S):
-    minkd = Representation.mink(dimension=S("D"))
-    return (minkd,)
+    dimension = S("d")
+    minkd = Representation.mink(dimension=dimension)
+    return dimension, minkd
 
 
 @app.function(hide_code=True)
@@ -255,7 +268,7 @@ def _(mo):
     mo.md(r"""
     = DY cross-box: implementation and worked reduction
 
-    Thsis notebook is both the readable source of the reusable helper
+    This notebook is both the readable source of the reusable helper
     implementations and a complete walkthrough of the cross-box calculation.
     Each transformation is defined where the calculation first needs it. The
     worked graph exercises the helpers through partial fractioning, numerator
@@ -279,13 +292,13 @@ def _(mo):
     - `typst(template, **expressions)` safely combines prose with inline or
       display mathematics without first converting expressions to strings.
     - `spenso_table(rows)` installs the same renderer for expression-valued
-      table cells while preserving the original objects for selection.
+      cells while emitting Typst and MathML styles only once per table.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(Expression, dataclass, typst_html):
+def _(Expression, dataclass):
     import json as _json
     import string as _string
     from symbolica.community.spenso import (
@@ -398,25 +411,14 @@ def _(TypstFragment):
     return (typst,)
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    === Rich expression tables
-
-    Marimo tables otherwise serialize Symbolica objects through their plain
-    representation. `spenso_table` discovers the columns and installs a
-    recursive formatter for expressions and nested expression sequences. The
-    formatted view uses the same Spenso-aware Typst rendering, while the table
-    retains the original row objects for selection and downstream computation.
-    It is an importable notebook function, so companion notebooks reuse this
-    implementation without copying the display boundary.
-    """)
-    return
-
-
 @app.function(hide_code=True)
 def spenso_table(data, **kwargs):
-    """Render scalar and tensor expressions richly while retaining raw data."""
+    """Render scalar and tensor expressions in one virtualized table.
+
+    Typst and MathML styles are emitted once beside the table rather than
+    serialized into every formatted cell. Nonessential controls are disabled
+    by default; callers can override every Marimo table option explicitly.
+    """
 
     from html import escape
 
@@ -434,11 +436,12 @@ def spenso_table(data, **kwargs):
             return spenso_to_typst(value, show_dimensions=False)
         return value.to_typst(show_dimensions=False)
 
-    def expression_html(expression):
+    def expression_html(expression, *, include_styles=True):
         return mo.Html(
             render_typst_html(
                 f"$ {typst_source(expression)} $",
                 font_size=13.0,
+                include_styles=include_styles,
             )
         )
 
@@ -448,7 +451,7 @@ def spenso_table(data, **kwargs):
             and any(contains_expression(item) for item in value)
         )
 
-    def sequence_cell(values):
+    def sequence_cell(values, *, include_styles=True):
         opening, closing = (
             ("(", ")") if isinstance(values, tuple) else ("[", "]")
         )
@@ -457,9 +460,19 @@ def spenso_table(data, **kwargs):
             if index:
                 parts.append('<span aria-hidden="true">,</span>')
             if is_typst_value(value):
-                parts.append(expression_html(value).text)
+                parts.append(
+                    expression_html(
+                        value,
+                        include_styles=include_styles,
+                    ).text
+                )
             elif isinstance(value, (list, tuple)) and contains_expression(value):
-                parts.append(sequence_cell(value).text)
+                parts.append(
+                    sequence_cell(
+                        value,
+                        include_styles=include_styles,
+                    ).text
+                )
             else:
                 parts.append(f"<span>{escape(str(value))}</span>")
         return mo.Html(
@@ -469,11 +482,11 @@ def spenso_table(data, **kwargs):
             "</div>"
         )
 
-    def table_value(value):
+    def table_value(value, *, include_styles=True):
         if is_typst_value(value):
-            return expression_html(value)
+            return expression_html(value, include_styles=include_styles)
         if isinstance(value, (list, tuple)) and contains_expression(value):
-            return sequence_cell(value)
+            return sequence_cell(value, include_styles=include_styles)
         return value
 
     if isinstance(data, dict):
@@ -490,11 +503,29 @@ def spenso_table(data, **kwargs):
         columns = ()
 
     explicit_formatting = kwargs.pop("format_mapping", None) or {}
-    automatic_formatting = {column: table_value for column in columns}
-    return mo.ui.table(
-        data,
-        format_mapping={**automatic_formatting, **explicit_formatting},
-        **kwargs,
+    automatic_formatting = {
+        column: (
+            lambda value: table_value(value, include_styles=False)
+        )
+        for column in columns
+    }
+    kwargs.setdefault("selection", None)
+    kwargs.setdefault("show_download", False)
+    kwargs.setdefault("show_search", False)
+    kwargs.setdefault("show_data_types", False)
+    return mo.vstack(
+        [
+            mo.Html(typst_shared_css()),
+            mo.ui.table(
+                data,
+                format_mapping={
+                    **automatic_formatting,
+                    **explicit_formatting,
+                },
+                **kwargs,
+            ),
+        ],
+        gap=0,
     )
 
 
@@ -746,13 +777,25 @@ def _(mo):
     $p_1^2, p_2^2$ specify which incoming legs are cut, but are not sent to an
     IBP reducer as loop propagators.
 
-    No on-shell identity or integral-reduction rule has been applied here.
+    The numerator is the paper's metric-contracted trace
+
+    $ upright("Tr") [
+      cancel(p_1) gamma^sigma (cancel(k) - cancel(p_1)) gamma^mu
+      cancel(p_2) gamma_sigma (cancel(k) - cancel(p_2)) gamma_mu
+    ]. $
+
+    `gamma_trace_to_dots` constructs the typed gamma matrices and vectors with
+    Spenso, applies Idenso's Clifford and metric simplifiers, and converts the
+    result back to native Spenso scalar products. Couplings, colour factors,
+    spin/colour averages, the graph sign, and observable normalizations are not
+    part of this trace. No on-shell identity or integral-reduction rule has
+    been applied here.
     """)
     return
 
 
 @app.cell
-def _(N, S, dot, k, minkd, p):
+def _(N, S, dimension, dot, gamma_trace_to_dots, k, minkd, p):
     p1 = p(1, minkd)
     p2 = p(2, minkd)
     k1 = k(1, minkd)
@@ -789,10 +832,19 @@ def _(N, S, dot, k, minkd, p):
         for _name, _mask in cutsets.items()
     }
 
-    # This is the editable numerator used by the walkthrough.
-    numerator = dot(
-        k1,
-        p1 + p2,
+    physical_numerator = gamma_trace_to_dots(
+        [p1, None, k1 - p1, None, p2, None, k1 - p2, None],
+        [
+            "rho1",
+            "sigma",
+            "rho2",
+            "mu",
+            "rho3",
+            "sigma",
+            "rho4",
+            "mu",
+        ],
+        lorentz_dimension=dimension,
     )
 
     loop_scalar_products = [
@@ -802,7 +854,7 @@ def _(N, S, dot, k, minkd, p):
     ]
     delta = q**2 - 2 * dot(p1, p2)
     integrand = Integrand(
-        numerator=numerator,
+        numerator=physical_numerator,
         denominators=loop_denominators,
     )
     return (
@@ -814,9 +866,9 @@ def _(N, S, dot, k, minkd, p):
         loop_denominators,
         loop_propagator_indices,
         loop_scalar_products,
-        numerator,
         p1,
         p2,
+        physical_numerator,
         projected_cutsets,
         propagators,
         q,
@@ -830,9 +882,9 @@ def _(
     integrand,
     loop_propagator_indices,
     mo,
+    physical_numerator,
     projected_cutsets,
     propagators,
-    spenso_table,
     typst,
 ):
     mo.vstack(
@@ -855,6 +907,15 @@ def _(
                     for _index, (_momentum, _mass_squared) in enumerate(
                         propagators
                     )
+                ]
+            ),
+            mo.md("=== Spenso/Idenso gamma reduction"),
+            spenso_table(
+                [
+                    {
+                        "stage": "simplify_gamma → simplify_metrics → to_dots",
+                        "physical numerator": physical_numerator,
+                    }
                 ]
             ),
             spenso_table(
@@ -972,7 +1033,6 @@ def _(
     affine_terms,
     loop_denominators,
     mo,
-    spenso_table,
     typst,
 ):
     mo.vstack(
@@ -1129,7 +1189,7 @@ def _(affine_coefficients, integrand, loop_scalar_products):
 
 
 @app.cell(hide_code=True)
-def _(affine_coefficients, mo, partial_fractions, spenso_table):
+def _(affine_coefficients, mo, partial_fractions):
     mo.vstack(
         [
             mo.md("=== Partial-fraction terms"),
@@ -1370,7 +1430,7 @@ def _(loop_scalar_products, partial_fractions):
 
 
 @app.cell(hide_code=True)
-def _(mo, numerator_reductions, partial_fractions, spenso_table):
+def _(mo, numerator_reductions, partial_fractions):
     mo.vstack(
         [
             mo.md("=== Family-local propagator-label bases"),
@@ -1527,10 +1587,10 @@ def _(
     loop_denominators,
     loop_propagator_indices,
     loop_scalar_products,
-    numerator,
+    physical_numerator,
 ):
     pre_ibp = prepare_pre_ibp(
-        numerator=numerator,
+        numerator=physical_numerator,
         loop_denominators=loop_denominators,
         loop_scalar_products=loop_scalar_products,
         loop_propagator_indices=loop_propagator_indices,
@@ -1562,7 +1622,7 @@ def partition_cuts(pre_ibp, projected_cutsets):
 
 
 @app.cell
-def _(pre_ibp, projected_cutsets, spenso_table):
+def _(pre_ibp, projected_cutsets):
     reducible_cut_names, direct_cut_names = partition_cuts(
         pre_ibp,
         projected_cutsets,
@@ -1607,7 +1667,8 @@ def _(mo):
 
     Every Kira project requests the fixed complete domain
     $\{1,0,-1\}^3$. This keeps manifests stable while the editable numerator
-    changes.
+    changes. This physical walkthrough uses `mink(d)` and therefore reuses the
+    physical project cache; the older `mink(D)` cache is left untouched.
 
     Evaluation is automatic and resumable. On a fresh checkout this cell runs
     Kira; later evaluations reuse the complete result only when the generated
@@ -1750,7 +1811,7 @@ def build_kira_projects(*, k1, p1, p2, q, propagators, cutsets):
 
 
 @app.cell
-def _(Path, cutsets, k1, p1, p2, propagators, q, spenso_table):
+def _(Path, cutsets, k1, p1, p2, propagators, q):
     kira_projects = build_kira_projects(
         k1=k1,
         p1=p1,
@@ -1762,7 +1823,7 @@ def _(Path, cutsets, k1, p1, p2, propagators, q, spenso_table):
     kira_workdir_root = (
         Path(__file__).resolve().parents[1]
         / "runs"
-        / "dy-cross-box-kirapy"
+        / "dy-cross-box-physical-kirapy"
     )
     _project_rows = []
     for (_cut_name, _source_indices), _project in sorted(
@@ -1875,12 +1936,7 @@ def assemble_ibp_expression(
 
 
 @app.cell
-def _(
-    contributions_by_cut,
-    kira_projects,
-    on_shell_rules_by_cut,
-    spenso_table,
-):
+def _(contributions_by_cut, kira_projects, on_shell_rules_by_cut):
     ibp_inputs_by_cut = {
         _cut_name: assemble_ibp_expression(
             _contributions,
@@ -1894,7 +1950,7 @@ def _(
         [
             {
                 "cut": _cut_name,
-                "editable-numerator IBP input": _expression,
+                "physical-numerator IBP input": _expression,
             }
             for _cut_name, _expression in ibp_inputs_by_cut.items()
         ]
@@ -1955,7 +2011,7 @@ def _(Kira, kira_projects, kira_workdir_root):
 
 
 @app.cell(hide_code=True)
-def _(kira_doctor, kira_reductions, mo, spenso_table):
+def _(kira_doctor, kira_reductions, mo):
     _kira_status = mo.vstack(
         [
             mo.callout(
@@ -2268,7 +2324,6 @@ def _(PrintMode):
 
 @app.cell
 def _(Expression, S, scalar_printer):
-    dimension = S("d")
     epsilon = S(
         "ep",
         print=scalar_printer(latex=r"\epsilon", typst="epsilon"),
@@ -2278,11 +2333,11 @@ def _(Expression, S, scalar_printer):
         print=scalar_printer(latex=r"\mu^{2}", typst="mu^2"),
     )
     euler_gamma = Expression.EULER_GAMMA
-    return dimension, epsilon, euler_gamma, mu_squared
+    return epsilon, euler_gamma, mu_squared
 
 
 @app.cell(hide_code=True)
-def _(dimension, epsilon, euler_gamma, mu_squared, spenso_table):
+def _(dimension, epsilon, euler_gamma, mu_squared):
     spenso_table(
         [
             {
@@ -2343,7 +2398,6 @@ def _(
     p2,
     q,
     required_loop_sources_by_cut,
-    spenso_table,
 ):
     analytic_master_values_by_cut = {
         "11": massive_cut_bubble(
@@ -2553,16 +2607,66 @@ def _(
     E,
     cut_kept_masters_by_cut,
     denominators,
+    dimension,
+    dot,
     ibp_inputs_by_cut,
     ibp_terms_by_cut,
+    k1,
     kira_projects,
     kira_reductions,
     loop_propagator_indices,
+    p1,
+    p2,
+    physical_numerator,
     pre_ibp,
     projected_cutsets,
     required_loop_sources_by_cut,
 ):
     _checks = dict(validate_pre_ibp(pre_ibp))
+    _k_squared = square(k1)
+    _k_dot_p1 = dot(k1, p1)
+    _k_dot_p2 = dot(k1, p2)
+    _p1_squared = square(p1)
+    _p2_squared = square(p2)
+    _p1_dot_p2 = dot(p1, p2)
+    _expected_trace = 4 * (dimension - 2) * (
+        (dimension - 8) * _k_squared * _p1_dot_p2
+        + 4 * _p1_dot_p2 * (_k_dot_p1 + _k_dot_p2)
+        + (8 - 2 * dimension) * _k_dot_p1 * _k_dot_p2
+        + (dimension - 4)
+        * (
+            _k_dot_p1 * _p2_squared
+            + _k_dot_p2 * _p1_squared
+        )
+        + (4 - dimension) * _p1_squared * _p2_squared
+        - 4 * _p1_dot_p2**2
+    )
+    _checks["metric-contracted physical trace"] = normalize_rational(
+        physical_numerator - _expected_trace
+    )
+
+    _symbolica_apart = pre_ibp.integrand.as_expression().apart(
+        *pre_ibp.loop_scalar_products
+    )
+    _structured_apart = sum(
+        (
+            _child.integrand.as_expression()
+            for _child in pre_ibp.partial_fractions
+        ),
+        E("0"),
+    )
+    _checks["multivariate apart reconstruction"] = normalize_rational(
+        _symbolica_apart - pre_ibp.integrand.as_expression()
+    )
+    _checks["multivariate apart agrees with structured reduction"] = (
+        normalize_rational(_symbolica_apart - _structured_apart)
+    )
+    assert len(pre_ibp.partial_fractions) == 4
+    assert {
+        _index
+        for _contribution in pre_ibp.contributions
+        for _index in _contribution.integral_indices
+    } <= {-1, 0, 1}
     assert loop_propagator_indices == [2, 3, 4, 5]
     assert projected_cutsets == {
         "11": (1, 0, 0, 1),
@@ -2665,15 +2769,15 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(mo, native_validation_rows, spenso_table):
+def _(mo, native_validation_rows):
     mo.vstack(
         [
             mo.md("== Native cross-box workflow"),
             spenso_table(native_validation_rows),
             mo.callout(
-                "The graph routing, helper orchestration, Kira project "
-                "definitions, IBP inputs, and cut-master selection all pass "
-                "their exact checks.",
+                "The Spenso/Idenso physical trace, multivariate apart check, "
+                "graph routing, Kira project definitions, IBP inputs, and "
+                "cut-master selection all pass their exact checks.",
                 kind="success",
             ),
         ]
@@ -2744,7 +2848,7 @@ def _(E, Expression, SpensoMath, mo, typst):
 
 
 @app.cell(hide_code=True)
-def _(display_validation_rows, spenso_table):
+def _(display_validation_rows):
     spenso_table(display_validation_rows)
     return
 
@@ -2935,7 +3039,7 @@ def _(E, S, prod):
 
 
 @app.cell(hide_code=True)
-def _(E, linear_system_validation_rows, spenso_table):
+def _(E, linear_system_validation_rows):
     assert len(linear_system_validation_rows) == 10
     assert all(_row["residual"] == E("0") for _row in linear_system_validation_rows)
     spenso_table(
@@ -3077,7 +3181,7 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(mo, reference_validation, scalar_reference_comparison, spenso_table):
+def _(mo, reference_validation, scalar_reference_comparison):
     mo.vstack(
         [
             spenso_table(scalar_reference_comparison),
@@ -3250,7 +3354,7 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(mathematica_reference_chain_validation_rows, spenso_table):
+def _(mathematica_reference_chain_validation_rows):
     spenso_table(mathematica_reference_chain_validation_rows)
     return
 
@@ -3359,11 +3463,7 @@ def _(
 
 
 @app.cell
-def _(
-    fire_mapping_validation_rows,
-    mathematica_scalar_cut_oracle,
-    spenso_table,
-):
+def _(fire_mapping_validation_rows, mathematica_scalar_cut_oracle):
     spenso_table(
         [
             *fire_mapping_validation_rows,
@@ -3537,7 +3637,6 @@ def _(
     mathematica_expected_final_expression,
     mathematica_ibp_validation_rows,
     mo,
-    spenso_table,
     typst,
 ):
     if not mathematica_ibp_validation_rows:
@@ -3594,12 +3693,13 @@ def _(
 def _(mo):
     mo.callout(
         "Current boundary: the six-line graph, all four cut masks, all twelve "
-        "native graph-order reductions, and the analytic master evaluations "
-        "for cuts 11, 10, and 01 are complete. The final appendix maps those "
-        "projects to the historical topo20--31 oracle. Cut 00 is the analytic "
-        "maximal-cut master M00(s), not a missing Kira rule and not zero by "
-        "default. The companion dy_topologies.py notebook supplies the physical "
-        "metric-contracted numerator, virtuality integrations, and endpoint "
+        "native graph-order reductions, the physical gamma-trace numerator, "
+        "and the analytic master evaluations for cuts 11, 10, and 01 are "
+        "complete. The final appendix maps those projects to the historical "
+        "topo20--31 oracle. Cut 00 is the analytic maximal-cut master M00(s), "
+        "not a missing Kira rule and not zero by default. The companion "
+        "dy_topologies.py notebook evaluates the physical numerator on that "
+        "maximal-cut support and supplies virtuality integrations and endpoint "
         "distribution dressing for all four cuts.",
         kind="info",
     )
@@ -3607,4 +3707,4 @@ def _(mo):
 
 
 if __name__ == "__main__":
-    app.run(defs={"mo": mo})
+    app.run()
