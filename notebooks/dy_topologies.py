@@ -3,13 +3,11 @@ import marimo
 __generated_with = "0.23.15"
 app = marimo.App(width="medium")
 
-
-@app.cell
-def _():
+with app.setup(hide_code=True):
     from pathlib import Path
     import sys
 
-    import marimo as mo
+    import marimo as _marimo
 
     _repository_root = str(Path(__file__).resolve().parents[1])
     if _repository_root not in sys.path:
@@ -42,62 +40,29 @@ def _():
         run_kira_projects,
         spenso_table,
         square,
+        typst_md,
         validate_pre_ibp,
     )
     from symbolica import E, Expression, N, S
     from symbolica.community.spenso import Representation, TensorName, dot
 
-    return (
-        E,
-        Expression,
-        Kira,
-        N,
-        Path,
-        Representation,
-        S,
-        TensorName,
-        apply_endpoint_expansion,
-        apply_ibp_reductions,
-        apply_kinematic_rules,
-        assemble_ibp_expression,
-        build_kira_projects,
-        cut_filter_masters,
-        dot,
-        endpoint_distribution_expansion,
-        find_loop_propagator_indices,
-        gamma_trace_to_dots,
-        identify_masters,
-        massive_cut_bubble,
-        massive_cut_triangle,
-        maximal_cross_box_cut_master,
-        mo,
-        momentum_printer,
-        normalize_rational,
-        partition_cuts,
-        prepare_pre_ibp,
-        project_cutset,
-        propagator_denominators,
-        run_kira_projects,
-        spenso_table,
-        square,
-        validate_pre_ibp,
-        virtuality_integral_factor,
-    )
+    _marimo.md = typst_md
+    globals()["mo"] = _marimo
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Physical DY diagram runner
+    = Physical DY diagram runner
 
     This companion notebook applies the reusable helpers defined and tested in
-    [`ludy.py`](ludy.py) to the first physical diagram: the crossed box.  It
+    #link("ludy.py")[`ludy.py`] to the first physical diagram: the crossed box. It
     derives the metric-contracted Dirac trace, prepares the numerator for IBP,
     reduces the three affine cut blocks, attaches the analytic maximal-cut
     master, performs the leading virtuality integrations, and records the
     endpoint result in the standard delta/plus basis.
 
-    The output here is a **physical crossed-box contribution**, not yet the
+    The output here is a *physical crossed-box contribution*, not yet the
     complete physical DY coefficient function.  Gauge independence, graph
     multiplicities, UV renormalization, mass factorization, and cancellation
     against the box and remaining real/virtual diagrams will be added one
@@ -105,7 +70,7 @@ def _(mo):
 
     Project construction and all analytic work before Kira are side-effect
     free.  Kira starts only when the explicit run control is pressed.  The
-    physical trace uses one native integration dimension \(d\) throughout and
+    physical trace uses one native integration dimension $d$ throughout and
     therefore has a fresh work root; the older `mink(D)` manifests are left
     untouched.
     """)
@@ -115,27 +80,23 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 1. Kinematics and the physical crossed-box numerator
+    == 1. Kinematics and the physical crossed-box numerator
 
-    We use \(z=m^2/s\), with \(0<z<1\) for ordinary functions and
-    \(z\in[0,1]\) after endpoint distributions are introduced.  Here \(s\) is
+    We use $z = m^2/s$, with $0 < z < 1$ for ordinary functions and
+    $z in [0, 1]$ after endpoint distributions are introduced. Here $s$ is
     the leading-power light-cone scale.  The exact finite-virtuality relation is
 
-    \[
-      2p_1\!\cdot p_2=s+\frac{p_1^2p_2^2}{s},
-    \]
+    $ 2 p_1 dot p_2 = s + frac(p_1^2 p_2^2, s), $
 
     and only the explicitly marked leading-power step below replaces it by
-    \(2p_1\!\cdot p_2=s\).
+    $2 p_1 dot p_2 = s$.
 
     The numerator is the paper's metric-contracted trace
 
-    \[
-    \operatorname{Tr}\!\left[
-      \slashed p_1\gamma^\sigma(\slashed k-\slashed p_1)\gamma^\mu
-      \slashed p_2\gamma_\sigma(\slashed k-\slashed p_2)\gamma_\mu
-    \right].
-    \]
+    $ upright("Tr") [
+      cancel(p_1) gamma^sigma (cancel(k) - cancel(p_1)) gamma^mu
+      cancel(p_2) gamma_sigma (cancel(k) - cancel(p_2)) gamma_mu
+    ]. $
 
     Couplings, colour, spin/colour averages, the crossed-box graph sign, and
     observable normalizations are deliberately not part of this trace.
@@ -263,7 +224,7 @@ def _(
                 pagination=False,
                 selection=None,
             ),
-            mo.md("### Native metric-contracted trace"),
+            mo.md("=== Native metric-contracted trace"),
             spenso_table(
                 [{"diagram": "crossed box", "numerator": physical_numerator}],
                 pagination=False,
@@ -277,23 +238,23 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 2. Normalization ownership
+    == 2. Normalization ownership
 
     The reduction acts only on the kinematic trace.  The following factors are
     named separately so that a convention change cannot be hidden inside a
     numerator:
 
-    - \(e_q^2g_s^2\), the coupling factor;
-    - \(T_F(N_c^2-1)\), the crossed-box colour sum;
-    - \(1/(2N_c)^2\), the incoming quark/antiquark spin-colour average;
+    - $e_q^2 g_s^2$, the coupling factor;
+    - $T_F (N_c^2 - 1)$, the crossed-box colour sum;
+    - $1/(2 N_c)^2$, the incoming quark/antiquark spin-colour average;
     - the graph/discontinuity sign;
-    - \(s\), converting a result differential in \(m^2\) to \(d/dz\);
+    - $s$, converting a result differential in $m^2$ to $dif/dif z$;
     - an observable factor.
 
-    The analytic master functions already contain \(d^dk/(2\pi)^d\), their
-    internal \(2\pi\) cut factors, and the retained MS-bar normalization.  We
-    add only the remaining external \(dp_i^2/(2\pi)\) factors.  The DIS
-    \(1/(4\pi)\) is algebraically allowed to multiply a numerator because it is
+    The analytic master functions already contain $dif^d k/(2 pi)^d$, their
+    internal $2 pi$ cut factors, and the retained $overline(upright("MS"))$
+    normalization. We add only the remaining external $dif p_i^2/(2 pi)$
+    factors. The DIS $1/(4 pi)$ is algebraically allowed to multiply a numerator because it is
     loop-independent, but semantically it is an observable/measure factor and
     stays in this ledger.  It is not applied to the DY crossed box below.
     """)
@@ -341,12 +302,12 @@ def _(Expression, S, s, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 3. Prepare every affine child and retain the maximal cut
+    == 3. Prepare every affine child and retain the maximal cut
 
     `prepare_pre_ibp` applies the same exact partial-fraction and numerator
     reduction chain walked through in `ludy.py`.  The physical trace is
     quadratic in loop scalar products, so every resulting three-line target
-    remains inside the existing \(\{1,0,-1\}^3\) cube.
+    remains inside the existing $lr({1, 0, -1})^3$ cube.
 
     Cuts `11`, `10`, and `01` omit at least one loop propagator and can use
     those affine children.  Cut `00` requires all four loop lines at once and
@@ -460,7 +421,7 @@ def _(
                 pagination=False,
                 selection=None,
             ),
-            mo.md("### Maximal-cut master coefficient at leading power"),
+            mo.md("=== Maximal-cut master coefficient at leading power"),
             spenso_table(
                 [{"cut": "00", "numerator on support": maximal_cut_numerator}],
                 pagination=False,
@@ -474,12 +435,12 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 4. Build the native Kira projects and exact IBP inputs
+    == 4. Build the native Kira projects and exact IBP inputs
 
     The projects are still numerator-independent: every three-propagator
-    family requests the complete \(\{1,0,-1\}^3\) target cube.  Their invariants
-    are the native Spenso expressions \(p_1^2\), \(p_1\!\cdot p_2\),
-    \(p_2^2\), and \(q^2\).  `kirapy` lowers them to short Fermat-safe wire
+    family requests the complete $lr({1, 0, -1})^3$ target cube. Their invariants
+    are the native Spenso expressions $p_1^2$, $p_1 dot p_2$,
+    $p_2^2$, and $q^2$. `kirapy` lowers them to short Fermat-safe wire
     names only at the text boundary and restores the exact native objects on
     load.
 
@@ -544,7 +505,7 @@ def _(
 def _(ibp_inputs_by_cut, mo, spenso_table):
     mo.vstack(
         [
-            mo.md("### Physical numerator after affine preparation"),
+            mo.md("=== Physical numerator after affine preparation"),
             spenso_table(
                 [
                     {"cut": _cut_name, "exact IBP input": _expression}
@@ -705,7 +666,7 @@ def _(mo, spenso_table, topology_kira_doctor, topology_kira_reductions):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 5. Restore native masters and insert their analytic values
+    == 5. Restore native masters and insert their analytic values
 
     A cut is evaluated only when all four of its selected family reductions are
     available.  `apply_ibp_reductions` retains every source-family key,
@@ -949,35 +910,30 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 6. Take leading virtuality power and integrate \(p_i^2\)
+    == 6. Take leading virtuality power and integrate $p_i^2$
 
     The singular master is isolated before any external virtuality is set to
     zero.  Only its rational IBP coefficient is expanded at leading power.
     With the one-sided boundary delta normalized by
 
-    \[
-      \int_0^{\Lambda^2}\frac{dv}{2\pi}\,
-      \widehat\delta_\partial(v)=1,
-    \]
+    $ integral_0^(Lambda^2) frac(dif v, 2 pi) hat(delta)_partial(v) = 1, $
 
     the continuous factor is
 
-    \[
-      J(\Lambda^2)=
-      \int_0^{\Lambda^2}\frac{dv}{2\pi}v^{-1-\epsilon}
-      =-\frac{(\Lambda^2)^{-\epsilon}}{2\pi\epsilon}.
-    \]
+    $ J(Lambda^2) =
+      integral_0^(Lambda^2) frac(dif v, 2 pi) v^(-1 - epsilon)
+      = -frac((Lambda^2)^(-epsilon), 2 pi epsilon). $
 
-    This identity first converges for \({\rm Re}\,\epsilon<0\) and is then
-    analytically continued.  The direct `00` cut receives \(J^2\); `10` and
-    `01` receive one \(J\); `11` receives none.  All four are finally multiplied
-    by the common \(s\) Jacobian because this notebook reports \(d/dz\), not
-    \(d/dm^2\).
+    This identity first converges for $upright("Re")(epsilon) < 0$ and is then
+    analytically continued. The direct `00` cut receives $J^2$; `10` and
+    `01` receive one $J$; `11` receives none. All four are finally multiplied
+    by the common $s$ Jacobian because this notebook reports $dif/dif z$, not
+    $dif/dif m^2$.
 
-    The mass parameter enters the graph as \(q^2\).  Since normalized IBP
-    coefficients can contain canonical \(q^4\), the transparent LP map first
-    verifies evenness in \(q\) and then replaces \(q\to\sqrt{zs}\); an exact
-    subexpression replacement of only \(q^2\) would miss those higher powers.
+    The mass parameter enters the graph as $q^2$. Since normalized IBP
+    coefficients can contain canonical $q^4$, the transparent LP map first
+    verifies evenness in $q$ and then replaces $q -> sqrt(z s)$; an exact
+    subexpression replacement of only $q^2$ would miss those higher powers.
     """)
     return
 
@@ -1212,33 +1168,27 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## 7. Expand the endpoint kernels without inventing distribution atoms
+    == 7. Expand the endpoint kernels without inventing distribution atoms
 
-    For a cut with endpoint exponent \(a\),
+    For a cut with endpoint exponent $a$,
 
-    \[
-      (1-z)^{-1-a\epsilon}
-      =-\frac{\delta(1-z)}{a\epsilon}
-       +\sum_{n\ge0}\frac{(-a\epsilon)^n}{n!}\,\mathcal D_n(z),
-      \qquad
-      \mathcal D_n(z)=
-      \left[\frac{\log^n(1-z)}{1-z}\right]_+.
-    \]
+    $ (1 - z)^(-1 - a epsilon)
+      = -frac(delta(1 - z), a epsilon)
+        + sum_(n >= 0) frac((-a epsilon)^n, n!) cal(D)_n(z),
+      quad cal(D)_n(z) = [frac(log^n(1 - z), 1 - z)]_+. $
 
-    Cut `11` uses \(a=2\), while `10` and `01` use \(a=1\).  Cut `00`
-    is already proportional to \(\delta(1-z)\).
+    Cut `11` uses $a = 2$, while `10` and `01` use $a = 1$. Cut `00`
+    is already proportional to $delta(1 - z)$.
 
     `EndpointDistribution` stores only the coefficients of this basis and the
-    ordinary locally-integrable remainder.  For a smooth prefactor \(g(z)\),
+    ordinary locally-integrable remainder. For a smooth prefactor $g(z)$,
     the code uses
 
-    \[
-      g(z)\mathcal D_n(z)=g(1)\mathcal D_n(z)
-      +\frac{g(z)-g(1)}{1-z}\log^n(1-z).
-    \]
+    $ g(z) cal(D)_n(z) = g(1) cal(D)_n(z)
+      + frac(g(z) - g(1), 1 - z) log^n(1 - z). $
 
     No fake Symbolica `delta` or `plus` function is introduced.  The expansion
-    is retained through \(\mathcal O(\epsilon^2)\), which is necessary because
+    is retained through $cal(O)(epsilon^2)$, which is necessary because
     virtuality and endpoint integrations can jointly generate double poles.
     """)
     return
@@ -1363,15 +1313,15 @@ def _(
     )
     mo.vstack(
         [
-            mo.md("### Leading virtuality support"),
+            mo.md("=== Leading virtuality support"),
             spenso_table(_support_rows, pagination=False, selection=None),
-            mo.md("### Per-cut endpoint data"),
+            mo.md("=== Per-cut endpoint data"),
             spenso_table(
                 _distribution_rows,
                 pagination=False,
                 selection=None,
             ),
-            mo.md("### Crossed-box sum"),
+            mo.md("=== Crossed-box sum"),
             _sum_status,
         ]
     )
@@ -1381,7 +1331,7 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Validation
+    = Validation
 
     All checks are collected here.  The independent trace polynomial tests the
     Idenso contraction, `validate_pre_ibp` reconstructs every algebraic handoff,
@@ -1593,4 +1543,4 @@ def _(mo, physical_validation, spenso_table):
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(defs={"mo": mo})

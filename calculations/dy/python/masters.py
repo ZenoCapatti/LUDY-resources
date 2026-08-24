@@ -3,63 +3,174 @@ import marimo
 __generated_with = "0.23.15"
 app = marimo.App(width="medium")
 
-
-@app.cell(hide_code=True)
-def _():
+with app.setup(hide_code=True):
+    from html import escape as _escape_html
+    from inspect import cleandoc as _cleandoc
     import math
+    import re as _re
+    from threading import Lock as _Lock
 
-    import marimo as mo
+    import marimo as _marimo
     from symbolica import E, S, Expression
+    import typst as _typst
 
-    return E, Expression, S, math, mo
+    def render_typst_html(source, *, font_size=15.0, prose=False):
+        """Compile one Typst fragment to themed prose or compact HTML."""
+
+        if not isinstance(source, str):
+            raise TypeError("Typst source must be a string")
+
+        state = getattr(_typst, "_ludy_html_renderer_v1", None)
+        if state is None:
+            state = {
+                "compiler": _typst.Compiler(ignore_system_fonts=True),
+                "lock": _Lock(),
+                "cache": {},
+                "body_pattern": _re.compile(
+                    r"<body(?:\s[^>]*)?>(.*?)</body>",
+                    _re.DOTALL | _re.IGNORECASE,
+                ),
+                "head_pattern": _re.compile(
+                    r"<head(?:\s[^>]*)?>(.*?)</head>",
+                    _re.DOTALL | _re.IGNORECASE,
+                ),
+                "style_pattern": _re.compile(
+                    r"<style(?:\s[^>]*)?>.*?</style>",
+                    _re.DOTALL | _re.IGNORECASE,
+                ),
+            }
+            setattr(_typst, "_ludy_html_renderer_v1", state)
+
+        heading_pattern = state.get("heading_pattern")
+        if heading_pattern is None:
+            heading_pattern = _re.compile(
+                r"<(/?)h([2-6])(?=[\s>])",
+                _re.IGNORECASE,
+            )
+            state["heading_pattern"] = heading_pattern
+
+        compact_css = r"""
+        <style>
+        .ludy-typst-fragment {
+          color: inherit;
+          display: inline-block;
+          max-width: 100%;
+          overflow-x: auto;
+          vertical-align: middle;
+        }
+        .ludy-typst-fragment > p { margin: 0; }
+        .ludy-typst-error {
+          color: var(--error, #b00020);
+          font-family: var(--monospace-font, ui-monospace, monospace);
+          font-size: 0.875rem;
+          white-space: pre-wrap;
+        }
+        </style>
+        """
+
+        cleaned_source = _cleandoc(source)
+        try:
+            with state["lock"]:
+                parts = state["cache"].get(cleaned_source)
+                if parts is None:
+                    compiled = state["compiler"].compile(
+                        input=f"{cleaned_source}\n".encode("utf-8"),
+                        format="html",
+                    )
+                    if not isinstance(compiled, bytes):
+                        raise TypeError(
+                            "Typst HTML export returned multiple outputs"
+                        )
+                    document = compiled.decode("utf-8")
+                    body = state["body_pattern"].search(document)
+                    if body is None:
+                        raise ValueError(
+                            "Typst HTML output did not contain a body"
+                        )
+                    head = state["head_pattern"].search(document)
+                    mathml_css = (
+                        ""
+                        if head is None
+                        else "".join(
+                            state["style_pattern"].findall(head.group(1))
+                        )
+                    )
+                    parts = mathml_css, body.group(1)
+                    state["cache"][cleaned_source] = parts
+                    if len(state["cache"]) > 512:
+                        state["cache"].pop(next(iter(state["cache"])))
+
+            mathml_css, body = parts
+            if prose:
+                body = heading_pattern.sub(
+                    lambda match: (
+                        f"<{match.group(1)}h{int(match.group(2)) - 1}"
+                    ),
+                    body,
+                )
+                return (
+                    f"{mathml_css}"
+                    '<div class="markdown prose dark:prose-invert contents">'
+                    f"{body}</div>"
+                )
+
+            size_style = (
+                ""
+                if font_size is None
+                else f"font-size:{float(font_size):g}pt"
+            )
+            return (
+                f"{mathml_css}{compact_css}"
+                f'<div class="ludy-typst-fragment" style="{size_style}">'
+                f"{body}</div>"
+            )
+        except Exception as error:
+            diagnostic = str(getattr(error, "diagnostic", None) or error)
+            return (
+                f"{compact_css}"
+                '<div class="ludy-typst-error" role="alert">'
+                "<strong>Typst compilation failed</strong>"
+                f"<pre>{_escape_html(diagnostic)}</pre>"
+                "</div>"
+            )
+
+    def typst_html(source, *, font_size=15.0, prose=False):
+        """Return one responsive Typst fragment as a Marimo HTML object."""
+
+        return _marimo.Html(
+            render_typst_html(source, font_size=font_size, prose=prose)
+        )
+
+    def typst_md(source):
+        """Render Typst prose with Marimo's Markdown typography classes."""
+
+        return typst_html(source, font_size=None, prose=True)
+
+    def scalar_printer(*, latex: str, typst: str):
+        """Build a display-only printer for a stable scalar name."""
+
+        from symbolica import PrintMode
+
+        def _print_scalar(_expression, mode, **_format_options):
+            if mode == PrintMode.Latex:
+                return latex
+            if mode == PrintMode.Typst:
+                return typst
+            return None
+
+        return _print_scalar
+
+    _marimo.md = typst_md
+    globals()["mo"] = _marimo
 
 
 @app.cell(hide_code=True)
 def _(E, Expression, mo):
     from dataclasses import dataclass as _dataclass
-    from functools import lru_cache as _lru_cache
     from html import escape as _escape_html
-    import re as _re
-
-    import typst as _typst
-
-    _typst_compiler = _typst.Compiler(ignore_system_fonts=True)
-    _body_pattern = _re.compile(
-        r"<body(?:\s[^>]*)?>(.*?)</body>",
-        _re.DOTALL,
-    )
-    _style_pattern = _re.compile(
-        r"<style(?:\s[^>]*)?>.*?</style>",
-        _re.DOTALL,
-    )
 
     def _typst_math(expression):
         return expression.to_typst()
-
-    @_lru_cache(maxsize=256)
-    def _render_typst_html(math):
-        document = _typst_compiler.compile(
-            input=f"$ {math} $\n".encode(),
-            format="html",
-        ).decode()
-        body = _body_pattern.search(document)
-        if body is None or "<math" not in body.group(1):
-            raise ValueError("Typst HTML output did not contain MathML")
-        styles = "".join(_style_pattern.findall(document))
-        return styles, body.group(1)
-
-    @_lru_cache(maxsize=256)
-    def _render_typst_svg(math, font_size):
-        document = (
-            "#set page(width: auto, height: auto, margin: 2pt, fill: none)\n"
-            f"#set text(size: {font_size}pt)\n"
-            f"$ {math} $\n"
-        )
-        svg = _typst_compiler.compile(
-            input=document.encode(),
-            format="svg",
-        ).decode()
-        return svg.replace("#000000", "currentColor")
 
     @_dataclass(frozen=True, slots=True)
     class SpensoMath:
@@ -71,17 +182,12 @@ def _(E, Expression, mo):
             return _typst_math(self.expression)
 
         def _display_(self):
-            try:
-                styles, body = _render_typst_html(self.typst)
-                return mo.Html(
-                    f'{styles}<div style="color: inherit; '
-                    f'font-size: {self.font_size}pt">{body}</div>'
+            return mo.Html(
+                render_typst_html(
+                    f"$ {self.typst} $",
+                    font_size=self.font_size,
                 )
-            except Exception:
-                return mo.Html(_render_typst_svg(self.typst, self.font_size))
-
-        def _repr_svg_(self):
-            return _render_typst_svg(self.typst, self.font_size)
+            )
 
         def __repr__(self):
             return self.expression.format_plain()
@@ -160,11 +266,11 @@ def _(E, Expression, mo):
     assert _scalar_power_probe == "frac(1,pi^2)"
     assert _gamma_reciprocal_probe == 'frac(1,Gamma(3/2-"ep"))'
     assert _gamma_square_probe == 'Gamma(3/2-"ep")^2'
-    _scalar_power_mathml = _render_typst_html(_scalar_power_probe)[1]
-    _gamma_reciprocal_mathml = _render_typst_html(
-        _gamma_reciprocal_probe
-    )[1]
-    _gamma_square_mathml = _render_typst_html(_gamma_square_probe)[1]
+    _scalar_power_mathml = render_typst_html(f"$ {_scalar_power_probe} $")
+    _gamma_reciprocal_mathml = render_typst_html(
+        f"$ {_gamma_reciprocal_probe} $"
+    )
+    _gamma_square_mathml = render_typst_html(f"$ {_gamma_square_probe} $")
     assert "<math" in _scalar_power_mathml
     assert "<mfrac>" in _gamma_reciprocal_mathml
     assert '<mi mathvariant="normal">Γ</mi>' in _gamma_reciprocal_mathml
@@ -176,19 +282,19 @@ def _(E, Expression, mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # Analytic master integrals for the DY calculation
+    = Analytic master integrals for the DY calculation
 
     This notebook isolates the closed-form master integrals used after the
     Kira/FIRE reduction.  It reconstructs their radial, light-cone, angular,
     Feynman-parameter, and Gram-determinant factors; checks the resulting
     expressions exactly with Symbolica; audits the physical normalization;
-    expands them around \(d=4-2\epsilon\); and handles the leading virtuality
+    expands them around $d = 4 - 2 epsilon$; and handles the leading virtuality
     and soft-endpoint distributions before providing a numerical evaluator.
     Exact expressions remain native Symbolica objects and are displayed with
     the same Spenso-aware Typst-to-MathML renderer used in `notebooks/ludy.py`.
 
     The definitions are faithful to
-    [`DY_calculation.nb`](../mathematica/DY_calculation.nb).  Opening or
+    #link("../mathematica/DY_calculation.nb")[DY_calculation.nb].  Opening or
     exporting this notebook never launches Kira and does not require a
     persisted `runs/` directory.
     """)
@@ -209,11 +315,52 @@ def _(mo):
 
 @app.cell
 def _(Expression, S):
-    d, epsilon, mu_squared = S("d", "ε", "μ²")
-    p_squared, s, mass_squared = S("p²", "s", "m²")
-    p1_squared, p2_squared = S("p1²", "p2²")
-    x, beta, kappa_squared = S("x", "μ1", "𝜅")
-    z, lambda_squared, s_lightcone = S("z", "Lambdasq", "sLC")
+    # Symbolica printer registration is global and one-shot.  Restart the
+    # notebook kernel before deliberately rerunning this initialization cell.
+    d = S("d")
+    epsilon = S("eps")
+    mu_squared = S(
+        "mu_squared",
+        print=scalar_printer(latex=r"\mu_R^2", typst="mu_R^2"),
+    )
+    p_squared = S(
+        "psq",
+        print=scalar_printer(latex=r"p^2", typst="p^2"),
+    )
+    s = S("s")
+    mass_squared = S(
+        "msq",
+        print=scalar_printer(latex=r"m^2", typst="m^2"),
+    )
+    p1_squared = S(
+        "p1sq",
+        print=scalar_printer(latex=r"p_1^2", typst="p_1^2"),
+    )
+    p2_squared = S(
+        "p2sq",
+        print=scalar_printer(latex=r"p_2^2", typst="p_2^2"),
+    )
+    x = S("x")
+    beta = S(
+        "beta",
+        print=scalar_printer(latex=r"\beta", typst="beta"),
+    )
+    kappa_squared = S(
+        "kappasq",
+        print=scalar_printer(
+            latex=r"\kappa_\perp^2",
+            typst="kappa_perp^2",
+        ),
+    )
+    z = S("z")
+    lambda_squared = S(
+        "Lambdasq",
+        print=scalar_printer(latex=r"\Lambda^2", typst="Lambda^2"),
+    )
+    s_lightcone = S(
+        "sLC",
+        print=scalar_printer(latex=r"Q", typst="Q"),
+    )
     pi = Expression.PI
     euler_gamma = Expression.EULER_GAMMA
     return (
@@ -299,26 +446,26 @@ def sphere_volume(dimension: "Expression") -> "Expression":
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Audit of `master_and_dump.pdf`
+    == Audit of `master_and_dump.pdf`
 
     The reusable master calculations are concentrated on PDF pages 1--3.
     Equation (7) gives the massive cut bubble.  The first triangle route ends
     at equation (25), while the independent transverse derivation in equations
     (31)--(37) exposes
-    $\kappa_\perp^2=x(1-x)p_1^2$ and reproduces the retained Mathematica
+    $kappa_perp^2 = x(1-x) p_1^2$ and reproduces the retained Mathematica
     master after the scheme conversion displayed below.
 
     Two inconsistencies in the draft are kept visible rather than silently
     resolved:
 
     - equation (25) is smaller than equation (37) by a factor of four;
-    - pages 1--3 use $e^{-\gamma_E}$, while the FLU formulas on pages 9--10
-      and the Mathematica snapshot use $e^{+\gamma_E}$.
+    - pages 1--3 use $e^(-gamma_E)$, while the FLU formulas on pages 9--10
+      and the Mathematica snapshot use $e^(+gamma_E)$.
 
     The notebook therefore uses equation (37) and the retained
-    $e^{+\gamma_E}$ convention.  The printed leading-$p_1^2$ triangle
+    $e^(+gamma_E)$ convention.  The printed leading-$p_1^2$ triangle
     retaining $p_2^2$ is not copied because its equations (42)--(46) omit a
-    required $\sqrt{s}$; a new exact two-virtuality light-cone extension is
+    required $sqrt(s)$; a new exact two-virtuality light-cone extension is
     derived below.  The
     maximal-box, LU, zero-bin, and FLU notes remain context rather than new
     completed analytic masters.
@@ -381,25 +528,25 @@ def _(epsilon, euler_gamma, mo, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Normalization ledger
+    == Normalization ledger
 
     The physical phase-space convention is
 
-    \[
-      \int\frac{d^dk}{(2\pi)^d},\qquad
-      \widehat\delta_\pm(q^2-m^2)
-      =2\pi\,\theta(\pm q^0)\delta(q^2-m^2),\qquad
-      \int\frac{dp_i^2}{2\pi}.
-    \]
+    $
+      integral frac(upright(d)^d k, (2 pi)^d), quad
+      hat(delta)_plus.minus(q^2-m^2)
+      = 2 pi theta(plus.minus q^0) delta(q^2-m^2), quad
+      integral frac(upright(d) p_i^2, 2 pi).
+    $
 
-    Consequently a one-loop object with \(N_c\) real cut edges and \(N_v\)
+    Consequently a one-loop object with $N_c$ real cut edges and $N_v$
     virtuality integrations carries
-    \((2\pi)^{N_c-d-N_v}\) before angular and delta-function Jacobians.
+    $(2 pi)^(N_c-d-N_v)$ before angular and delta-function Jacobians.
     Spin and colour averages remain observable-dependent prefactors and are
-    not folded into a scalar master.  DIS receives the additional \(1/(4\pi)\)
+    not folded into a scalar master.  DIS receives the additional $1/(4 pi)$
     factor recorded in PDF equations (125) and (132).
 
-    The early PDF master pages instead write \((2\pi i)^{N_c}\).  Its \(i^2\)
+    The early PDF master pages instead write $(2 pi i)^(N_c)$.  Its $i^2$
     explains the negative double-cut bubble; that Cutkosky phase is not a
     negative phase-space Jacobian.  The notebook therefore derives a positive
     real phase space first and applies the retained historical master sign
@@ -604,38 +751,36 @@ def massive_cut_triangle(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Maximal four-line cross-box master
+    === Maximal four-line cross-box master
 
     Current cut `00` (historical `resxbox11`) puts all four internal lines on
     shell.  It is therefore a cut or boundary master rather than a conventional
     Kira master of one of the three-denominator families.  For unit numerator
-    and positive leading-power scale \(s\), define
+    and positive leading-power scale $s$, define
 
-    \[
-    \begin{aligned}
-      M_{00}^{\delta_z}={}&
-      \frac{4}{(2\pi)^3}\,
-      \pi^{-(d-4)/2}
-      (\mu_R^2e^{\gamma_E})^\epsilon s^{-\epsilon}
-      \frac{\pi^{4-\epsilon}}
-      {[\lambda(0,0,s)]^{1/2-\epsilon}\Gamma(1-\epsilon)}
-      \frac1s.
-    \end{aligned}
-    \]
+    $
+      M_(00)^(delta_z) =
+      frac(4, (2 pi)^3)
+      pi^(-(d-4)/2)
+      (mu_R^2 e^(gamma_E))^epsilon s^(-epsilon)
+      frac(pi^(4-epsilon),
+        [lambda(0,0,s)]^(1/2-epsilon) Gamma(1-epsilon))
+      frac(1, s).
+    $
 
-    The final \(1/s\) is the Jacobian
-    \(\delta(s-m^2)=\delta(1-z)/s\); this channel therefore has no soft plus
+    The final $1/s$ is the Jacobian
+    $delta(s-m^2) = delta(1-z)/s$; this channel therefore has no soft plus
     distribution to expand.  A diagram supplies the separate coefficient
-    \(N_{00}\) obtained by evaluating its numerator on the maximal-cut support,
+    $N_(00)$ obtained by evaluating its numerator on the maximal-cut support,
     and the complete leading contribution before process weights is
 
-    \[
-      C_{00}^{\delta_z}=N_{00}M_{00}^{\delta_z}
-      J(\Lambda_1^2)J(\Lambda_2^2).
-    \]
+    $
+      C_(00)^(delta_z) = N_(00) M_(00)^(delta_z)
+      J(Lambda_1^2) J(Lambda_2^2).
+    $
 
-    For the physical crossed-box trace \(N_{00}=-4(d-2)s^2\) and
-    \(d=4-2\epsilon\), its bare leading pole is \(-1/(\pi\epsilon^2)\).
+    For the physical crossed-box trace $N_(00) = -4(d-2)s^2$ and
+    $d = 4 - 2 epsilon$, its bare leading pole is $-1/(pi epsilon^2)$.
     Couplings, colour, spin averages, and the graph sign remain outside the
     master and its diagram coefficient.
     """)
@@ -775,7 +920,7 @@ def _(
 def _(analytic_master_formulas, mo, spenso_table):
     mo.vstack(
         [
-            mo.md("## Closed-form basis"),
+            mo.md("== Closed-form basis"),
             spenso_table(analytic_master_formulas, pagination=False),
         ]
     )
@@ -785,23 +930,23 @@ def _(analytic_master_formulas, mo, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Derive the uncut bubble
+    == Derive the uncut bubble
 
     For the massless two-point integral, Feynman parametrization gives
 
-    \[
-    \frac1{ab}=\int_0^1\!\frac{dx}{[xa+(1-x)b]^2}.
-    \]
+    $
+    frac(1, a b) = integral_0^1 frac(upright(d) x, [x a + (1-x)b]^2).
+    $
 
     Shifting the loop momentum leaves a radial loop integral and a beta
     integral,
 
-    \[
-    \int d^d\ell\,(\ell^2+\Delta)^{-2}
-      =\pi^{d/2}\Gamma(2-d/2)\Delta^{d/2-2},\qquad
-    \int_0^1 [x(1-x)]^{d/2-2}dx
-      =\frac{\Gamma((d-2)/2)^2}{\Gamma(d-2)}.
-    \]
+    $
+    integral upright(d)^d ell (ell^2+Delta)^(-2)
+      = pi^(d/2) Gamma(2-d/2) Delta^(d/2-2), quad
+    integral_0^1 [x(1-x)]^(d/2-2) upright(d) x
+      = frac(Gamma((d-2)/2)^2, Gamma(d-2)).
+    $
 
     Multiplying these factors by the historical loop normalization produces
     `B(psq)` exactly.
@@ -873,34 +1018,34 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Derive the cut bubbles
+    == Derive the cut bubbles
 
-    In the rest frame of a timelike momentum \(P^2=s\), the two cut
-    constraints \(k^2=0\) and \((P-k)^2=m^2\) fix
+    In the rest frame of a timelike momentum $P^2=s$, the two cut
+    constraints $k^2=0$ and $(P-k)^2=m^2$ fix
 
-    \[
-      k^0=|\mathbf k|=r_* = \frac{s-m^2}{2\sqrt{s}}.
-    \]
+    $
+      k^0 = abs(bold(k)) = r_* = frac(s-m^2, 2 sqrt(s)).
+    $
 
-    With \(\Omega_n=2\pi^{(n+1)/2}/\Gamma((n+1)/2)\), the exact two-body
+    With $Omega_n = 2 pi^((n+1)/2)/Gamma((n+1)/2)$, the exact two-body
     phase space is
 
-    \[
-      \Phi_2^{(d)}(s;0,m^2)=
-      \frac{\Omega_{d-2}}{4(2\pi)^{d-2}\sqrt{s}}\,r_*^{d-3}.
-    \]
+    $
+      Phi_2^(d)(s;0,m^2) =
+      frac(Omega_(d-2), 4(2 pi)^(d-2) sqrt(s)) r_*^(d-3).
+    $
 
     Multiplication by
-    \(\bar S_\epsilon=(\mu^2e^{\gamma_E}/4\pi)^\epsilon\), followed by
-    \(d=4-2\epsilon\), reduces the measure prefactor to
-    \((\mu^2e^{\gamma_E})^\epsilon/
-    [8\sqrt\pi\,\Gamma((d-1)/2)]\).  The retained historical sign convention gives
-    \(B_{\rm cutm}=-\bar S_\epsilon\Phi_2^{(d)}\).
+    $overline(S)_epsilon = (mu_R^2 e^(gamma_E)/(4 pi))^epsilon$, followed by
+    $d = 4 - 2 epsilon$, reduces the measure prefactor to
+    $(mu_R^2 e^(gamma_E))^epsilon/
+    [8 sqrt(pi) Gamma((d-1)/2)]$.  The retained historical sign convention gives
+    $B_(upright("cutm")) = -overline(S)_epsilon Phi_2^(d)$.
 
     The retained formulas assign opposite overall signs to `Bcut` and
     `Bcutm`; with that historical sign convention,
-    \(B_{\rm cut}(s)=-B_{\rm cutm}(s,0)\).  The equality of the complete
-    all-\(\epsilon\) expressions is asserted below.
+    $B_(upright("cut"))(s) = -B_(upright("cutm"))(s,0)$.  The equality of the complete
+    all-$epsilon$ expressions is asserted below.
     """)
     return
 
@@ -1051,28 +1196,28 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Light-cone coordinates and preferred DY variables
+    == Light-cone coordinates and preferred DY variables
 
-    Let $Q=2p_+\!\cdot p_-$, with $p_+^2=p_-^2=0$, and write
+    Let $Q = 2 p_+ dot p_-$, with $p_+^2 = p_-^2 = 0$, and write
 
-    \[
-      p_1=p_++\frac{p_1^2}{Q}p_-,\qquad
-      p_2=p_-+\frac{p_2^2}{Q}p_+.
-    \]
+    $
+      p_1 = p_+ + frac(p_1^2, Q) p_-, quad
+      p_2 = p_- + frac(p_2^2, Q) p_+.
+    $
 
     This gives the exact relations
 
-    \[
-      2p_1\!\cdot p_2=Q+\frac{p_1^2p_2^2}{Q},\qquad
-      (p_1+p_2)^2=Q+p_1^2+p_2^2+\frac{p_1^2p_2^2}{Q}.
-    \]
+    $
+      2 p_1 dot p_2 = Q + frac(p_1^2 p_2^2, Q), quad
+      (p_1+p_2)^2 = Q + p_1^2 + p_2^2 + frac(p_1^2 p_2^2, Q).
+    $
 
     Thus the basis scale $Q$ may be identified with the preferred DY
     variable $s$ only after the leading-virtuality expansion.  This is also
     distinct from silently treating the second historical `Tcutm` argument as
     the exact pair invariant.  The preferred variables used below are
-    $z=m^2/s\in(0,1)$, $s$, $p_1^2$, $p_2^2$, and, after virtuality
-    integration, $\Lambda^2$ and optionally $\mu_R^2$.
+    $z = m^2/s in (0,1)$, $s$, $p_1^2$, $p_2^2$, and, after virtuality
+    integration, $Lambda^2$ and optionally $mu_R^2$.
     """)
     return
 
@@ -1108,42 +1253,43 @@ def _(canonical_zero, p1_squared, p2_squared, s_lightcone, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Light-cone derivation of the massive cut triangle
+    === Light-cone derivation of the massive cut triangle
 
     Use the mostly-minus metric and decompose the cut momentum as
 
-    \[
-      k=x p_+ + k_\perp+\beta p_-,\qquad
-      \kappa_\perp^2\equiv-k_\perp^2\ge0,
-    \]
+    $
+      k = x p_+ + k_perp + beta p_-, quad
+      kappa_perp^2 equiv -k_perp^2 >= 0,
+    $
     so that
 
-    \[
-      d^dk=\frac Q2\,dx\,d\beta\,d^{d-2}k_\perp,
-      \qquad k^2=Qx\beta-\kappa_\perp^2.
-    \]
+    $
+      upright(d)^d k = frac(Q, 2) upright(d) x upright(d) beta
+        upright(d)^(d-2) k_perp, quad
+      k^2 = Q x beta - kappa_perp^2.
+    $
 
-    The early PDF pages route a negative-energy momentum $k_{\rm PDF}$
-    through $(k_{\rm PDF}+p_1)^2$ and
-    $(k_{\rm PDF}+p_1+p_2)^2-m^2$.  Here we set
-    $k=-k_{\rm PDF}$, so the same constraints appear as
+    The early PDF pages route a negative-energy momentum $k_(upright("PDF"))$
+    through $(k_(upright("PDF"))+p_1)^2$ and
+    $(k_(upright("PDF"))+p_1+p_2)^2-m^2$.  Here we set
+    $k = -k_(upright("PDF"))$, so the same constraints appear as
     $(p_1-k)^2$ and $(p_1+p_2-k)^2-m^2$.  This routing change is separate
     from the historical Cutkosky phases discussed above.
 
     The first cut fixes
-    $\beta=\kappa_\perp^2/(Qx)=-k_\perp^2/(Qx)$.  On that support the
+    $beta = kappa_perp^2/(Q x) = -k_perp^2/(Q x)$.  On that support the
     second cut is
 
-    \[
-      (p_1-k)^2=(1-x)p_1^2-\frac{\kappa_\perp^2}{x}=0,
-      \qquad \kappa_\perp^2=x(1-x)p_1^2.
-    \]
+    $
+      (p_1-k)^2 = (1-x)p_1^2 - frac(kappa_perp^2, x) = 0, quad
+      kappa_perp^2 = x(1-x)p_1^2.
+    $
 
     The positive relation is therefore for the Euclidean transverse norm;
     the Minkowski quantity obeys
-    $k_\perp^2=-x(1-x)p_1^2$.  For $p_2^2=0$, the massive third cut
+    $k_perp^2 = -x(1-x)p_1^2$.  For $p_2^2=0$, the massive third cut
     $(p_1+p_2-k)^2=m^2$ then fixes $x=1-m^2/Q=1-z$.  This makes the
-    collinear localization $\kappa_\perp^2\to0$ as $p_1^2\to0$
+    collinear localization $kappa_perp^2 -> 0$ as $p_1^2 -> 0$
     manifest.  The delta reductions retain the physical support
     $Q>m^2>0$ and $0<x<1$; these theta-function restrictions must not be
     discarded when continuing the symbolic formula to another region.
@@ -1334,26 +1480,26 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Keeping both beam virtualities
+    === Keeping both beam virtualities
 
     As a new extension beyond the PDF's leading-$p_1^2$ calculation, the
     Sudakov construction can retain both $p_1^2$ and $p_2^2$ exactly.  If
     $S=(p_1+p_2)^2$, the remaining third-cut
     Jacobian is
 
-    \[
-      J_3=Q-\frac{p_1^2p_2^2}{Q},\qquad
-      J_3^2=\lambda(S,p_1^2,p_2^2),
-    \]
+    $
+      J_3 = Q - frac(p_1^2 p_2^2, Q), quad
+      J_3^2 = lambda(S,p_1^2,p_2^2),
+    $
 
     and the cut fixes
 
-    \[
-      x_*=\frac{Q+p_2^2-m^2}{J_3}.
-    \]
+    $
+      x_* = frac(Q+p_2^2-m^2, J_3).
+    $
 
     On the displayed physical branch,
-    $Q=[S-p_1^2-p_2^2+\sqrt{\lambda(S,p_1^2,p_2^2)}]/2$.
+    $Q = [S-p_1^2-p_2^2+sqrt(lambda(S,p_1^2,p_2^2))]/2$.
     The phase-space formula below assumes $J_3>0$, $0<x_*<1$, and the routed
     positive-energy theta-function support.  It vanishes when that support is
     absent; on a reversed algebraic branch its Jacobian is $|J_3|$ rather than
@@ -1363,7 +1509,7 @@ def _(mo):
 
     The exact expression below is kept as a transparent pre-expansion
     cross-check; the historical Tcutm substitution is its
-    $p_2^2\to0$, leading-$p_1^2$ limit.
+    $p_2^2 -> 0$, leading-$p_1^2$ limit.
     """)
     return
 
@@ -1484,40 +1630,39 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Geometric cross-check and generic cut triangles
+    == Geometric cross-check and generic cut triangles
 
     The third on-shell constraint fixes one more longitudinal component.  The
     remaining transverse orbit is controlled by a Gram determinant.  For the
     massive triangle,
 
-    \[
-      \Delta_m=p_i^2(s-m^2)m^2,
-      \qquad
-      R_m^2=\frac{\Delta_m}{s^2},
-    \]
+    $
+      Delta_m = p_i^2(s-m^2)m^2, quad
+      R_m^2 = frac(Delta_m, s^2),
+    $
 
     and the geometric cut is
 
-    \[
-      \mathcal C_3=\bar S_\epsilon(2\pi)^{3-d}
-      \frac{\Omega_{d-3}}{4s}R_m^{d-4}.
-    \]
+    $
+      cal(C)_3 = overline(S)_epsilon (2 pi)^(3-d)
+      frac(Omega_(d-3), 4s) R_m^(d-4).
+    $
 
-    Here the historical second argument is \(s=2p_1\!\cdot p_2\); it is not
-    \((p_1+p_2)^2\) when the displayed external virtuality is nonzero.
+    Here the historical second argument is $s = 2 p_1 dot p_2$; it is not
+    $(p_1+p_2)^2$ when the displayed external virtuality is nonzero.
 
     For a generic massless triple cut,
-    \(R^2=-xyz/\lambda(x,y,z)\), and the longitudinal Jacobian contains
-    \(1/\sqrt{\lambda(x,y,z)}\):
+    $R^2 = -x y z/lambda(x,y,z)$, and the longitudinal Jacobian contains
+    $1/sqrt(lambda(x,y,z))$:
 
-    \[
-      \mathcal C_3^{\rm generic}=\bar S_\epsilon(2\pi)^{3-d}
-      \frac{\Omega_{d-3}}{4\sqrt{\lambda(x,y,z)}}
-      \left(\frac{-xyz}{\lambda(x,y,z)}\right)^{(d-4)/2}.
-    \]
+    $
+      cal(C)_3^(upright("generic")) = overline(S)_epsilon (2 pi)^(3-d)
+      frac(Omega_(d-3), 4 sqrt(lambda(x,y,z)))
+      (frac(-x y z, lambda(x,y,z)))^((d-4)/2).
+    $
 
     The retained `Tcut` formula deliberately
-    replaces this full Gram determinant by \(\lambda(0,0,z)\), as appropriate
+    replaces this full Gram determinant by $lambda(0,0,z)$, as appropriate
     to its leading-regulator use.  Both forms are kept visible below.
     """)
     return
@@ -1719,7 +1864,7 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Explicit reduction-to-master identifications
+    == Explicit reduction-to-master identifications
 
     These are the canonical/effective analytic substitutions used by the
     retained Mathematica calculation.  They are a catalog of *known analytic
@@ -1814,10 +1959,10 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Dimensional regularization and exact checks
+    == Dimensional regularization and exact checks
 
-    Set \(d=4-2\epsilon\).  The cut bubbles are dimensionless, while both cut
-    triangles have mass dimension \(-2\).  At \(\epsilon=0\), the massive
+    Set $d = 4 - 2 epsilon$.  The cut bubbles are dimensionless, while both cut
+    triangles have mass dimension $-2$.  At $epsilon=0$, the massive
     masters reduce to particularly simple phase-space factors.
     """)
     return
@@ -1935,23 +2080,20 @@ def _(leading_validation_rows, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Reparametrize the massive masters by \(z=m^2/s\)
+    === Reparametrize the massive masters by $z=m^2/s$
 
-    In the positive DY region \(0<z<1\), the light-cone radius becomes
-    \(R_\perp^2=p_1^2z(1-z)\).  The dimensionally regulated triangle is
+    In the positive DY region $0 < z < 1$, the light-cone radius becomes
+    $R_perp^2 = p_1^2 z(1-z)$.  The dimensionally regulated triangle is
     therefore
 
-    \[
-      T_{\rm cutm}(p_1^2,s,z)=
-      \frac{1}{4s\,\Gamma(1-\epsilon)}
-      \left[
-        \frac{\mu^2e^{\gamma_E}}
-             {p_1^2z(1-z)}
-      \right]^\epsilon .
-    \]
+    $
+      T_(upright("cutm"))(p_1^2,s,z) =
+      frac(1, 4s Gamma(1-epsilon))
+      [frac(mu_R^2 e^(gamma_E), p_1^2 z(1-z))]^epsilon .
+    $
 
     Keeping this compact form separate from the exact finite-virtuality
-    expression makes the point at which the leading-\(p_i^2\) expansion was
+    expression makes the point at which the leading-$p_i^2$ expansion was
     taken explicit.
     """)
     return
@@ -2013,36 +2155,34 @@ def _(mo):
     mo.md(r"""
     On the positive real branches, the compact expansions begin as
 
-    \[
-    \begin{aligned}
-    B(p^2) &= \frac{1}{16\pi^2}
-      \left[\frac1\epsilon+2+\log\frac{\mu^2}{-p^2}
-      +\mathcal O(\epsilon)\right],\\
-    B_{\rm cut}(s) &= \frac{1}{8\pi}
-      \left[1+\epsilon\left(2+\log\frac{\mu^2}{s}\right)
-      +\mathcal O(\epsilon^2)\right],\\
-    B_{\rm cutm}(s,m^2) &= -\frac{s-m^2}{8\pi s}
-      \left[1+\epsilon\left(2+
-      \log\frac{\mu^2s}{(s-m^2)^2}\right)
-      +\mathcal O(\epsilon^2)\right].
-    \end{aligned}
-    \]
+    $
+    B(p^2) &= frac(1, 16 pi^2)
+      [frac(1,epsilon) + 2 + log(frac(mu_R^2,-p^2))
+      + cal(O)(epsilon)], \
+    B_(upright("cut"))(s) &= frac(1, 8 pi)
+      [1 + epsilon(2 + log(frac(mu_R^2,s)))
+      + cal(O)(epsilon^2)], \
+    B_(upright("cutm"))(s,m^2) &= -frac(s-m^2, 8 pi s)
+      [1 + epsilon(2 +
+      log(frac(mu_R^2 s, (s-m^2)^2)))
+      + cal(O)(epsilon^2)].
+    $
 
     In particular, the retained historical sign convention obeys
-    \(B_{\rm cut}(s)=-B_{\rm cutm}(s,0)\).  Both triangle families take
+    $B_(upright("cut"))(s) = -B_(upright("cutm"))(s,0)$.  Both triangle families take
     the common form
 
-    \[
-      T=\frac1{4s}\left[1+\epsilon L+
-      \frac{\epsilon^2}{2}\left(L^2-\frac{\pi^2}{6}\right)
-      +\mathcal O(\epsilon^3)\right],
-    \]
+    $
+      T = frac(1,4s)[1 + epsilon L +
+      frac(epsilon^2,2)(L^2-frac(pi^2,6))
+      + cal(O)(epsilon^3)],
+    $
 
     with
-    \(L=\log[\mu^2s/(p_1^2p_2^2)]\) for
-    \(T_{\rm cut}(p_1^2,p_2^2,-s)\), and
-    \(L=\log[\mu^2s^2/(p_i^2(s-m^2)m^2)]\) for
-    \(T_{\rm cutm}(p_i^2,s,m^2)\).
+    $L = log[mu_R^2 s/(p_1^2 p_2^2)]$ for
+    $T_(upright("cut"))(p_1^2,p_2^2,-s)$, and
+    $L = log[mu_R^2 s^2/(p_i^2(s-m^2)m^2)]$ for
+    $T_(upright("cutm"))(p_i^2,s,m^2)$.
     """)
     return
 
@@ -2215,27 +2355,25 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Leading virtuality expansion and endpoint integration
+    == Leading virtuality expansion and endpoint integration
 
-    Write \(v_i=p_i^2\).  After the analytic loop integrations, retain the
+    Write $v_i = p_i^2$.  After the analytic loop integrations, retain the
     leading-power operator explicitly:
 
-    \[
-    \begin{aligned}
-      {\rm LP}\,I_4 &=
-        a_4(s,z,\epsilon,\mu_R^2)\,
-        v_1^{-1-\epsilon}v_2^{-1-\epsilon},\\
-      {\rm LP}\,I_2 &=
-        a_2(s,z,\epsilon,\mu_R^2)\,
-        v_1^{-1-\epsilon}\widehat\delta_\partial(v_2),\\
-      {\rm LP}\,I_3 &=
-        a_3(s,z,\epsilon,\mu_R^2)\,
-        v_2^{-1-\epsilon}\widehat\delta_\partial(v_1),\\
-      {\rm LP}\,I_1 &=
-        a_1(s,z,\epsilon,\mu_R^2)\,
-        \widehat\delta_\partial(v_1)\widehat\delta_\partial(v_2).
-    \end{aligned}
-    \]
+    $
+      upright("LP") I_4 &=
+        a_4(s,z,epsilon,mu_R^2)
+        v_1^(-1-epsilon) v_2^(-1-epsilon), \
+      upright("LP") I_2 &=
+        a_2(s,z,epsilon,mu_R^2)
+        v_1^(-1-epsilon) hat(delta)_partial(v_2), \
+      upright("LP") I_3 &=
+        a_3(s,z,epsilon,mu_R^2)
+        v_2^(-1-epsilon) hat(delta)_partial(v_1), \
+      upright("LP") I_1 &=
+        a_1(s,z,epsilon,mu_R^2)
+        hat(delta)_partial(v_1) hat(delta)_partial(v_2).
+    $
 
     In the manuscript's naming, (I_2) is current cut `01` and (I_3) is
     current cut `10`. The cut names and their explicit virtuality support are
@@ -2243,22 +2381,22 @@ def _(mo):
     the two beams.
 
     Here the one-sided cut delta is defined by
-    \(\int_0^{\Lambda^2}dv\,\widehat\delta_\partial(v)/(2\pi)=1\).
-    This avoids the convention-dependent factor \(1/2\) of an ordinary delta
+    $integral_0^(Lambda^2) upright(d) v hat(delta)_partial(v)/(2 pi) = 1$.
+    This avoids the convention-dependent factor $1/2$ of an ordinary delta
     placed exactly at the boundary.  Equivalently, retain the PDF's original
-    domain \((-\infty,\Lambda^2]\) for delta-supported channels.
+    domain $(-infinity,Lambda^2]$ for delta-supported channels.
 
     For the continuous singularity,
 
-    \[
-      J(\Lambda^2)=
-      \int_0^{\Lambda^2}\frac{dv}{2\pi}\,v^{-1-\epsilon}
-      =-\frac{(\Lambda^2)^{-\epsilon}}{2\pi\epsilon}.
-    \]
+    $
+      J(Lambda^2) =
+      integral_0^(Lambda^2) frac(upright(d) v, 2 pi) v^(-1-epsilon)
+      = -frac((Lambda^2)^(-epsilon), 2 pi epsilon).
+    $
 
-    The integral first converges for \({\rm Re}\,\epsilon<0\), followed by
+    The integral first converges for $upright("Re") epsilon < 0$, followed by
     analytic continuation.  Relative remainders should be written as
-    \(1+\mathcal O(v_1/s)+\mathcal O(v_2/s)\), rather than with the same
+    $1 + cal(O)(v_1/s) + cal(O)(v_2/s)$, rather than with the same
     scaling as the displayed leading term.  Differentiated cut deltas can
     generate cutoff-boundary contributions, as the PDF notes around
     equations (64)--(68), so those terms must be expanded separately.
@@ -2267,15 +2405,12 @@ def _(mo):
 
 
 @app.cell
-def _(
-    S,
-    canonical_zero,
-    epsilon,
-    lambda_squared,
-    spenso_table,
-    virtuality_integral_factor,
-):
-    _virtuality, _a1, _a2, _a3, _a4 = S("v", "a1", "a2", "a3", "a4")
+def _(S, canonical_zero, epsilon, lambda_squared, spenso_table):
+    _virtuality = S("v")
+    _a1 = S("a1", print=scalar_printer(latex=r"a_1", typst="a_1"))
+    _a2 = S("a2", print=scalar_printer(latex=r"a_2", typst="a_2"))
+    _a3 = S("a3", print=scalar_printer(latex=r"a_3", typst="a_3"))
+    _a4 = S("a4", print=scalar_printer(latex=r"a_4", typst="a_4"))
     _antiderivative = -_virtuality ** (-epsilon) / epsilon
     _antiderivative_residual = canonical_zero(
         _antiderivative.derivative(_virtuality)
@@ -2443,16 +2578,15 @@ def apply_endpoint_expansion(
 
 
 @app.cell
-def _(
-    S,
-    apply_endpoint_expansion,
-    canonical_zero,
-    endpoint_distribution_expansion,
-    epsilon,
-    spenso_table,
-    z,
-):
-    _endpoint_value, _endpoint_slope = S("g1", "gprime")
+def _(S, canonical_zero, epsilon, spenso_table, z):
+    _endpoint_value = S(
+        "g1",
+        print=scalar_printer(latex=r"g(1)", typst="g(1)"),
+    )
+    _endpoint_slope = S(
+        "gprime",
+        print=scalar_printer(latex=r"g'(1)", typst="g'(1)"),
+    )
     _expansion = endpoint_distribution_expansion(2, epsilon, order=2)
     _smooth_prefactor = _endpoint_value + _endpoint_slope * (1 - z)
     _applied = apply_endpoint_expansion(
@@ -2534,39 +2668,39 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Soft endpoint as a plus distribution
+    == Soft endpoint as a plus distribution
 
-    On \(z\in[0,1]\), define
+    On $z in [0,1]$, define
 
-    \[
-      \mathcal D_n(z)=
-      \left[\frac{\log^n(1-z)}{1-z}\right]_+,\qquad
-      \int_0^1 dz\,\mathcal D_n(z)\,\varphi(z)
-      =\int_0^1 dz\,\frac{\log^n(1-z)}{1-z}
-       [\varphi(z)-\varphi(1)].
-    \]
+    $
+      cal(D)_n(z) =
+      [frac(log^n(1-z), 1-z)]_+, quad
+      integral_0^1 upright(d) z cal(D)_n(z) phi(z)
+      = integral_0^1 upright(d) z frac(log^n(1-z), 1-z)
+       [phi(z)-phi(1)].
+    $
 
     The general endpoint identity is
 
-    \[
-      (1-z)^{-1-a\epsilon}
-      =-\frac{\delta(1-z)}{a\epsilon}
-       +\sum_{n=0}^{\infty}
-        \frac{(-a\epsilon)^n}{n!}\mathcal D_n(z).
-    \]
+    $
+      (1-z)^(-1-a epsilon)
+      = -frac(delta(1-z), a epsilon)
+       + sum_(n=0)^infinity
+        frac((-a epsilon)^n, n!) cal(D)_n(z).
+    $
 
-    The proposed formula is therefore correct for \(a=1\).  The unexpanded
+    The proposed formula is therefore correct for $a=1$.  The unexpanded
     FLU result in PDF equation (129) contains
-    \((1-z)^{d-5}=(1-z)^{-1-2\epsilon}\), so that specific expression needs
-    \(a=2\).  `EndpointExpansion` carries only the coefficients in this
+    $(1-z)^(d-5) = (1-z)^(-1-2 epsilon)$, so that specific expression needs
+    $a=2$.  `EndpointExpansion` carries only the coefficients in this
     displayed basis: it is deliberately not a fake Symbolica distribution.
-    For a prefactor \(g(z)\) smooth at \(z=1\),
+    For a prefactor $g(z)$ smooth at $z=1$,
 
-    \[
-      g(z)\mathcal D_n(z)
-      =g(1)\mathcal D_n(z)
-       +\frac{g(z)-g(1)}{1-z}\log^n(1-z).
-    \]
+    $
+      g(z) cal(D)_n(z)
+      = g(1) cal(D)_n(z)
+       + frac(g(z)-g(1), 1-z) log^n(1-z).
+    $
 
     `apply_endpoint_expansion` uses this identity to return rescaled
     delta/plus coefficients together with the ordinary, locally integrable
@@ -2602,12 +2736,7 @@ def _(mo):
 
 
 @app.cell
-def _(
-    endpoint_distribution_expansion,
-    epsilon,
-    soft_distribution_order,
-    soft_exponent_multiple,
-):
+def _(epsilon, soft_distribution_order, soft_exponent_multiple):
     _a = soft_exponent_multiple.value
     _endpoint_expansion = endpoint_distribution_expansion(
         _a,
@@ -2637,12 +2766,7 @@ def _(
 
 
 @app.cell
-def _(
-    E,
-    canonical_zero,
-    epsilon,
-    soft_exponent_multiple,
-):
+def _(E, canonical_zero, epsilon, soft_exponent_multiple):
     _a = soft_exponent_multiple.value
 
     _z_moment_1 = -1 / (
@@ -2712,11 +2836,11 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Numerical evaluation
+    == Numerical evaluation
 
     The controls choose a real branch with
-    \(s>m^2>0\), \(p_1^2,p_2^2>0\), and a spacelike argument
-    \(p^2=-s\) for the uncut bubble.  The values are useful for spot checks;
+    $s > m^2 > 0$, $p_1^2,p_2^2 > 0$, and a spacelike argument
+    $p^2 = -s$ for the uncut bubble.  The values are useful for spot checks;
     the exact Symbolica expressions above remain the source of truth.
     """)
     return
@@ -2843,4 +2967,4 @@ def _(mo):
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(defs={"mo": mo})
