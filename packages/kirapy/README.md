@@ -16,12 +16,11 @@ $ uv sync --locked
 $ uv run --locked pytest -q tests
 ```
 
-The portable runnable application is a separate uv project at
-[`calculations/dy/python`](../../calculations/dy/python). It depends on this
-package through a repository-local editable source and has its own lock and
-Nix entry point. The broader
-`notebooks/ludy.py` experiment uses Symbolica Community's Spenso extension and
-the editable sibling repositories configured by the LUDY root project.
+All runnable Marimo notebooks use the repository-root uv/Nix environment. That
+environment consumes this package through a repository-local editable source
+and also provides the sibling GammaLoop and Symbolica Community checkouts.
+This package retains its own lock and subflake only for isolated wrapper
+development, tests, and the pinned Kira/Fermat runtime contract.
 
 The subflake pins Kira 3.1 at Git revision `dad964c`, its Nix inputs, and the
 official Fermat 7.9b binary. Its bundled runtime is available for Apple Silicon
@@ -112,6 +111,19 @@ inputs, `kirapy.json`, the checksummed `kirapy.symbolica` native-expression
 state, `process.log`, Kira's own `kira.log`, and Kira's results. Pass
 `resume=True` only to reuse a matching manifest. A non-empty directory without
 the matching manifest is never overwritten.
+
+The repository includes a standalone Rust
+[`Symbolica state round-trip MWE`](../../reproducers/symbolica-state-round-trip)
+that isolates state behavior without launching Kira. Official Symbolica `dev`
+at `d6bb961` now makes canonical identities independent of custom display
+printers. The rational-polynomial variable-list MWE still fails, but kirapy
+does not put a `Coefficient::RationalPolynomial` atom inside symbol user data,
+so that edge case is not part of its persisted-state format. The dependency
+therefore pins exact official
+[`d6bb961`](https://github.com/symbolica-dev/symbolica/commit/d6bb961d22c026c4866b2e698f56fbb964c4ee0e).
+The MWE remains as an upstream regression case, while Rust API compatibility
+is maintained in the dependent GammaLoop, symbolica-integrate, and Symbolica
+Community forks.
 
 `Kira.reduce(..., require_complete=True)` is strict by default: every requested
 integral must have a rule or be a listed master, and every family integral left

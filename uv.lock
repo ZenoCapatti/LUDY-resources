@@ -320,7 +320,7 @@ wheels = [
 [[package]]
 name = "gammaloop"
 version = "0.3.4"
-source = { editable = "../gammaloop/main" }
+source = { editable = "../gammaloop/ludy" }
 dependencies = [
     { name = "jupyter" },
     { name = "numpy" },
@@ -812,7 +812,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
-    { name = "symbolica", git = "https://github.com/alphal00p/symbolica.git?rev=2e9345b13967cd214b8473f662fa1104d653d5a6" },
+    { name = "symbolica", git = "https://github.com/symbolica-dev/symbolica.git?rev=d6bb961d22c026c4866b2e698f56fbb964c4ee0e" },
 ]
 
 [package.metadata.requires-dev]
@@ -874,7 +874,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "gammaloop", editable = "../gammaloop/main" },
+    { name = "gammaloop", editable = "../gammaloop/ludy" },
     { name = "kirapy", editable = "packages/kirapy" },
     { name = "marimo" },
     { name = "symbolica", editable = "../symbolica-community" },

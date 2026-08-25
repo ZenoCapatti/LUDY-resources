@@ -58,7 +58,7 @@ $ uv run --locked marimo edit notebooks/ludy.py
 $ uv run --locked marimo edit notebooks/dy_topologies.py
 ```
 
-The root project uses `../gammaloop/main` and `../symbolica-community`; the
+The root project uses `../gammaloop/ludy` and `../symbolica-community`; the
 Symbolica Community checkout should track its latest `simplify-spenso-api`
 bookmark.
 GammaLoop and Symbolica Community contain separately linked Symbolica engines,

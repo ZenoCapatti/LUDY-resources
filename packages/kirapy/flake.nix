@@ -80,22 +80,37 @@
           symbolicaOverlay = final: prev: {
             symbolica =
               assert lib.assertMsg (final.maturin.version == "1.14.1") "Symbolica must build with Maturin 1.14.1";
-              prev.symbolica.overrideAttrs (old: {
-                cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
-                  inherit (old) src;
-                  name = "symbolica-${old.version}-vendor";
-                  hash = "sha256-MKhPEJf3dYXeE6l/q1zLuhNId5u7dANILgOw7g3pZi0=";
-                  preBuild = ''
-                    export PATH="${patchedFetchCargoVendorUtil}/bin:$PATH"
+              prev.symbolica.overrideAttrs (
+                old:
+                let
+                  # Symbolica's Git source intentionally no longer tracks its
+                  # generated Cargo.lock.  Reattach the lock generated at the
+                  # exact Python dependency revision so that both vendoring and
+                  # the Maturin build consume the same dependency graph.
+                  srcWithCargoLock = pkgs.runCommand "symbolica-${old.version}-source" { } ''
+                    cp -R ${old.src} "$out"
+                    chmod -R u+w "$out"
+                    cp ${./nix/symbolica-Cargo.lock} "$out/Cargo.lock"
                   '';
-                };
-                nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
-                  pkgs.rustPlatform.cargoSetupHook
-                  pkgs.cargo
-                  pkgs.rustc
-                  pkgs.m4
-                ];
-              });
+                in
+                {
+                  src = srcWithCargoLock;
+                  cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
+                    src = srcWithCargoLock;
+                    name = "symbolica-${old.version}-vendor";
+                    hash = "sha256-Dj4rK2/22s0ZfseJUPemIR3MApWj84as4gMod1xe7SA=";
+                    preBuild = ''
+                      export PATH="${patchedFetchCargoVendorUtil}/bin:$PATH"
+                    '';
+                  };
+                  nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
+                    pkgs.rustPlatform.cargoSetupHook
+                    pkgs.cargo
+                    pkgs.rustc
+                    pkgs.m4
+                  ];
+                }
+              );
           };
         in
         (pkgs.callPackage pyproject-nix.build.packages { python = pkgs.python313; }).overrideScope (

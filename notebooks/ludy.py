@@ -271,8 +271,8 @@ def _(mo):
     This notebook is both the readable source of the reusable helper
     implementations and a complete walkthrough of the cross-box calculation.
     Each transformation is defined where the calculation first needs it. The
-    worked graph exercises the helpers through partial fractioning, numerator
-    reduction, Kira IBP reduction, cut filtering, and analytic master
+    worked graph exercises native multivariate `apart`, numerator reduction,
+    Kira IBP reduction, cut filtering, and analytic master
     evaluation; all tests and Mathematica/FIRE comparisons are collected at
     the end.
     """)
@@ -534,11 +534,12 @@ def _(mo):
     mo.md(r"""
     == Data Structures
 
-    `Integrand` is the editable algebraic object. The intermediate records keep
-    the omitted/retained local denominator positions, the rewritten numerator
-    terms, and finally their global graph-source identities. `PreIBPResult`
-    bundles the complete inspectable handoff immediately before Kira; it does
-    not contain validation results or historical topology labels.
+    `Integrand` is the editable algebraic object. `ApartTerm` records how one
+    summand returned by Symbolica maps back to retained graph propagators. The
+    later records keep the rewritten numerator terms and finally their global
+    graph-source identities. `PreIBPResult` bundles the complete inspectable
+    handoff immediately before Kira; it does not contain validation results or
+    historical topology labels.
     """)
     return
 
@@ -559,10 +560,10 @@ class Integrand:
 
 @app.class_definition
 @__import__("dataclasses").dataclass(slots=True)
-class PartialFractionTerm:
-    """One child produced by omitting a propagator from an affine relation."""
+class ApartTerm:
+    """One native ``apart`` term mapped back to graph propagators."""
 
-    removed_index: int
+    coefficient: "Expression"
     retained_indices: tuple[int, ...]
     integrand: "Integrand"
 
@@ -644,7 +645,8 @@ class PreIBPResult:
     loop_scalar_products: list["Expression"]
     delta: "Expression"
     integrand: "Integrand"
-    partial_fractions: list["PartialFractionTerm"]
+    apart_expression: "Expression"
+    apart_terms: list["ApartTerm"]
     numerator_reductions: list["NumeratorReduction"]
     contributions: list["IntegralContribution"]
 
@@ -942,147 +944,26 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 2. Solve the affine relation
+    == 2. Decompose the propagator kernel with Symbolica
 
-    The input integrand has loop-dependent denominators that are not all
-    independent. To use IBP relations, we first reduce it to an independent
-    family. We solve the linear system for loop-independent coefficients $c_i$
-    such that
+    The four loop denominators are affine but not independent. We now delegate
+    their multivariate partial-fraction decomposition directly to Symbolica:
 
-    $ sum_(i=1)^N c_i D_i = C(p_1,p_2,q^2), $
+    $ A(x) = upright("apart")_(x)
+      [frac(1, product_i D_i)], quad
+      x = (k^2, k dot p_1, k dot p_2). $
 
-    where $C$ is a constant with respect to the loop scalar products.
-    `partial_fraction_coefficients(denominators, loop_scalar_products)` treats
-    the $c_i$ as unknowns, expands this relation in the chosen independent
-    loop scalar products, and sets every resulting polynomial coefficient to
-    zero. It returns the unique loop-independent solution in denominator
-    order. A missing, dependent, or underdetermined relation is rejected rather
-    than choosing arbitrary free parameters.
-    """)
-    return
+    `Expression.apart(*loop_scalar_products)` performs the multivariate
+    Gröbner-basis decomposition. We apply it to the propagator kernel and only
+    then attach the physical numerator, so the following numerator-reduction
+    step remains explicit instead of being folded into lower-topology contact
+    terms.
 
-
-@app.function
-def partial_fraction_coefficients(
-    denominators: "Sequence[Expression]",
-    loop_scalar_products: "Sequence[Expression]",
-) -> "list[Expression]":
-    """Solve ``sum(c_i D_i) = 1`` for a unique affine relation."""
-
-    from symbolica import Expression, N, S
-
-    if len(denominators) < 2:
-        raise ValueError(
-            "Affine partial fractioning needs at least two denominators"
-        )
-    weights = [S(f"__pf_{index}") for index in range(len(denominators))]
-    relation = sum(
-        (
-            weight * denominator
-            for weight, denominator in zip(
-                weights, denominators, strict=True
-            )
-        ),
-        -N(1),
-    ).expand()
-    equations = [
-        coefficient
-        for _, coefficient in relation.coefficient_list(*loop_scalar_products)
-    ]
-    branches = Expression.solve(
-        equations,
-        weights,
-        warn_if_underdetermined=False,
-    )
-    solution = (
-        [branches[0][weight] for weight in weights]
-        if len(branches) == 1
-        else []
-    )
-    if len(solution) != len(weights) or any(
-        bool(coefficient.contains(weight))
-        for coefficient in solution
-        for weight in weights
-    ):
-        raise ValueError("Denominators do not define a unique affine relation")
-    return solution
-
-
-@app.cell
-def _(E, loop_denominators, loop_scalar_products):
-    affine_coefficients = partial_fraction_coefficients(
-        loop_denominators,
-        loop_scalar_products,
-    )
-    affine_terms = [
-        _coefficient * _propagator
-        for _coefficient, _propagator in zip(
-            affine_coefficients,
-            loop_denominators,
-            strict=True,
-        )
-    ]
-    affine_relation = sum(affine_terms, E("0"))
-    return affine_coefficients, affine_relation, affine_terms
-
-
-@app.cell(hide_code=True)
-def _(
-    affine_coefficients,
-    affine_relation,
-    affine_terms,
-    loop_denominators,
-    mo,
-    typst,
-):
-    mo.vstack(
-        [
-            spenso_table(
-                [
-                    {
-                        "factor": f"D{_index + 3}",
-                        "D_i": _propagator,
-                        "c_i": _coefficient,
-                        "c_i D_i": _term,
-                    }
-                    for _index, (_propagator, _coefficient, _term) in enumerate(
-                        zip(
-                            loop_denominators,
-                            affine_coefficients,
-                            affine_terms,
-                            strict=True,
-                        )
-                    )
-                ]
-            ),
-            typst(
-                "Affine sum: {relation}. The exact residual is checked in the "
-                "final validation section.",
-                relation=affine_relation,
-            ),
-        ]
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    == 3. Construct the partial-fraction terms
-
-    `normalize_rational` provides one exact comparison form by expanding,
-    combining rational terms, and cancelling common factors.
-
-    `partial_fraction` applies the affine identity to an `Integrand`. It either
-    solves the relation for the selected denominators or accepts supplied
-    coefficients, verifies that they are loop-momentum independent and satisfy
-    $sum_i c_i D_i = 1$, and emits one child for every removed denominator.
-
-    $ frac(N, product_i D_i)
-      = N sum_i frac(c_i, product_(j != i) D_j). $
-
-    Each child keeps the original denominator positions, so later graph routing
-    does not depend on the order in which terms happen to print.
+    Symbolica returns an expression rather than graph metadata.
+    `apart_integrand` therefore performs one non-algebraic bookkeeping step:
+    for each returned summand, it identifies the unique product of original
+    propagators whose cancellation leaves a loop-independent coefficient. It
+    does not solve an affine system or construct a decomposition itself.
     """)
     return
 
@@ -1095,78 +976,84 @@ def normalize_rational(expression: "Expression") -> "Expression":
 
 
 @app.function
-def partial_fraction(
+def apart_integrand(
     integrand: "Integrand",
     *,
-    removed_indices: "Sequence[int]",
     loop_scalar_products: "Sequence[Expression]",
-    coefficients: "Sequence[Expression] | None" = None,
-) -> "list[PartialFractionTerm]":
-    """Remove denominators using ``sum(c_i D_i) = 1`` directly."""
+) -> "tuple[Expression, list[ApartTerm]]":
+    """Delegate to Symbolica ``apart`` and restore graph provenance."""
 
+    from math import prod
     from symbolica import E
 
-    removed_indices = list(removed_indices)
-    if len(set(removed_indices)) != len(removed_indices):
-        raise ValueError("Removed denominator indices must be unique")
-    if any(
-        index < 0 or index >= len(integrand.denominators)
-        for index in removed_indices
-    ):
-        raise IndexError("Removed denominator index is out of range")
+    denominators = list(integrand.denominators)
+    loop_scalar_products = list(loop_scalar_products)
+    if len(denominators) < 2:
+        raise ValueError("Multivariate apart needs at least two denominators")
+    if not loop_scalar_products:
+        raise ValueError("Multivariate apart needs explicit loop variables")
+    if len(set(loop_scalar_products)) != len(loop_scalar_products):
+        raise ValueError("Loop variables for apart must be unique")
 
-    selected = [
-        integrand.denominators[index] for index in removed_indices
-    ]
-    coefficients = (
-        partial_fraction_coefficients(selected, loop_scalar_products)
-        if coefficients is None
-        else coefficients
-    )
-    if len(coefficients) != len(selected):
-        raise ValueError("Each selected denominator needs one coefficient")
-    if any(
-        bool(coefficient.contains(loop_product))
-        for coefficient in coefficients
-        for loop_product in loop_scalar_products
-    ):
-        raise ValueError(
-            "Partial-fraction coefficients must be independent of loop momenta"
+    kernel = E("1") / prod(denominators)
+    apart_expression = kernel.apart(*loop_scalar_products)
+    if normalize_rational(apart_expression - kernel) != E("0"):
+        raise ValueError("Symbolica apart did not reconstruct the input kernel")
+
+    grouped_coefficients = {}
+    for term_number, term in enumerate(apart_expression.terms(), start=1):
+        matches = []
+        for omitted_index in range(len(denominators)):
+            retained_indices = tuple(
+                index
+                for index in range(len(denominators))
+                if index != omitted_index
+            )
+            retained_denominators = [
+                denominators[index] for index in retained_indices
+            ]
+            coefficient = (
+                term * prod(retained_denominators)
+            ).together().cancel()
+            if not any(
+                coefficient.contains(loop_product)
+                for loop_product in loop_scalar_products
+            ):
+                matches.append((retained_indices, coefficient))
+        if len(matches) != 1:
+            raise ValueError(
+                f"Symbolica apart term {term_number} maps to "
+                f"{len(matches)} graph bases; expected exactly one"
+            )
+        retained_indices, coefficient = matches[0]
+        grouped_coefficients.setdefault(retained_indices, []).append(
+            coefficient
         )
-    relation_residual = normalize_rational(
-        sum(
-            (
-                coefficient * denominator
-                for coefficient, denominator in zip(
-                    coefficients, selected, strict=True
-                )
-            ),
-            E("-1"),
+
+    expected_bases = {
+        tuple(
+            index
+            for index in range(len(denominators))
+            if index != omitted_index
         )
-    )
-    if relation_residual != E("0"):
+        for omitted_index in range(len(denominators))
+    }
+    if set(grouped_coefficients) != expected_bases:
         raise ValueError(
-            "Partial-fraction coefficients do not solve sum(c_i D_i) = 1: "
-            f"{relation_residual}"
+            "Symbolica apart did not produce every one-propagator-omitted basis"
         )
 
     terms = []
-    for removed_index, coefficient in zip(
-        removed_indices,
-        coefficients,
-        strict=True,
-    ):
-        retained_indices = tuple(
-            index
-            for index in range(len(integrand.denominators))
-            if index != removed_index
-        )
+    for retained_indices in sorted(grouped_coefficients):
         retained_denominators = [
-            integrand.denominators[index] for index in retained_indices
+            denominators[index] for index in retained_indices
         ]
+        coefficient = normalize_rational(
+            sum(grouped_coefficients[retained_indices], E("0"))
+        )
         terms.append(
-            PartialFractionTerm(
-                removed_index=removed_index,
+            ApartTerm(
+                coefficient=coefficient,
                 retained_indices=retained_indices,
                 integrand=Integrand(
                     numerator=(integrand.numerator * coefficient).cancel(),
@@ -1174,33 +1061,41 @@ def partial_fraction(
                 ),
             )
         )
-    return terms
+    reconstruction = normalize_rational(
+        sum((term.integrand.as_expression() for term in terms), E("0"))
+        - integrand.as_expression()
+    )
+    if reconstruction != E("0"):
+        raise ValueError(
+            "Graph-labelled apart terms do not reconstruct the integrand"
+        )
+    return apart_expression, terms
 
 
 @app.cell
-def _(affine_coefficients, integrand, loop_scalar_products):
-    partial_fractions = partial_fraction(
+def _(integrand, loop_scalar_products):
+    apart_expression, apart_terms = apart_integrand(
         integrand,
-        removed_indices=range(len(integrand.denominators)),
         loop_scalar_products=loop_scalar_products,
-        coefficients=affine_coefficients,
     )
-    return (partial_fractions,)
+    return apart_expression, apart_terms
 
 
 @app.cell(hide_code=True)
-def _(affine_coefficients, mo, partial_fractions):
+def _(apart_terms, loop_denominators, mo):
     mo.vstack(
         [
-            mo.md("=== Partial-fraction terms"),
+            mo.md("=== Native multivariate-apart terms"),
             spenso_table(
                 [
                     {
                         "term": _term_number,
-                        "removed propagator": _child.removed_index + 3,
-                        "c_i": affine_coefficients[
-                            _child.removed_index
-                        ],
+                        "omitted propagator": next(
+                            _index + 3
+                            for _index in range(len(loop_denominators))
+                            if _index not in _child.retained_indices
+                        ),
+                        "coefficient": _child.coefficient,
                         "retained propagators": tuple(
                             _index + 3 for _index in _child.retained_indices
                         ),
@@ -1208,7 +1103,7 @@ def _(affine_coefficients, mo, partial_fractions):
                         "child term": _child.integrand.as_expression(),
                     }
                     for _term_number, _child in enumerate(
-                        partial_fractions,
+                        apart_terms,
                         start=1,
                     )
                 ]
@@ -1224,11 +1119,11 @@ def _(affine_coefficients, mo, partial_fractions):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 4. Rewrite numerators in each denominator basis
+    == 3. Rewrite numerators in each denominator basis
 
     === `numerator_relations`: invert the denominator coordinates
 
-    After partial fractioning, each child has three retained denominators and
+    After Symbolica's `apart`, each child has three retained denominators and
     its numerator can depend on the three independent loop products
 
     $ x = (k^2, k dot p_1, k dot p_2). $
@@ -1324,7 +1219,7 @@ def _(mo):
     mo.md(r"""
     === `reduce_numerator`: turn numerator factors into index shifts
 
-    A partial-fraction child initially has the form
+    An apart-derived child initially has the form
 
     $ frac(N(k), D_0 D_1 dots D_(r-1)). $
 
@@ -1418,19 +1313,19 @@ def reduce_numerator(
 
 
 @app.cell
-def _(loop_scalar_products, partial_fractions):
+def _(apart_terms, loop_scalar_products):
     numerator_reductions = [
         reduce_numerator(
             _child.integrand,
             loop_scalar_products=loop_scalar_products,
         )
-        for _child in partial_fractions
+        for _child in apart_terms
     ]
     return (numerator_reductions,)
 
 
 @app.cell(hide_code=True)
-def _(mo, numerator_reductions, partial_fractions):
+def _(apart_terms, mo, numerator_reductions):
     mo.vstack(
         [
             mo.md("=== Family-local propagator-label bases"),
@@ -1443,7 +1338,7 @@ def _(mo, numerator_reductions, partial_fractions):
                         "label": f"Prop({_position})",
                         "propagator": _propagator,
                     }
-                    for _child in partial_fractions
+                    for _child in apart_terms
                     for _position, _propagator in enumerate(
                         _child.integrand.denominators
                     )
@@ -1460,7 +1355,7 @@ def _(mo, numerator_reductions, partial_fractions):
                         "replacement": _replacement,
                     }
                     for _child, _reduction in zip(
-                        partial_fractions,
+                        apart_terms,
                         numerator_reductions,
                         strict=True,
                     )
@@ -1478,7 +1373,7 @@ def _(mo, numerator_reductions, partial_fractions):
                         "rewritten polynomial": _reduction.reduced_numerator,
                     }
                     for _child, _reduction in zip(
-                        partial_fractions,
+                        apart_terms,
                         numerator_reductions,
                         strict=True,
                     )
@@ -1495,7 +1390,7 @@ def _(mo, numerator_reductions, partial_fractions):
                         "integral indices": _term.integral_indices,
                     }
                     for _child, _reduction in zip(
-                        partial_fractions,
+                        apart_terms,
                         numerator_reductions,
                         strict=True,
                     )
@@ -1519,14 +1414,14 @@ def prepare_pre_ibp(
     loop_propagator_indices,
     delta,
 ) -> "PreIBPResult":
-    """Run the exact partial-fraction and numerator preparation for IBP."""
+    """Run native Symbolica apart and numerator preparation for IBP."""
 
     loop_denominators = list(loop_denominators)
     loop_scalar_products = list(loop_scalar_products)
     loop_propagator_indices = list(loop_propagator_indices)
     if len(loop_denominators) != len(loop_scalar_products) + 1:
         raise ValueError(
-            "Preparing every affine child needs one more denominator than "
+            "Preparing every apart child needs one more denominator than "
             "independent loop scalar products"
         )
     if len(loop_propagator_indices) != len(loop_denominators):
@@ -1538,9 +1433,8 @@ def prepare_pre_ibp(
         numerator=numerator,
         denominators=loop_denominators,
     )
-    partial_fractions = partial_fraction(
+    apart_expression, apart_terms = apart_integrand(
         integrand,
-        removed_indices=range(len(loop_denominators)),
         loop_scalar_products=loop_scalar_products,
     )
     numerator_reductions = [
@@ -1548,11 +1442,11 @@ def prepare_pre_ibp(
             child.integrand,
             loop_scalar_products=loop_scalar_products,
         )
-        for child in partial_fractions
+        for child in apart_terms
     ]
     contributions = []
     for child, reduction in zip(
-        partial_fractions,
+        apart_terms,
         numerator_reductions,
         strict=True,
     ):
@@ -1575,7 +1469,8 @@ def prepare_pre_ibp(
         loop_scalar_products=loop_scalar_products,
         delta=delta,
         integrand=integrand,
-        partial_fractions=partial_fractions,
+        apart_expression=apart_expression,
+        apart_terms=apart_terms,
         numerator_reductions=numerator_reductions,
         contributions=contributions,
     )
@@ -1601,7 +1496,7 @@ def _(
 
 @app.function
 def partition_cuts(pre_ibp, projected_cutsets):
-    """Partition cuts into affine blocks and analytic boundary masters."""
+    """Partition cuts into apart-derived blocks and boundary masters."""
 
     reducible_cut_names = []
     direct_cut_names = []
@@ -1658,7 +1553,7 @@ def _(pre_ibp, projected_cutsets):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 5. Solve the three reducible cut blocks with Kira
+    == 4. Solve the three reducible cut blocks with Kira
 
     Each project is keyed by its cut and its retained graph propagators in the
     native order $(D_3,D_4,D_5,D_6)$. Cut `00` requires all four loop
@@ -2120,7 +2015,7 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 6. Apply the cut after IBP
+    == 5. Apply the cut after IBP
 
     Each six-line mask is projected onto the automatically discovered loop
     lines. The cut is then applied to the reduced masters in global graph
@@ -2258,7 +2153,7 @@ def identify_masters(expression, identifications):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 7. Evaluate the surviving cut masters
+    == 6. Evaluate the surviving cut masters
 
     The master names are useful for inspecting the IBP output, but the cut
     result requires their analytic values. Cut `11` contains the massive cut
@@ -2487,11 +2382,10 @@ def _(mo):
     the expected historical expressions feed the calculation above.
 
     `validate_pre_ibp` is an invariant checker, not an input to the derivation.
-    It reconstructs the original integrand independently from the
-    partial-fraction children, numerator-reduced terms, and IBP contributions,
-    then substitutes every formal propagator label back into its scalar-product
-    relation. Every residual must vanish exactly before the historical oracles
-    are considered.
+    It reconstructs the propagator kernel from Symbolica's native `apart`
+    result, then reconstructs the physical integrand from the graph-labelled
+    apart terms, numerator-reduced terms, and IBP contributions. Every residual
+    must vanish exactly before the historical oracles are considered.
     """)
     return
 
@@ -2524,21 +2418,27 @@ def validate_pre_ibp(
 ) -> "dict[str, Expression]":
     """Validate every algebraic handoff represented by a pre-IBP result."""
 
+    from math import prod
+
     from symbolica import E, S
 
     checks = {
-        "affine propagator relation": normalize_rational(
+        "denominator relation": normalize_rational(
             result.denominators[0]
             - result.denominators[1]
             - result.denominators[2]
             + result.denominators[3]
             + result.delta
         ),
-        "partial-fraction reconstruction": normalize_rational(
+        "native apart kernel reconstruction": normalize_rational(
+            result.apart_expression
+            - E("1") / prod(result.denominators)
+        ),
+        "graph-labelled apart reconstruction": normalize_rational(
             sum(
                 (
                     child.integrand.as_expression()
-                    for child in result.partial_fractions
+                    for child in result.apart_terms
                 ),
                 E("0"),
             )
@@ -2567,7 +2467,7 @@ def validate_pre_ibp(
         ),
     }
     for child_index, (child, reduction) in enumerate(zip(
-        result.partial_fractions,
+        result.apart_terms,
         result.numerator_reductions,
         strict=True,
     ), start=1):
@@ -2645,23 +2545,7 @@ def _(
         physical_numerator - _expected_trace
     )
 
-    _symbolica_apart = pre_ibp.integrand.as_expression().apart(
-        *pre_ibp.loop_scalar_products
-    )
-    _structured_apart = sum(
-        (
-            _child.integrand.as_expression()
-            for _child in pre_ibp.partial_fractions
-        ),
-        E("0"),
-    )
-    _checks["multivariate apart reconstruction"] = normalize_rational(
-        _symbolica_apart - pre_ibp.integrand.as_expression()
-    )
-    _checks["multivariate apart agrees with structured reduction"] = (
-        normalize_rational(_symbolica_apart - _structured_apart)
-    )
-    assert len(pre_ibp.partial_fractions) == 4
+    assert len(pre_ibp.apart_terms) == 4
     assert {
         _index
         for _contribution in pre_ibp.contributions
@@ -2856,12 +2740,12 @@ def _(display_validation_rows):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == Validation 1 — generic linear-system partial fractioning
+    == Validation 1 — native multivariate apart delegation
 
-    First we exercise the same solve and reconstruction for two through seven
-    propagators, an overcomplete relation supplied explicitly, spectator
-    denominators, and rejected invalid inputs. These checks execute whenever
-    the notebook executes.
+    We exercise Symbolica's decomposition and the graph-provenance adapter for
+    affine families with two through seven propagators. The expected
+    coefficients follow from how each synthetic family is constructed; they
+    are validation data, not inputs to `apart_integrand`.
     """)
     return
 
@@ -2901,39 +2785,23 @@ def _(E, S, prod):
         _expected_coefficients = [
             _weight / _delta for _weight in _weights
         ]
-        _solved_coefficients = partial_fraction_coefficients(
-            _denominators,
-            _loop_products,
-        )
-        assert all(
-            normalize_rational(_actual - _expected) == E("0")
-            for _actual, _expected in zip(
-                _solved_coefficients,
-                _expected_coefficients,
-                strict=True,
-            )
-        )
-
-        _requested_order = list(reversed(range(_count)))
-        _terms = partial_fraction(
+        _apart_expression, _terms = apart_integrand(
             Integrand(_numerator, _denominators),
-            removed_indices=_requested_order,
             loop_scalar_products=_loop_products,
         )
-        assert [_term.removed_index for _term in _terms] == _requested_order
+        assert len(_terms) == _count
+        assert normalize_rational(
+            _apart_expression - E("1") / prod(_denominators)
+        ) == E("0")
         for _term in _terms:
-            _expected_retained = tuple(
+            _omitted_index = next(
                 _index
                 for _index in range(_count)
-                if _index != _term.removed_index
+                if _index not in _term.retained_indices
             )
-            assert _term.retained_indices == _expected_retained
-            assert _term.integrand.denominators == [
-                _denominators[_index] for _index in _expected_retained
-            ]
             assert normalize_rational(
-                _term.integrand.numerator
-                - _numerator * _expected_coefficients[_term.removed_index]
+                _term.coefficient
+                - _expected_coefficients[_omitted_index]
             ) == E("0")
         _residual = normalize_rational(
             sum(
@@ -2944,111 +2812,51 @@ def _(E, S, prod):
         )
         assert _residual == E("0")
         _validation_rows.append(
-            {"case": f"linear relation with N={_count}", "residual": _residual}
+            {"case": f"native apart with N={_count}", "residual": _residual}
         )
 
-    _x, _a, _b = S("validation_x", "validation_a", "validation_b")
-    _overcomplete_denominators = [_x, _x + _a, _x + _b]
-    _overcomplete_coefficients = [
-        -2 / (_a + _b),
-        1 / (_a + _b),
-        1 / (_a + _b),
-    ]
-    _overcomplete_terms = partial_fraction(
-        Integrand(E("1"), _overcomplete_denominators),
-        removed_indices=range(3),
-        loop_scalar_products=[_x],
-        coefficients=_overcomplete_coefficients,
-    )
-    _overcomplete_residual = normalize_rational(
-        sum(
-            (_term.integrand.as_expression() for _term in _overcomplete_terms),
-            E("0"),
+    _x = S("validation_x")
+    try:
+        apart_integrand(
+            Integrand(E("1"), [_x, 1 - _x]),
+            loop_scalar_products=[],
         )
-        - 1 / prod(_overcomplete_denominators)
-    )
-    assert _overcomplete_residual == E("0")
+    except ValueError as _error:
+        assert "explicit loop variables" in str(_error)
+    else:
+        raise AssertionError("An empty apart variable basis was accepted")
     _validation_rows.append(
-        {"case": "explicit overcomplete relation", "residual": _overcomplete_residual}
-    )
-
-    _spectator0, _spectator1, _spectator2 = S(
-        "validation_s0", "validation_s1", "validation_s2"
-    )
-    _spectator_delta = S("validation_sdelta")
-    _spectator_denominators = [
-        _spectator0,
-        _x,
-        _spectator1,
-        _spectator_delta - 3 * _x,
-        _spectator2,
-    ]
-    _spectator_terms = partial_fraction(
-        Integrand(E("1"), _spectator_denominators),
-        removed_indices=[3, 1],
-        loop_scalar_products=[_x],
-    )
-    assert tuple(_term.removed_index for _term in _spectator_terms) == (3, 1)
-    assert tuple(_term.retained_indices for _term in _spectator_terms) == (
-        (0, 1, 2, 4),
-        (0, 2, 3, 4),
-    )
-    _spectator_residual = normalize_rational(
-        sum(
-            (_term.integrand.as_expression() for _term in _spectator_terms),
-            E("0"),
-        )
-        - 1 / prod(_spectator_denominators)
-    )
-    assert _spectator_residual == E("0")
-    _validation_rows.append(
-        {"case": "spectators and global indices", "residual": _spectator_residual}
+        {"case": "empty apart variables rejected", "residual": E("0")}
     )
 
     try:
-        partial_fraction(
-            Integrand(E("1"), [_x, _spectator_delta - _x]),
-            removed_indices=[0, 0],
-            loop_scalar_products=[_x],
+        apart_integrand(
+            Integrand(E("1"), [_x, 1 - _x]),
+            loop_scalar_products=[_x, _x],
         )
     except ValueError as _error:
         assert "must be unique" in str(_error)
     else:
-        raise AssertionError("Duplicate denominator indices were accepted")
+        raise AssertionError("Duplicate apart variables were accepted")
     _validation_rows.append(
-        {"case": "duplicate indices rejected", "residual": E("0")}
+        {"case": "duplicate apart variables rejected", "residual": E("0")}
     )
 
-    try:
-        partial_fraction(
-            Integrand(E("1"), [_x, _spectator_delta - _x]),
-            removed_indices=[0, 1],
-            loop_scalar_products=[_x],
-            coefficients=[E("1"), E("2")],
-        )
-    except ValueError as _error:
-        assert "do not solve" in str(_error)
-    else:
-        raise AssertionError("Invalid affine coefficients were accepted")
-    _validation_rows.append(
-        {"case": "invalid coefficients rejected", "residual": E("0")}
-    )
-
-    linear_system_validation_rows = _validation_rows
-    return (linear_system_validation_rows,)
+    apart_validation_rows = _validation_rows
+    return (apart_validation_rows,)
 
 
 @app.cell(hide_code=True)
-def _(E, linear_system_validation_rows):
-    assert len(linear_system_validation_rows) == 10
-    assert all(_row["residual"] == E("0") for _row in linear_system_validation_rows)
+def _(E, apart_validation_rows):
+    assert len(apart_validation_rows) == 8
+    assert all(_row["residual"] == E("0") for _row in apart_validation_rows)
     spenso_table(
         [
             {
                 "validation": _row["case"],
                 "residual": _row["residual"],
             }
-            for _row in linear_system_validation_rows
+            for _row in apart_validation_rows
         ]
     )
     return
@@ -3080,9 +2888,8 @@ def _(
 ):
     _reference_delta = q**2 - 2 * dot(p1, p2)
     _reference_integrand = Integrand(E("1"), loop_denominators)
-    _reference_children = partial_fraction(
+    _reference_apart_expression, _reference_children = apart_integrand(
         _reference_integrand,
-        removed_indices=range(len(loop_denominators)),
         loop_scalar_products=loop_scalar_products,
     )
     _reference_reductions = [
@@ -3116,12 +2923,13 @@ def _(
         loop_scalar_products=loop_scalar_products,
         delta=_reference_delta,
         integrand=_reference_integrand,
-        partial_fractions=_reference_children,
+        apart_expression=_reference_apart_expression,
+        apart_terms=_reference_children,
         numerator_reductions=_reference_reductions,
         contributions=_reference_contributions,
     )
 
-    MATHEMATICA_PARTIAL_FRACTION_SLOTS = (
+    MATHEMATICA_APART_SLOTS = (
         (1, (2, 3, 4), -1 / _reference_delta),
         (2, (2, 3, 5), 1 / _reference_delta),
         (3, (2, 4, 5), 1 / _reference_delta),
@@ -3133,7 +2941,7 @@ def _(
     }
     assert set(_terms_by_sources) == {
         _sources for _slot, _sources, _coefficient in (
-            MATHEMATICA_PARTIAL_FRACTION_SLOTS
+            MATHEMATICA_APART_SLOTS
         )
     }
     assert all(
@@ -3146,18 +2954,18 @@ def _(
             delta - _reference_delta
         ),
         **{
-            f"Mathematica PF slot {_slot} coefficient": normalize_rational(
+            f"Mathematica apart slot {_slot} coefficient": normalize_rational(
                 _terms_by_sources[_sources].coefficient - _expected
             )
             for _slot, _sources, _expected in (
-                MATHEMATICA_PARTIAL_FRACTION_SLOTS
+                MATHEMATICA_APART_SLOTS
             )
         },
     }
     assert all(_residual == E("0") for _residual in reference_validation.values())
     scalar_reference_comparison = [
         {
-            "Mathematica PF slot": _slot,
+            "Mathematica apart slot": _slot,
             "expected sources": tuple(_index + 1 for _index in _sources),
             "actual sources": tuple(
                 _index + 1
@@ -3170,7 +2978,7 @@ def _(
             ),
         }
         for _slot, _sources, _expected in (
-            MATHEMATICA_PARTIAL_FRACTION_SLOTS
+            MATHEMATICA_APART_SLOTS
         )
     ]
     return (
@@ -3192,8 +3000,8 @@ def _(mo, reference_validation, scalar_reference_comparison):
                 ]
             ),
             mo.callout(
-                "Historical scalar validation passed: all four partial-fraction "
-                "slots, the independent delta convention, sign pattern, "
+                "Historical scalar validation passed: all four Symbolica "
+                "apart slots, the independent delta convention, sign pattern, "
                 "and exact reconstructions agree with the retained Mathematica "
                 "result.",
                 kind="success",

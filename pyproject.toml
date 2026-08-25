@@ -20,7 +20,7 @@ python-downloads = "never"
 python-preference = "only-system"
 
 [tool.uv.sources]
-gammaloop = { path = "../gammaloop/main", editable = true, package = true }
+gammaloop = { path = "../gammaloop/ludy", editable = true, package = true }
 kirapy = { path = "packages/kirapy", editable = true }
 symbolica = { path = "../symbolica-community", editable = true, package = true }
 

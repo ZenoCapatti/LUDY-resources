@@ -58,7 +58,7 @@ def _(mo):
     This companion notebook applies the reusable helpers defined and tested in
     #link("ludy.py")[`ludy.py`] to the first physical diagram: the crossed box. It
     derives the metric-contracted Dirac trace, prepares the numerator for IBP,
-    reduces the three affine cut blocks, attaches the analytic maximal-cut
+    reduces the three apart-derived cut blocks, attaches the analytic maximal-cut
     master, performs the leading virtuality integrations, and records the
     endpoint result in the standard delta/plus basis.
 
@@ -302,16 +302,17 @@ def _(Expression, S, s, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 3. Prepare every affine child and retain the maximal cut
+    == 3. Apply Symbolica's multivariate apart and retain the maximal cut
 
-    `prepare_pre_ibp` applies the same exact partial-fraction and numerator
-    reduction chain walked through in `ludy.py`.  The physical trace is
+    `prepare_pre_ibp` delegates the denominator decomposition to Symbolica's
+    multivariate `apart`, then applies the same exact numerator-reduction chain
+    walked through in `ludy.py`.  The physical trace is
     quadratic in loop scalar products, so every resulting three-line target
     remains inside the existing $lr({1, 0, -1})^3$ cube.
 
     Cuts `11`, `10`, and `01` omit at least one loop propagator and can use
-    those affine children.  Cut `00` requires all four loop lines at once and
-    branches directly from the unpartial-fractioned graph.  It is not an IBP
+    those apart-derived children.  Cut `00` requires all four loop lines at once
+    and branches directly from the undecomposed graph.  It is not an IBP
     family and is never silently dropped.
     """)
     return
@@ -392,8 +393,8 @@ def _(
             spenso_table(
                 [
                     {
-                        "partial-fraction children": len(
-                            physical_pre_ibp.partial_fractions
+                        "Symbolica apart terms": len(
+                            physical_pre_ibp.apart_terms
                         ),
                         "numerator reductions": len(
                             physical_pre_ibp.numerator_reductions
@@ -411,7 +412,7 @@ def _(
                     {
                         "cut": _name,
                         "route": (
-                            "three-line affine children"
+                            "three-line apart-derived children"
                             if _name in reducible_cut_names
                             else "analytic maximal-cut master"
                         ),
@@ -505,7 +506,7 @@ def _(
 def _(ibp_inputs_by_cut, mo, spenso_table):
     mo.vstack(
         [
-            mo.md("=== Physical numerator after affine preparation"),
+            mo.md("=== Physical numerator after apart and numerator reduction"),
             spenso_table(
                 [
                     {"cut": _cut_name, "exact IBP input": _expression}

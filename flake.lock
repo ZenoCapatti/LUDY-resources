@@ -12,18 +12,16 @@
       "original": {
         "owner": "ipetkov",
         "repo": "crane",
+        "rev": "dc7496d8ea6e526b1254b55d09b966e94673750f",
         "type": "github"
       }
     },
     "fenix": {
       "inputs": {
         "nixpkgs": [
-          "gammaloop",
           "nixpkgs"
         ],
-        "rust-analyzer-src": [
-          "gammaloop"
-        ]
+        "rust-analyzer-src": []
       },
       "locked": {
         "lastModified": 1776673701,
@@ -36,6 +34,7 @@
       "original": {
         "owner": "nix-community",
         "repo": "fenix",
+        "rev": "d0ff0a903e7db7f8e71d5f7862446b7c92f12df7",
         "type": "github"
       }
     },
@@ -59,23 +58,29 @@
     },
     "gammaloop": {
       "inputs": {
-        "crane": "crane",
-        "fenix": "fenix",
+        "crane": [
+          "crane"
+        ],
+        "fenix": [
+          "fenix"
+        ],
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": [
+          "nixpkgs"
+        ]
       },
       "locked": {
-        "lastModified": 1783862407,
-        "narHash": "sha256-WPFFBaRWZsGauUaBm8UoasjKECevd+BgjqTPL8+5CoQ=",
+        "lastModified": 1787754739,
+        "narHash": "sha256-+dAdg/jDNGcerMlXhizm2zcfrBryBYPWFsbiZxpQGMA=",
         "owner": "alphal00p",
         "repo": "gammaloop",
-        "rev": "728f9a3b4053259fbd0dbd4177801dadcebf6d8c",
+        "rev": "4f44c86382977bade32a230801034b5c37faddbd",
         "type": "github"
       },
       "original": {
         "owner": "alphal00p",
         "repo": "gammaloop",
-        "rev": "728f9a3b4053259fbd0dbd4177801dadcebf6d8c",
+        "rev": "4f44c86382977bade32a230801034b5c37faddbd",
         "type": "github"
       }
     },
@@ -90,18 +95,17 @@
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixpkgs-unstable",
         "repo": "nixpkgs",
+        "rev": "b86751bc4085f48661017fa226dee99fab6c651b",
         "type": "github"
       }
     },
     "root": {
       "inputs": {
+        "crane": "crane",
+        "fenix": "fenix",
         "gammaloop": "gammaloop",
-        "nixpkgs": [
-          "gammaloop",
-          "nixpkgs"
-        ]
+        "nixpkgs": "nixpkgs"
       }
     },
     "systems": {
