@@ -8,6 +8,9 @@ interactive experiments live under `notebooks/`.
 packages/
   kirapy/                     reusable Python wrapper and pinned Kira runtime
 calculations/
+  dis/
+    ancillary/                 official arXiv fixture provenance and schema
+    python/                    DIS source model, masters, and validation notebook
   dy/
     mathematica/              original DY calculation and FIRE reference data
     python/                   Kira and analytic-master notebooks
@@ -26,6 +29,13 @@ application recreates the reduction through the reusable `kirapy` package.
 See [`calculations/dy/README.md`](calculations/dy/README.md) for the mapping
 between them.
 
+[`calculations/dis`](calculations/dis) is a focused NLO DIS paper-validation
+workspace. It transcribes the six printed graph integrands, derives projected
+numerators with Spenso, records the analytic one-loop master basis, and builds
+cut-specialized Kira smoke projects. Its validation ledger keeps the missing
+cut weights, graph-level IBP coefficients, and integrated channel results
+explicit, so this scaffold does not claim a completed physical coefficient.
+
 ## Run the notebooks
 
 All Marimo notebooks use the repository-root uv lock and Nix shell. The root
@@ -41,6 +51,7 @@ $ uv run --locked marimo edit notebooks/dy_topologies.py
 $ uv run --locked marimo edit notebooks/collinear-cone.py
 $ uv run --locked marimo edit calculations/dy/python/notebook.py
 $ uv run --locked marimo edit calculations/dy/python/masters.py
+$ uv run --locked marimo edit calculations/dis/python/notebook.py
 ```
 
 `notebook.py` defines and displays the selectable topology but does not launch
@@ -49,6 +60,15 @@ closed-form `B`, `Bcut`, `Tcut`, `Bcutm`, `Tcutm`, and maximal-cut `M00` basis
 in radial and light-cone coordinates, with exact normalization, virtuality, and
 soft-endpoint checks, without launching Kira or reading a reduction work
 directory.
+
+The DIS notebook executes the source-transcription and native-algebra layers:
+six graph traces and their projectors, a four-child Symbolica crossed-box
+partial fraction, 18 exact numerator-reconstruction checks, 15 structurally
+compatible all-cut sectors, and 16 serializable cut-specialized Kira smoke
+projects. It also displays the paper and reusable `B`, `Bcut`, and `Tcut`
+masters and an explicit validation ledger. Kira runs only when its button is
+pressed, and those smoke reductions are not assembled into a physical DIS
+result.
 
 The bundled native runtime currently supports x86-64 Linux and Apple Silicon
 macOS. Other systems can use the same notebooks with a separately installed
@@ -105,7 +125,8 @@ The shared root environment intentionally uses editable sibling checkouts at
 [`notebooks/ludy.py`](notebooks/ludy.py),
 [`notebooks/dy_topologies.py`](notebooks/dy_topologies.py),
 [`notebooks/collinear-cone.py`](notebooks/collinear-cone.py), and both notebooks
-under [`calculations/dy/python`](calculations/dy/python).
+under [`calculations/dy/python`](calculations/dy/python), together with
+[`calculations/dis/python/notebook.py`](calculations/dis/python/notebook.py).
 
 `ludy.py` is both the source of the DY/Kira helper implementations and a
 cell-by-cell cross-box walkthrough. Each helper is defined immediately before
@@ -124,19 +145,33 @@ remains behind an explicit run button, and the notebook labels the result as
 one diagram contribution rather than the complete renormalized and factorized
 DY observable.
 
+The DIS implementation is split by evidence layer. `ancillary.py` pins and
+audits the two official arXiv source fixtures without fetching them on import;
+`masters.py` implements the paper-phase and reusable one-loop scalar masters;
+and `physical.py` owns the finite-virtuality kinematics, six source traces,
+projectors, numerator reductions, typed paper targets, Kira serialization, and
+validation ledger. The notebook presents those layers and retains the missing
+oriented cut weights, full reductions, virtuality integration, pole
+cancellation, and channel sums as blockers.
+
 Validate and export the complete notebook set from the repository root:
 
 ```console
+$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.ancillary import self_check; self_check()'
+$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.masters import normalization_self_checks; normalization_self_checks()'
+$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.physical import self_check; self_check()'
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/ludy.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/dy_topologies.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/collinear-cone.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dy/python/notebook.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dy/python/masters.py
+$ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dis/python/notebook.py
 $ direnv exec . nix develop --command uv run --locked marimo export html notebooks/ludy.py -o /tmp/ludy-validation.html --force
 $ direnv exec . nix develop --command uv run --locked marimo export html notebooks/dy_topologies.py -o /tmp/ludy-dy-topologies-validation.html --force
 $ direnv exec . nix develop --command uv run --locked marimo export html notebooks/collinear-cone.py -o /tmp/ludy-collinear-cone-validation.html --force
 $ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/notebook.py -o /tmp/ludy-dy-notebook-validation.html --force
 $ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/masters.py -o /tmp/ludy-dy-masters-validation.html --force
+$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dis/python/notebook.py -o /tmp/ludy-dis-validation.html --force
 ```
 
 GammaLoop and Symbolica Community contain separately linked Symbolica engines.
