@@ -13,6 +13,8 @@ dis/
     README.md                  official arXiv URLs, hashes, counts, and schema
   python/
     ancillary.py              pinned metadata, exact-byte audit, explicit fetch
+    assembly.py               finite-virtuality Kira jobs and master boundary
+    mathematica_reference.py provenance-labelled scheme-regression inputs
     masters.py                paper-phase and reusable B/Bcut/Tcut formulas
     physical.py               side-effect-free source model and validation ledger
     notebook.py               focused executable Marimo presentation
@@ -48,12 +50,13 @@ from the active manuscript. In particular, it includes classes 3 and 4 of the
 multi-partonic construction, whereas the paper's LU scheme keeps the minimal
 class-1/class-2 completion of the parton-model diagrams.
 
-No DIS Kira/FIRE reduction tables, per-diagram IBP coefficients, or complete
-executable Mathematica DIS notebook are retained in this clean checkout or in
-the cited ancillary material. The similarly named `../LUDY/DIS_DY_analytic`
-snapshot in the sibling research checkout and its FIRE tables are a Drell--Yan
-calculation. Its hard-coded `MPDISgluonic` expression is used for a DY scheme
-comparison and is not a DIS reduction oracle.
+No complete executable Mathematica DIS derivation is retained in this clean
+checkout or in the cited ancillary material. The DIS expressions preserved in
+the similarly named `../LUDY/DIS_DY_analytic/DY_calculation.nb` belong to a
+Drell--Yan scheme-change calculation. `mathematica_reference.py` keeps those
+expressions as typed, provenance-labelled **scheme regressions only**: they are
+not graph-by-graph DIS reductions, cut weights, master coefficients, or an
+oracle for the native physical assembly.
 
 ## Source-label caveat
 
@@ -134,10 +137,28 @@ The current implementation executes or records the following bounded checks:
   contractions;
 - four Symbolica multivariate-apart children for the gluon crossed box and 18
   exact zero-residual numerator reconstructions;
-- 15 structurally compatible initial/final all-cut sectors, including raised
-  cut orders, checked as exact graph/channel/mask/derivative signatures rather
-  than by count alone;
-- 16 deterministic cut-specialized Kira smoke-project serializations;
+- an internal ledger of 15 candidate initial/final all-cut sectors, including
+  raised cut orders, checked as exact graph/channel/mask/derivative signatures
+  rather than by count alone. The historical definition fixes a **plus sign
+  between the four formal all-cut classes**; every candidate row inherits that
+  sign rather than independently proving it. The ledger does not establish all
+  physical orientations or active multiplicities;
+- 16 cut-specialized Kira projects and 32 exact graph/observable reductions
+  (one `F_2` and one `F_L` reduction for each project), covering all 48 unique
+  cut-preserving numerator targets with zero master-reconstruction residuals;
+- canonical kirapy scalar serialization whose hashes are independent of
+  Symbolica symbol-registration order. Fingerprint-mismatched caches are
+  rejected rather than loaded without their in-memory project;
+- 28 of those 32 master coefficients use the cut-specialized reductions. Four
+  within that set, the `F_2`/`F_L` coefficients of the `q_box` and `g_box`
+  `D2^2` sectors, remain raised-cut convention boundaries. The other four
+  records have raised external cuts: `q_bubble` contains `D6^2` and `q_lsz`
+  contains `D5^2`. Two additional Kira jobs keep `x` and `p^2` generic and
+  produce four exact, nonzero bubble coefficients before either support
+  condition is imposed;
+- exact analytic `B`, `Bcut`, or `Tcut` insertion for all 32 coefficient
+  records. External `D5`/`D6` states, raised-cut orders, and unresolved graph
+  weights remain typed metadata rather than being folded into the loop master;
 - all-epsilon paper-phase and reusable `B`, `Bcut`, and fully three-mass `Tcut`
   formulas with `d = 4 - 2 epsilon`, exact phase and four-dimensional
   normalization checks, and separately labelled raw-Cutkosky and
@@ -145,15 +166,31 @@ The current implementation executes or records the following bounded checks:
 - the four typed paper comparison targets and a stage-by-stage validation
   ledger.
 
-The 15-sector ledger is structural: the sources inspected so far do not supply
-its oriented signs or multiplicities. Likewise, the 16 Kira projects exercise
-cut-specialized serialization and optional scalar-master smoke reductions;
-they are not complete graph-level physical reductions. A physical result
-remains blocked on the active-to-historical `F_2` projector map, oriented cut
-and graph weights, raw graph color sums, complete Kira/IBP coefficients, master
-insertion, the leading `p^2` integration, all-cut pole cancellation, quark and
-gluon channel sums, and the dimension-dependent kernels and boundary
-conventions required for the LU-to-`MSbar` conversion.
+All 32 declared graph/observable handoffs have exact cached coefficients and
+analytic masters inserted. The remaining blockers are physical conventions and
+downstream assembly steps:
+
+- the active-to-historical `F_2` projector normalization;
+- oriented Cut-operator multiplicities, the active six-graph sign/weight map,
+  and raw per-graph colour sums;
+- the raised-cut convention map: the historical positive
+  `2 pi i delta^(n)/n!` definition must be reconciled with the alternating
+  `(-1)^(a-1)` sign implied by Kira's algebraic `1/D^a` reverse-unitarity map.
+  Until then, the `D2^2`, `D5^2`, and `D6^2` records are exact IBP/master
+  boundaries, not physical cut coefficients;
+- the external LSZ/LU-apex normalization noted but unresolved in the active
+  manuscript;
+- the regulated cancellation and one-sided endpoint action for the `delta'`
+  terms on the raised `D5`/`D6` cuts;
+- oriented cut-master support/branch choices, followed by the leading `p^2`
+  integration, all-cut epsilon-pole cancellation, and the quark/gluon channel
+  sums; and
+- the dimension-dependent splitting kernels and confirmed boundary
+  conventions needed for the LU-to-`MSbar` conversion.
+
+The Mathematica expressions can serve as scheme regressions only after native
+assembly and an explicit scheme/convention map. They supply none of the missing
+physical inputs above.
 
 ## Root environment
 
@@ -173,12 +210,15 @@ $ direnv exec . nix develop --command uv lock --check
 $ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.ancillary import self_check; self_check()'
 $ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.masters import normalization_self_checks; normalization_self_checks()'
 $ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.physical import self_check; self_check()'
+$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.assembly import self_check; self_check()'
+$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.mathematica_reference import self_check; self_check()'
 ```
 
 The physical self-check derives all projected numerators, verifies the apart
 and reconstruction residuals, and serializes the 16 cut-specialized projects
-in memory. It deliberately asserts that the ledger does not claim a validated
-physical result.
+in memory. Cached Kira results are audited separately to obtain the 32 exact
+master coefficients described above. The ledger does not claim a validated
+physical result while the convention and assembly blockers remain.
 
 Launch the focused notebook from an interactive root shell:
 
@@ -194,10 +234,12 @@ $ direnv exec . nix develop --command uv run --locked marimo check --strict calc
 $ direnv exec . nix develop --command uv run --locked marimo export html calculations/dis/python/notebook.py -o /tmp/ludy-dis-validation.html --force
 ```
 
-Opening, checking, or exporting the notebook never starts Kira. Its explicit
-run button creates or resumes all 16 scalar-master smoke reductions under
-`runs/dis-paper-kirapy`; those results are reported separately and do not clear
-the physical-validation blockers above.
+Opening, checking, or exporting the notebook never starts Kira. It loads the
+verified caches under `runs/dis-paper-kirapy` and
+`runs/dis-paper-raised-external-kirapy` when present. Its explicit run buttons
+create or resume the 16 cut-specialized and two finite-virtuality reductions;
+those exact IBP and master-insertion results do not clear the physical
+convention blockers above.
 
 Do not run the general GammaLoop module and the separately linked Symbolica
 Community engine in one process unless the configured Symbolica license permits

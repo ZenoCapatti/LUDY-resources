@@ -299,6 +299,54 @@ print(_alias_digest("invariant", E("x^2+y")))
     assert first == second == _alias_digest("invariant", E("x^2+y"))
 
 
+@pytest.mark.skipif(
+    not os.environ.get("SYMBOLICA_LICENSE"),
+    reason="subprocess Symbolica tests require a multi-core license",
+)
+def test_scalar_text_is_stable_across_symbol_registration_orders() -> None:
+    script = """
+from symbolica import S
+from kirapy.serialization import _scalar
+for name in {names!r}:
+    S(name)
+x, y, z = S("scalar_order_x", "scalar_order_y", "scalar_order_z")
+print(_scalar((z / x - x * y) / 2, context="test scalar"))
+"""
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = "src"
+    outputs = {
+        subprocess.run(
+            [sys.executable, "-c", script.format(names=names)],
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        for names in (
+            ["scalar_order_x", "scalar_order_y", "scalar_order_z"],
+            ["scalar_order_z", "scalar_order_y", "scalar_order_x"],
+        )
+    }
+
+    assert outputs == {
+        "1/2*(-scalar_order_x*scalar_order_y+scalar_order_z/scalar_order_x)"
+    }
+
+
+def test_scalar_text_parenthesizes_a_nonatomic_exponent() -> None:
+    base = S("scalar_power_base")
+    dimension = S("scalar_power_dimension")
+
+    assert serialization._scalar(
+        base ** (dimension - 2),
+        context="test scalar power",
+    ) == "scalar_power_base^(-2+scalar_power_dimension)"
+    assert serialization._scalar(
+        base ** (dimension / 2),
+        context="test scalar power",
+    ) == "scalar_power_base^(1/2*scalar_power_dimension)"
+
+
 def test_native_expressions_cannot_use_the_wire_prefix(
     topo1_project: KiraProject,
 ) -> None:

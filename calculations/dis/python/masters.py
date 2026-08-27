@@ -43,6 +43,7 @@ __all__ = (
     "paper_uncut_bubble",
     "three_mass_cut_triangle",
     "uncut_bubble",
+    "virtuality_integral_factor",
 )
 
 
@@ -318,6 +319,25 @@ cut_triangle = massless_cut_triangle
 three_mass_cut_triangle = massless_cut_triangle
 
 
+def virtuality_integral_factor(
+    cutoff_squared: Expression,
+    epsilon: Expression,
+) -> Expression:
+    r"""Integrate the universal leading-power virtuality singularity.
+
+    For the physical region and the dimensional regulator used here,
+
+    ``integral_0^Lambda^2 dp^2 (p^2)^(-1-epsilon)``
+    ``= -(Lambda^2)^(-epsilon)/epsilon``.
+
+    The argument is already the squared cutoff ``Lambda^2``.  The external
+    measure ``1/(2*pi)`` and DIS factor ``1/(4*pi)`` are deliberately not
+    included.
+    """
+
+    return -(cutoff_squared) ** (-epsilon) / epsilon
+
+
 def normalization_ledger(
     *,
     dimension: Expression,
@@ -476,6 +496,10 @@ def normalization_self_checks() -> Mapping[str, Expression]:
                 euler_gamma=zero,
             )
             - 1 / (4 * lambda_xyz ** E("1/2"))
+        ),
+        "leading virtuality integral": _canonical_zero(
+            epsilon * virtuality_integral_factor(mu_squared, epsilon)
+            + mu_squared ** (-epsilon)
         ),
     }
 

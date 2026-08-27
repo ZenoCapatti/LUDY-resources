@@ -19,6 +19,12 @@ with app.setup(hide_code=True):
             sys.path.insert(0, _path)
 
     from calculations.dis.python.ancillary import ANCILLARY_SPECS
+    from calculations.dis.python.assembly import (
+        audit_raised_external_reductions,
+        build_master_insertion_audit,
+        build_raised_external_kira_projects,
+        build_raised_external_master_boundaries,
+    )
     from calculations.dis.python.masters import (
         MASTER_SUPPORT,
         NORMALIZATION_SELF_CHECKS,
@@ -30,13 +36,21 @@ with app.setup(hide_code=True):
         paper_uncut_bubble,
         uncut_bubble,
     )
+    from calculations.dis.python.mathematica_reference import (
+        MATHEMATICA_REFERENCE,
+        MATHEMATICA_REFERENCE_SELF_CHECKS,
+        mathematica_dy_fermion_conversion,
+        mathematica_dy_gluon_conversion,
+    )
     from calculations.dis.python.physical import (
         DIS_GRAPH_SPECS,
         DIS_KINEMATICS,
         KNOWN_DIS_CUTS,
         NORMALIZATION_LEDGER,
         PAPER_TARGETS,
+        audit_kira_master_coefficients,
         audit_projected_numerator_reductions,
+        build_kira_numerator_handoffs,
         build_kira_smoke_projects,
         build_validation_ledger,
         crossed_box_apart,
@@ -46,7 +60,7 @@ with app.setup(hide_code=True):
         p_squared,
     )
     from calculations.dy.python.masters import typst_md
-    from kirapy import Kira
+    from kirapy import Kira, KiraWorkdirError
     from ludy import spenso_table
 
     _marimo.md = typst_md
@@ -71,10 +85,11 @@ def _(mo):
       residual.
 
     The first two layers are executable below. The third is deliberately not
-    called complete while graph signs, multiplicities, and the active-to-historical
-    $F_2$ projector normalization remain unresolved. Opening or exporting this
-    notebook never launches Kira; the only subprocess is behind the explicit run
-    button.
+    called complete while oriented multiplicities, graph weights, the raised-cut
+    reverse-unitarity sign map, derivative-cut endpoint rules, and the
+    active-to-historical $F_2$ projector normalization remain unresolved.
+    Opening or exporting this notebook never launches Kira; subprocesses are
+    only behind the explicit run buttons.
     """)
     return
 
@@ -88,11 +103,21 @@ def _():
     )
 
     smoke_projects = build_kira_smoke_projects()
+    numerator_handoffs = build_kira_numerator_handoffs(
+        projects=smoke_projects,
+        numerator_audits=numerator_audits,
+    )
+    raised_external_projects = build_raised_external_kira_projects(
+        source_projects=smoke_projects,
+        numerator_handoffs=numerator_handoffs,
+    )
     return (
         apart_expression,
         apart_terms,
         numerator_audits,
+        numerator_handoffs,
         projected_numerators,
+        raised_external_projects,
         smoke_projects,
     )
 
@@ -334,20 +359,100 @@ def _(numerator_audits, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 5. The full structural all-cut contribution
+    === Physical numerator handoff to the cut families
 
-    The iterated discontinuity has four logical pieces: both external channel
-    poles, an internal initial cut with the external final pole, the external
-    initial pole with an internal final cut, and a pair of internal cuts sharing
-    one edge. Expanding those possibilities in the common $D$ basis gives six
-    channel patterns. Intersecting them with each graph's nonzero propagator
-    support leaves the 15 rows below.
+    The 18 exact numerator reconstructions are now intersected with the protected
+    cut lines of every Kira project. Terms that cancel a cut propagator are kept
+    in the audit but are zero by reverse unitarity and are not submitted as Kira
+    targets. This produces 32 graph/observable handoffs and 48 distinct
+    cut-preserving targets.
+
+    Twenty-eight handoffs can use the support-specialized cached reductions.
+    Four of those, the two observables in each $D_2^2$ box sector, still require
+    a sign map between the historical raised-cut normalization and Kira's
+    algebraic reverse-unitarity convention. Four further records, the two
+    observables of the quark bubble and LSZ graph, contain a raised external cut.
+    Their regulated derivative distribution must act before the corresponding
+    invariant is specialized, so none of these raised-cut boundaries is
+    promoted to a physical coefficient.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, numerator_handoffs, spenso_table):
+    unique_handoff_targets = {
+        (handoff.project_key, target)
+        for handoff in numerator_handoffs
+        for target in handoff.required_targets
+    }
+    ordinary_handoffs = sum(
+        not handoff.requires_external_derivative
+        for handoff in numerator_handoffs
+    )
+    derivative_handoffs = sum(
+        handoff.requires_external_derivative
+        for handoff in numerator_handoffs
+    )
+    mo.vstack(
+        [
+            spenso_table(
+                [
+                    {
+                        "handoff records": len(numerator_handoffs),
+                        "unique Kira targets": len(unique_handoff_targets),
+                        "cut-specialized records": ordinary_handoffs,
+                        "external-derivative records": derivative_handoffs,
+                    }
+                ],
+                pagination=False,
+            ),
+            spenso_table(
+                [
+                    {
+                        "project": handoff.project_key,
+                        "graph": handoff.graph_name,
+                        "observable": handoff.observable,
+                        "retained lines": handoff.retained_loop_lines,
+                        "required targets": len(handoff.required_targets),
+                        "cut-cancelled indices": handoff.cut_cancelled_indices,
+                        "external derivative": (
+                            "required"
+                            if handoff.requires_external_derivative
+                            else "not required"
+                        ),
+                    }
+                    for handoff in numerator_handoffs
+                ],
+                pagination=False,
+            ),
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    == 5. Candidate structural ledger for the full all-cut contribution
+
+    The historical definition fixes a *plus sign* between all four formal
+    pieces: both external channel poles, an internal initial cut with the
+    external final pole, the external initial pole with an internal final cut,
+    and a pair of internal cuts sharing one edge. Expanding those possibilities
+    in the common $D$ basis gives six channel patterns. Intersecting them with
+    each graph's nonzero propagator support leaves the 15 candidate rows below.
 
     `order 0` denotes an ordinary cut delta. `order 1` exposes the derivative
     generated by a raised propagator: $D_2^2$ in the two boxes, $D_6^2$ in the
-    bubble, or $D_5^2$ in the LSZ graph. This is the complete *structural*
-    coverage. Cut orientations, relative signs, and multiplicities are still
-    missing source data, so the weighted all-cut sum is not fabricated.
+    bubble, or $D_5^2$ in the LSZ graph. Each displayed $+1$ is inherited from
+    the formal four-class sum; it is not an independent sign determination for
+    that row. This internal ledger does not prove that every physical Cut
+    orientation is present. A formal Cut operator sums over energy orientations,
+    and the source does not resolve those sums into one multiplicity for each
+    active $D_1,...,D_6$ sector. The graph weights, oriented multiplicities, and
+    raised-cut convention map therefore remain unknown, so the weighted all-cut
+    contribution is not fabricated.
     """)
     return
 
@@ -362,9 +467,13 @@ def _(spenso_table):
                 "disc p^2 lines": cut.initial_cut_lines,
                 "disc (1-x) lines": cut.final_cut_lines,
                 "cut derivative orders": cut.cut_orders,
-                "sign": "missing" if cut.relative_sign is None else cut.relative_sign,
-                "multiplicity": (
-                    "missing" if cut.multiplicity is None else cut.multiplicity
+                "formal four-piece sign": (
+                    "missing" if cut.relative_sign is None else cut.relative_sign
+                ),
+                "oriented multiplicity": (
+                    "unresolved"
+                    if cut.multiplicity is None
+                    else cut.multiplicity
                 ),
             }
             for cut in KNOWN_DIS_CUTS
@@ -387,9 +496,18 @@ def _(mo):
 
     The expected scalar basis is $B(q^2)$, $slash(B)(p^2)$,
     $slash(B)((p+q)^2)$, and the fully three-mass $slash(T)$. These identities
-    are supplied to Kira as checked preferred masters. The button below asks
-    Kira 3.1 to verify all 16 cut-specialized scalar-basis jobs; they are smoke
-    reductions, not the still-missing graph-level numerator reductions.
+    are supplied to Kira as checked preferred masters. Compatible caches, when
+    present for all 16 jobs, are loaded without starting a subprocess and their
+    rules are applied to all 32 numerator handoffs. A manifest whose fingerprint
+    differs from the in-memory project is rejected as stale; it cannot enter the
+    target or one-master audits below.
+
+    The button asks Kira 3.1 to run or resume the current project definitions.
+    These reductions establish the graph-level master coefficients. The four
+    raised-external records require separate finite-virtuality projects, shown
+    immediately below. Neither reduction supplies the unresolved oriented-cut
+    multiplicities, graph weights, raised-cut sign map, or regulated
+    derivative-distribution endpoint rules.
     """)
     return
 
@@ -426,36 +544,71 @@ def _(mo):
 
 @app.cell
 def _(run_kira, smoke_projects):
+    kira = Kira()
+    kira_work_root = repository_root / "runs" / "dis-paper-kirapy"
+    kira_reductions = {}
+    kira_cache_modes = {}
     if run_kira.value:
-        kira = Kira()
         kira_doctor = kira.doctor()
         kira_doctor.raise_for_errors()
-        kira_reductions = {}
-        kira_work_root = repository_root / "runs" / "dis-paper-kirapy"
-        for _project_key, _project_input in sorted(smoke_projects.items()):
-            _project = _project_input.project
-            kira_reductions[_project_key] = kira.reduce(
-                family=_project.family,
-                kinematics=_project.kinematics,
-                targets=_project.targets,
-                bounds=_project.bounds,
-                dimension=_project.dimension,
-                preferred_masters=_project.preferred_masters,
-                check_masters=_project.check_masters,
-                reconstruct_mass=_project.reconstruct_mass,
-                workdir=kira_work_root / _project.family.name,
-                parallel="physical",
-                resume=True,
-            )
     else:
         kira_doctor = None
-        kira_reductions = {}
-        kira_work_root = repository_root / "runs" / "dis-paper-kirapy"
-    return kira_doctor, kira_reductions, kira_work_root
+
+    for _project_key, _project_input in sorted(smoke_projects.items()):
+        _project = _project_input.project
+        _workdir = kira_work_root / _project.family.name
+        if run_kira.value:
+            try:
+                kira_reductions[_project_key] = kira.reduce(
+                    family=_project.family,
+                    kinematics=_project.kinematics,
+                    targets=_project.targets,
+                    bounds=_project.bounds,
+                    dimension=_project.dimension,
+                    preferred_masters=_project.preferred_masters,
+                    check_masters=_project.check_masters,
+                    reconstruct_mass=_project.reconstruct_mass,
+                    workdir=_workdir,
+                    parallel="physical",
+                    resume=True,
+                )
+                kira_cache_modes[_project_key] = "current project run/resume"
+            except KiraWorkdirError as _error:
+                if "does not match" not in str(_error):
+                    raise
+                kira_cache_modes[_project_key] = (
+                    "stale cache rejected: current fingerprint differs"
+                )
+            continue
+
+        if not (_workdir / "kirapy.json").is_file():
+            kira_cache_modes[_project_key] = "no cached manifest"
+            continue
+        try:
+            kira_reductions[_project_key] = kira.load(
+                _workdir,
+                project=_project,
+            )
+            kira_cache_modes[_project_key] = "verified current-project cache"
+        except KiraWorkdirError as _error:
+            if "does not match" not in str(_error):
+                raise
+            kira_cache_modes[_project_key] = (
+                "stale cache rejected: current fingerprint differs"
+            )
+    return kira_cache_modes, kira_doctor, kira_reductions, kira_work_root
 
 
 @app.cell(hide_code=True)
-def _(kira_doctor, kira_reductions, kira_work_root, mo, spenso_table):
+def _(
+    kira_cache_modes,
+    kira_doctor,
+    kira_reductions,
+    kira_work_root,
+    mo,
+    smoke_projects,
+    spenso_table,
+):
     if not kira_reductions:
         kira_summary = mo.callout(
             f"Ready; no Kira subprocess was started. Work root: {kira_work_root}",
@@ -463,14 +616,20 @@ def _(kira_doctor, kira_reductions, kira_work_root, mo, spenso_table):
         )
     else:
         complete = sum(result.complete for result in kira_reductions.values())
+        full_cache = set(kira_reductions) == set(smoke_projects)
+        runtime_label = (
+            f"Kira {kira_doctor.version}"
+            if kira_doctor is not None
+            else "Cached Kira outputs"
+        )
         kira_summary = mo.vstack(
             [
                 mo.callout(
-                    f"Kira {kira_doctor.version}: {complete}/{len(kira_reductions)} "
+                    f"{runtime_label}: {complete}/{len(smoke_projects)} "
                     "cut-specialized reductions complete.",
                     kind=(
                         "success"
-                        if complete == len(kira_reductions)
+                        if full_cache and complete == len(smoke_projects)
                         else "warn"
                     ),
                 ),
@@ -478,6 +637,7 @@ def _(kira_doctor, kira_reductions, kira_work_root, mo, spenso_table):
                     [
                         {
                             "project": key,
+                            "load mode": kira_cache_modes[key],
                             "complete": result.complete,
                             "rules": len(result.rules),
                             "masters": result.masters,
@@ -493,11 +653,319 @@ def _(kira_doctor, kira_reductions, kira_work_root, mo, spenso_table):
 
 
 @app.cell
+def _(kira_reductions, numerator_handoffs, smoke_projects):
+    if set(kira_reductions) == set(smoke_projects):
+        physical_reduction_audit = audit_kira_master_coefficients(
+            kira_reductions,
+            projects=smoke_projects,
+            numerator_handoffs=numerator_handoffs,
+        )
+    else:
+        physical_reduction_audit = None
+    return (physical_reduction_audit,)
+
+
+@app.cell(hide_code=True)
+def _(mo, physical_reduction_audit, spenso_table):
+    if physical_reduction_audit is None:
+        physical_reduction_summary = mo.callout(
+            "The complete 16-project cache is unavailable, so the 32 "
+            "master-coefficient records were not assembled.",
+            kind="warn",
+        )
+    else:
+        physical_reduction_summary = mo.vstack(
+            [
+                spenso_table(
+                    [
+                        {
+                            "coefficient records": len(
+                                physical_reduction_audit.coefficients
+                            ),
+                            "unique Kira targets": (
+                                physical_reduction_audit.unique_required_targets
+                            ),
+                            "cut-specialized records": len(
+                                physical_reduction_audit.cut_specialized_coefficients
+                            ),
+                            "external-derivative records": len(
+                                physical_reduction_audit.raised_external_coefficients
+                            ),
+                            "missing targets": (
+                                physical_reduction_audit.missing_targets
+                            ),
+                        }
+                    ],
+                    pagination=False,
+                ),
+                spenso_table(
+                    [
+                        {
+                            "project": record.handoff.project_key,
+                            "graph": record.handoff.graph_name,
+                            "observable": record.handoff.observable,
+                            "master": record.expected_master,
+                            "coefficient": record.coefficient,
+                            "status": (
+                                "external derivative required"
+                                if record.handoff.requires_external_derivative
+                                else "ordinary"
+                            ),
+                            "one-master residual": record.residual,
+                        }
+                        for record in physical_reduction_audit.coefficients
+                    ],
+                    pagination=False,
+                ),
+            ]
+        )
+    physical_reduction_summary
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    === Finite-virtuality reductions for the four raised-external records
+
+    The quark bubble has a raised $D_6=(p+q)^2$ cut and the LSZ graph has a
+    raised $D_5=p^2$ cut. Their two observables are therefore reduced in two
+    additional Kira projects while both external invariants remain generic.
+    A compatible cache under `runs/dis-paper-raised-external-kirapy`, when
+    present, is loaded without launching Kira; the button is only for an
+    explicit run or resume.
+
+    A successful two-job reduction gives four exact coefficients of an uncut
+    bubble, and the analytic bubble can then be inserted. This is still a
+    boundary, not a physical graph contribution: cancellation against the
+    regulated bubble, the reverse-unitarity derivative sign, the one-sided
+    action of $delta'(p^2)$ or $delta'((p+q)^2)$, and the full graph weight
+    remain unresolved. The universal plus signs of the four formal all-cut
+    pieces determine none of those inputs.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    run_raised_kira = mo.ui.run_button(
+        label="Run/resume 2 finite-virtuality raised-external reductions",
+        kind="warn",
+        full_width=True,
+    )
+    run_raised_kira
+    return (run_raised_kira,)
+
+
+@app.cell
+def _(raised_external_projects, run_raised_kira):
+    raised_kira = Kira()
+    raised_kira_work_root = (
+        repository_root / "runs" / "dis-paper-raised-external-kirapy"
+    )
+    raised_kira_reductions = {}
+    raised_kira_cache_modes = {}
+    if run_raised_kira.value:
+        raised_kira_doctor = raised_kira.doctor()
+        raised_kira_doctor.raise_for_errors()
+    else:
+        raised_kira_doctor = None
+
+    for _raised_key, _raised_record in sorted(raised_external_projects.items()):
+        _raised_project = _raised_record.project
+        _raised_workdir = raised_kira_work_root / _raised_project.family.name
+        if run_raised_kira.value:
+            try:
+                raised_kira_reductions[_raised_key] = raised_kira.reduce(
+                    family=_raised_project.family,
+                    kinematics=_raised_project.kinematics,
+                    targets=_raised_project.targets,
+                    bounds=_raised_project.bounds,
+                    dimension=_raised_project.dimension,
+                    preferred_masters=_raised_project.preferred_masters,
+                    check_masters=_raised_project.check_masters,
+                    reconstruct_mass=_raised_project.reconstruct_mass,
+                    workdir=_raised_workdir,
+                    parallel="physical",
+                    resume=True,
+                )
+                raised_kira_cache_modes[_raised_key] = (
+                    "current project run/resume"
+                )
+            except KiraWorkdirError as _raised_error:
+                if "does not match" not in str(_raised_error):
+                    raise
+                raised_kira_cache_modes[_raised_key] = (
+                    "stale cache rejected: current fingerprint differs"
+                )
+            continue
+
+        if not (_raised_workdir / "kirapy.json").is_file():
+            raised_kira_cache_modes[_raised_key] = "no cached manifest"
+            continue
+        try:
+            raised_kira_reductions[_raised_key] = raised_kira.load(
+                _raised_workdir,
+                project=_raised_project,
+            )
+            raised_kira_cache_modes[_raised_key] = (
+                "verified current-project cache"
+            )
+        except KiraWorkdirError as _raised_error:
+            if "does not match" not in str(_raised_error):
+                raise
+            raised_kira_cache_modes[_raised_key] = (
+                "stale cache rejected: current fingerprint differs"
+            )
+    return (
+        raised_kira_cache_modes,
+        raised_kira_doctor,
+        raised_kira_reductions,
+        raised_kira_work_root,
+    )
+
+
+@app.cell
+def _(
+    physical_reduction_audit,
+    raised_external_projects,
+    raised_kira_reductions,
+    smoke_projects,
+):
+    if set(raised_kira_reductions) == set(raised_external_projects):
+        raised_external_audits = audit_raised_external_reductions(
+            raised_kira_reductions,
+            projects=raised_external_projects,
+        )
+        raised_external_boundaries = build_raised_external_master_boundaries(
+            raised_external_audits,
+            projects=raised_external_projects,
+        )
+    else:
+        raised_external_audits = ()
+        raised_external_boundaries = ()
+    if physical_reduction_audit is not None and raised_external_audits:
+        master_insertion_audit = build_master_insertion_audit(
+            physical_reduction_audit,
+            raised_external_audits,
+            ordinary_projects=smoke_projects,
+            raised_projects=raised_external_projects,
+        )
+    else:
+        master_insertion_audit = None
+    return (
+        master_insertion_audit,
+        raised_external_audits,
+        raised_external_boundaries,
+    )
+
+
+@app.cell(hide_code=True)
+def _(
+    mo,
+    master_insertion_audit,
+    raised_external_audits,
+    raised_external_boundaries,
+    raised_external_projects,
+    raised_kira_cache_modes,
+    raised_kira_doctor,
+    raised_kira_reductions,
+    raised_kira_work_root,
+    spenso_table,
+):
+    if not raised_kira_reductions:
+        raised_kira_summary = mo.callout(
+            "Ready; no raised-external Kira cache is available and no "
+            f"subprocess was started. Work root: {raised_kira_work_root}",
+            kind="neutral",
+        )
+    else:
+        raised_complete = sum(
+            result.complete for result in raised_kira_reductions.values()
+        )
+        raised_full_cache = (
+            set(raised_kira_reductions) == set(raised_external_projects)
+        )
+        raised_runtime_label = (
+            f"Kira {raised_kira_doctor.version}"
+            if raised_kira_doctor is not None
+            else "Cached Kira outputs"
+        )
+        raised_summary_items = [
+            mo.callout(
+                f"{raised_runtime_label}: {raised_complete}/"
+                f"{len(raised_external_projects)} finite-virtuality jobs "
+                f"complete; {len(raised_external_audits)}/4 exact "
+                "numerator/master audits assembled.",
+                kind=(
+                    "success"
+                    if raised_full_cache
+                    and raised_complete == len(raised_external_projects)
+                    and len(raised_external_audits) == 4
+                    and all(audit.exact for audit in raised_external_audits)
+                    else "warn"
+                ),
+            ),
+            spenso_table(
+                [
+                    {
+                        "project": key,
+                        "load mode": raised_kira_cache_modes[key],
+                        "complete": result.complete,
+                        "rules": len(result.rules),
+                        "masters": result.masters,
+                    }
+                    for key, result in sorted(raised_kira_reductions.items())
+                ],
+                pagination=False,
+            ),
+        ]
+        if raised_external_boundaries:
+            raised_summary_items.append(
+                spenso_table(
+                    [
+                        {
+                            "project": boundary.audit.project_key,
+                            "observable": boundary.audit.observable,
+                            "derivative cut": (
+                                f"D{boundary.derivative.line}, order "
+                                f"{boundary.derivative.order}"
+                            ),
+                            "analytic master": boundary.identity.kind,
+                            "one-master residual": boundary.audit.residual,
+                            "physical blockers": "; ".join(
+                                blocker.description
+                                for blocker in boundary.blockers
+                            ),
+                        }
+                        for boundary in raised_external_boundaries
+                    ],
+                    pagination=False,
+                )
+            )
+        if master_insertion_audit is not None:
+            raised_summary_items.append(
+                mo.callout(
+                    f"Analytic masters inserted at the unweighted boundary: "
+                    f"{len(master_insertion_audit.ordinary)} ordinary + "
+                    f"{len(master_insertion_audit.raised)} raised records.",
+                    kind="success",
+                )
+            )
+        raised_kira_summary = mo.vstack(raised_summary_items)
+    raised_kira_summary
+    return
+
+
+@app.cell
 def _(
     apart_terms,
     kira_reductions,
+    master_insertion_audit,
     numerator_audits,
+    physical_reduction_audit,
     projected_numerators,
+    raised_external_audits,
     smoke_projects,
 ):
     validation_ledger = build_validation_ledger(
@@ -506,6 +974,9 @@ def _(
         numerator_audits=numerator_audits,
         apart_child_count=len(apart_terms),
         kira_reductions=kira_reductions,
+        physical_reduction_audit=physical_reduction_audit,
+        raised_external_audits=raised_external_audits,
+        master_insertion_audit=master_insertion_audit,
     )
     return (validation_ledger,)
 
@@ -659,7 +1130,129 @@ def _(spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 8. Paper targets are targets, not derived answers
+    == 8. Historical Mathematica formulas are regression references
+
+    The sibling `DY_calculation.nb` does not contain a DIS graph derivation.
+    Its `MPDISgluonic` and final `MPDISfermionic` cells are closed expressions
+    inserted into a Drell--Yan scheme-change check. We retain them because they
+    give useful all-$epsilon$, pole, finite, and distribution-canonicalization
+    regressions, not because their names make them a native DIS result.
+
+    The fermion reference is represented by separate $delta(1-x)$, $D_0$,
+    $D_1$, and ordinary coefficients. Smooth factors multiply those typed
+    distributions before endpoint evaluation; the notebook's invalid formal
+    substitution that produced `delta(0)` is not reproduced. Agreement in the
+    rows below checks internal consistency of the manually transcribed reference
+    only. It neither parses the source notebook nor establishes a native-to-
+    historical convention map, and it cannot replace the graph sum,
+    external-cut derivatives, oriented multiplicities, or the active-paper
+    projector map.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, spenso_table):
+    _reference = MATHEMATICA_REFERENCE
+    _fermion_pole = _reference.fermion_pole_bracket
+    _fermion_finite = _reference.fermion_finite_bracket
+    _fermion_dy = mathematica_dy_fermion_conversion()
+
+    def _plus(coefficient, order):
+        return (
+            coefficient.plus[order]
+            if order < len(coefficient.plus)
+            else E("0")
+        )
+
+    _fermion_check = MATHEMATICA_REFERENCE_SELF_CHECKS[
+        "fermion pole residual"
+    ]
+    mo.vstack(
+        [
+            spenso_table(
+                [
+                    {
+                        "reference": "gluon compact all-epsilon input",
+                        "delta(1-x)": E("0"),
+                        "D0": E("0"),
+                        "D1": E("0"),
+                        "ordinary expression": _reference.gluon_all_epsilon,
+                        "provenance": _reference.source["gluon"],
+                    },
+                    {
+                        "reference": "gluon pole plus finite input",
+                        "delta(1-x)": E("0"),
+                        "D0": E("0"),
+                        "D1": E("0"),
+                        "ordinary expression": _reference.gluon_through_finite,
+                        "provenance": _reference.source["gluon"],
+                    },
+                    {
+                        "reference": "fermion pole bracket",
+                        "delta(1-x)": _fermion_pole.delta,
+                        "D0": _plus(_fermion_pole, 0),
+                        "D1": _plus(_fermion_pole, 1),
+                        "ordinary expression": _fermion_pole.regular,
+                        "provenance": _reference.source["fermion"],
+                    },
+                    {
+                        "reference": "fermion finite bracket",
+                        "delta(1-x)": _fermion_finite.delta,
+                        "D0": _plus(_fermion_finite, 0),
+                        "D1": _plus(_fermion_finite, 1),
+                        "ordinary expression": _fermion_finite.regular,
+                        "provenance": _reference.source["fermion"],
+                    },
+                ],
+                pagination=False,
+            ),
+            spenso_table(
+                [
+                    {
+                        "regression": "compact gluon expansion",
+                        "delta coefficient": E("0"),
+                        "D0 coefficient": E("0"),
+                        "D1 coefficient": E("0"),
+                        "ordinary coefficient": (
+                            MATHEMATICA_REFERENCE_SELF_CHECKS[
+                                "gluon expansion residual"
+                            ]
+                        ),
+                    },
+                    {
+                        "regression": "fermion distribution canonicalization",
+                        "delta coefficient": _fermion_check.delta,
+                        "D0 coefficient": _plus(_fermion_check, 0),
+                        "D1 coefficient": _plus(_fermion_check, 1),
+                        "ordinary coefficient": _fermion_check.regular,
+                    },
+                    {
+                        "regression": "two-beam DY gluon conversion",
+                        "delta coefficient": E("0"),
+                        "D0 coefficient": E("0"),
+                        "D1 coefficient": E("0"),
+                        "ordinary coefficient": mathematica_dy_gluon_conversion(),
+                    },
+                    {
+                        "regression": "typed two-beam DY fermion conversion",
+                        "delta coefficient": _fermion_dy.delta,
+                        "D0 coefficient": _plus(_fermion_dy, 0),
+                        "D1 coefficient": _plus(_fermion_dy, 1),
+                        "ordinary coefficient": _fermion_dy.regular,
+                    },
+                ],
+                pagination=False,
+            ),
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    == 9. Paper targets are targets, not derived answers
 
     The two scale-dependent equations at active-manuscript lines 296--297 are
     both labelled $F_L$, while lines 302--303 give a second, different pair of
@@ -722,7 +1315,7 @@ def _(spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 9. Validation ledger
+    == 10. Validation ledger
 
     A `pass` below means an exact check was actually executed. `not-run` means
     the necessary stage exists but its subprocess or analytic handoff has not

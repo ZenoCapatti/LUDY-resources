@@ -797,7 +797,7 @@ def _(mo):
 
 
 @app.cell
-def _(N, S, dimension, dot, gamma_trace_to_dots, k, minkd, p):
+def _(N, S, dimension, dot, k, minkd, p):
     p1 = p(1, minkd)
     p2 = p(2, minkd)
     k1 = k(1, minkd)
@@ -977,7 +977,7 @@ def normalize_rational(expression: "Expression") -> "Expression":
 
 @app.function
 def apart_integrand(
-    integrand: "Integrand",
+    integrand: Integrand,
     *,
     loop_scalar_products: "Sequence[Expression]",
 ) -> "tuple[Expression, list[ApartTerm]]":
@@ -1078,7 +1078,7 @@ def _(integrand, loop_scalar_products):
         integrand,
         loop_scalar_products=loop_scalar_products,
     )
-    return apart_expression, apart_terms
+    return (apart_terms,)
 
 
 @app.cell(hide_code=True)

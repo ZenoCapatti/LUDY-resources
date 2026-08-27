@@ -6,7 +6,7 @@ import hashlib
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any
+from typing import Any, cast
 
 import yaml
 from symbolica import E, Expression, Replacement, S
@@ -527,8 +527,127 @@ def _ordered_sum_plain(expression: Expression) -> str:
     )
 
 
+def _atom_type(expression: Expression) -> str:
+    return str(expression.get_type()).rsplit(".", 1)[-1]
+
+
+def _scalar_order_key(expression: Expression) -> str:
+    """Order commutative children independently of symbol registration order."""
+
+    return expression.to_canonical_string()
+
+
+def _negative_integer_power(expression: Expression) -> int | None:
+    if _atom_type(expression) != "Pow":
+        return None
+    _, exponent = tuple(expression)
+    try:
+        value = int(exponent.format_plain())
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return value if value < 0 and exponent == E(str(value)) else None
+
+
+def _scalar_plain(expression: Expression, *, parent_precedence: int = 0) -> str:
+    """Format rational scalar algebra with canonical Add/Mul ordering.
+
+    Symbolica's ordinary printer follows internal symbol registration order.
+    That order may legitimately differ after serializing several projects in
+    one process, which used to change Kira input hashes for algebraically
+    identical expressions.  Kira scalars are restricted above to rational
+    algebra, so a small precedence-aware printer is sufficient here.
+    """
+
+    atom_type = _atom_type(expression)
+    if atom_type in {"Num", "Var"}:
+        return expression.format_plain()
+
+    arguments = tuple(expression)
+    if atom_type == "Add":
+        parts = [
+            _scalar_plain(argument, parent_precedence=1)
+            for argument in sorted(arguments, key=_scalar_order_key)
+        ]
+        plain = parts[0] + "".join(
+            part if part.startswith("-") else f"+{part}"
+            for part in parts[1:]
+        )
+        return f"({plain})" if parent_precedence > 1 else plain
+
+    if atom_type == "Mul":
+        numbers = [
+            argument for argument in arguments if _atom_type(argument) == "Num"
+        ]
+        factors = [
+            argument for argument in arguments if _atom_type(argument) != "Num"
+        ]
+        numerator = sorted(
+            (
+                factor
+                for factor in factors
+                if _negative_integer_power(factor) is None
+            ),
+            key=_scalar_order_key,
+        )
+        denominator = sorted(
+            (
+                factor
+                for factor in factors
+                if _negative_integer_power(factor) is not None
+            ),
+            key=_scalar_order_key,
+        )
+
+        coefficient = numbers[0].format_plain() if numbers else ""
+        numerator_parts: list[str] = []
+        if coefficient and (
+            coefficient not in {"1", "-1"} or not numerator
+        ):
+            numerator_parts.append(coefficient)
+        elif coefficient == "-1":
+            numerator_parts.append("-")
+        numerator_parts.extend(
+            _scalar_plain(factor, parent_precedence=2)
+            for factor in numerator
+        )
+        if numerator_parts == ["-"]:
+            plain = "-1"
+        elif numerator_parts and numerator_parts[0] == "-":
+            plain = "-" + "*".join(numerator_parts[1:])
+        else:
+            plain = "*".join(numerator_parts) if numerator_parts else "1"
+
+        denominator_parts: list[str] = []
+        for factor in denominator:
+            base, _ = tuple(factor)
+            power = -cast(int, _negative_integer_power(factor))
+            base_plain = _scalar_plain(base, parent_precedence=3)
+            denominator_parts.append(
+                base_plain if power == 1 else f"{base_plain}^{power}"
+            )
+        if denominator_parts:
+            denominator_plain = "*".join(denominator_parts)
+            if len(denominator_parts) > 1:
+                denominator_plain = f"({denominator_plain})"
+            plain = f"{plain}/{denominator_plain}"
+        return f"({plain})" if parent_precedence > 2 else plain
+
+    if atom_type == "Pow":
+        base, exponent = arguments
+        base_plain = _scalar_plain(base, parent_precedence=3)
+        exponent_plain = _scalar_plain(exponent)
+        if _atom_type(exponent) in {"Add", "Mul"} or exponent_plain.startswith("-"):
+            exponent_plain = f"({exponent_plain})"
+        plain = f"{base_plain}^{exponent_plain}"
+        return f"({plain})" if parent_precedence > 3 else plain
+
+    raise KiraConfigurationError(
+        f"Unsupported rational scalar atom {expression.format_plain()}"
+    )
+
+
 def _scalar(expression: Expression, *, context: str) -> str:
-    plain = expression.format_plain()
+    plain = _scalar_plain(expression)
     if "::" in plain:
         raise KiraConfigurationError(
             f"{context} contains a namespaced function unsupported by Kira"

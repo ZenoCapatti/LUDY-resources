@@ -2,11 +2,13 @@
 
 This module deliberately stops before claiming a physical result.  It records
 the kinematics, the six graph integrands printed in the manuscript, the four
-reported structure functions, the known normalization ownership, and native
-``kirapy`` project templates.  The manuscript does not contain the complete
-Cutkosky-cut ledger, graph weights, IBP master map, or the dimension-dependent
-splitting kernels needed for the LU-to-MSbar conversion.  Those missing inputs
-are represented by blocked validation checks rather than inferred silently.
+reported structure functions, normalization ownership, and native ``kirapy``
+handoffs.  The 18 numerator reconstructions map to 48 cut-preserving targets
+covered by the 16 cut-specialized Kira projects.  The historical source fixes
+the formal four-piece all-cut signs, but it does not provide the complete
+oriented-cut multiplicities, a map to Kira's raised-cut sign convention, or the
+regulated one-sided raised-external-cut action.  Those remaining inputs are
+represented by blocked checks rather than inferred.
 
 Importing this module never starts Kira.  :func:`self_check` performs only
 exact Symbolica checks and deterministic in-memory Kira serialization.
@@ -18,7 +20,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from itertools import combinations, product
 from types import MappingProxyType
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from kirapy import (
     IntegralFamily,
@@ -34,6 +36,12 @@ from symbolica import E, S, Expression
 
 from calculations.dis.python.masters import NORMALIZATION_SELF_CHECKS
 
+if TYPE_CHECKING:
+    from calculations.dis.python.assembly import (
+        DISMasterInsertionAudit,
+        RaisedExternalReductionAudit,
+    )
+
 
 MANUSCRIPT_SOURCE = (
     "../LUDY/references/factorisable-local-unitarity/source/main.tex"
@@ -46,6 +54,9 @@ HISTORICAL_SOURCE = "arXiv:2506.16489v1"
 DIS_DEFINITION_SOURCE = f"{MANUSCRIPT_SOURCE}:166-175,223-229"
 DIS_RESULT_SOURCE = f"{MANUSCRIPT_SOURCE}:293-311"
 DIS_INTEGRAND_SOURCE = f"{MANUSCRIPT_SOURCE}:394-412"
+HISTORICAL_ALL_CUT_SOURCE = (
+    f"{HISTORICAL_SOURCE}, Submission/Discontinuities.tex:127-168,180-193"
+)
 
 
 def _expression(value: Expression | int | str) -> Expression:
@@ -58,6 +69,12 @@ def canonical(expression: Expression | int) -> Expression:
     """Canonical expanded rational form used by exact scalar checks."""
 
     return _expression(expression).expand().together().cancel()
+
+
+def _is_zero(expression: Expression | int) -> bool:
+    """Return a Python bool for an exact Symbolica zero comparison."""
+
+    return canonical(expression).format_plain() == "0"
 
 
 # Plain native symbols are intentional.  Pretty printing belongs to the
@@ -583,6 +600,87 @@ class NumeratorReductionAudit:
     @property
     def residual(self) -> Expression:
         return self.reduction.reconstruction_residual
+
+
+@dataclass(frozen=True, slots=True)
+class DISKiraNumeratorHandoff:
+    """One projected numerator written in a cut-specialized Kira family.
+
+    Terms that cancel a protected cut propagator are zero in reverse
+    unitarity and are retained separately rather than being sent to Kira.
+    ``requires_external_derivative`` flags raised external cuts: their
+    derivative distribution must act before the corresponding invariant is
+    specialized to zero.
+    """
+
+    project_key: str
+    graph_name: str
+    observable: Literal["F2", "FL"]
+    retained_loop_lines: tuple[int, ...]
+    kept_indices: tuple[tuple[int, ...], ...]
+    cut_cancelled_indices: tuple[tuple[int, ...], ...]
+    family_expression: Expression
+    required_targets: tuple[Expression, ...]
+    requires_external_derivative: bool
+
+
+@dataclass(frozen=True, slots=True)
+class DISMasterCoefficientAudit:
+    """Exact Kira coefficient of the declared scalar master for one handoff."""
+
+    handoff: DISKiraNumeratorHandoff
+    expected_master: Expression
+    reduced_expression: Expression
+    coefficient: Expression
+    residual: Expression
+
+    @property
+    def uses_cut_specialized_project(self) -> bool:
+        """Whether the coefficient needs no finite-virtuality replacement.
+
+        This says nothing about physical raised-cut signs, support, or graph
+        weights; those are later assembly boundaries.
+        """
+
+        return not self.handoff.requires_external_derivative
+
+
+@dataclass(frozen=True, slots=True)
+class DISPhysicalReductionAudit:
+    """Complete graph-level bridge from projected numerators to Kira masters."""
+
+    coefficients: tuple[DISMasterCoefficientAudit, ...]
+    unique_required_targets: int
+    missing_targets: tuple[tuple[str, Expression], ...]
+
+    @property
+    def exact(self) -> bool:
+        return (
+            len(self.coefficients) == 32
+            and self.unique_required_targets == 48
+            and not self.missing_targets
+            and all(record.residual == E("0") for record in self.coefficients)
+        )
+
+    @property
+    def cut_specialized_coefficients(
+        self,
+    ) -> tuple[DISMasterCoefficientAudit, ...]:
+        return tuple(
+            record
+            for record in self.coefficients
+            if record.uses_cut_specialized_project
+        )
+
+    @property
+    def raised_external_coefficients(
+        self,
+    ) -> tuple[DISMasterCoefficientAudit, ...]:
+        return tuple(
+            record
+            for record in self.coefficients
+            if not record.uses_cut_specialized_project
+        )
 
 
 def crossed_box_apart():
@@ -1130,9 +1228,10 @@ class DISCutSpec:
 
 
 # These six channel pairings are the four-term all-cut formula made explicit
-# for D1,...,D6.  Compatibility with a graph is purely structural: every cut
-# line must occur with positive power in that graph.  The source does not ship
-# orientations, relative signs, or multiplicities, so those remain ``None``.
+# for D1,...,D6.  The official historical source fixes a plus sign between the
+# four formal pieces and normalizes raised cuts as
+# ``2*pi*i/n! d^n delta/ds^n``.  A Cut operator may still contain more than one
+# oriented cut, so active-sector multiplicities remain separate and unknown.
 STRUCTURAL_CUT_CHANNELS: Mapping[
     str,
     tuple[tuple[int, ...], tuple[int, ...]],
@@ -1151,7 +1250,7 @@ STRUCTURAL_CUT_CHANNELS: Mapping[
 def _build_structural_cut_ledger() -> tuple[DISCutSpec, ...]:
     cuts: list[DISCutSpec] = []
     source = (
-        f"{HISTORICAL_SOURCE}, Submission/Discontinuities.tex:143-168; "
+        f"{HISTORICAL_ALL_CUT_SOURCE}; "
         f"{DIS_INTEGRAND_SOURCE}"
     )
     for graph in DIS_GRAPH_SPECS.values():
@@ -1174,7 +1273,7 @@ def _build_structural_cut_ledger() -> tuple[DISCutSpec, ...]:
                         (line, graph.powers[line - 1] - 1)
                         for line in sorted(required)
                     ),
-                    relative_sign=None,
+                    relative_sign=E("1"),
                     multiplicity=None,
                     source=source,
                 )
@@ -1516,8 +1615,9 @@ def build_kira_smoke_projects(
     ``{1, 0, -1}^3`` target cube plus its source graph's raised base target.
     The expected scalar master is supplied as a checked preferred master.  The
     cube deliberately tests serialization, cut kinematics, and the scalar
-    master basis; it is not a substitute for translating every projected
-    numerator monomial into graph-level Kira targets.
+    master basis. :func:`build_kira_numerator_handoffs` separately translates
+    every projected numerator and asserts that its physical targets are a
+    subset of this overcomplete cube.
     """
 
     prototypes = build_kira_projects(
@@ -1555,6 +1655,189 @@ def build_kira_smoke_projects(
         preferred_master_indices_by_key=preferred_master_indices_by_key,
         bounds=bounds,
         kinematics=kinematics,
+    )
+
+
+def build_kira_numerator_handoffs(
+    *,
+    projects: Mapping[str, DISKiraProjectInput] | None = None,
+    numerator_audits: Sequence[NumeratorReductionAudit] | None = None,
+) -> tuple[DISKiraNumeratorHandoff, ...]:
+    """Translate all projected numerators into the cached Kira families.
+
+    The scalar-master smoke cube was intentionally chosen broad enough to
+    contain these targets.  This function proves that fact explicitly and
+    constructs the 16 projects times two observables graph-level expressions.
+    It does not run or load Kira.
+    """
+
+    project_inputs = projects or build_kira_smoke_projects()
+    audits = tuple(numerator_audits or audit_projected_numerator_reductions())
+    audit_by_key = {
+        (audit.graph_name, audit.observable, audit.retained_loop_lines): audit
+        for audit in audits
+    }
+    if len(audit_by_key) != len(audits):
+        raise AssertionError("Projected-numerator handoff keys are not unique")
+
+    handoffs: list[DISKiraNumeratorHandoff] = []
+    for project_key, project_input in sorted(project_inputs.items()):
+        cut = project_input.cut
+        if cut is None:
+            raise ValueError("Physical numerator handoffs require cut projects")
+        family = project_input.project.family
+        local_cut_positions = set(family.cut_propagators)
+        available_targets = set(project_input.project.targets)
+        requires_external_derivative = any(
+            line > 4 and order > 0 for line, order in cut.cut_orders
+        )
+        for observable in ("F2", "FL"):
+            try:
+                numerator_audit = audit_by_key[
+                    (
+                        project_input.graph_name,
+                        observable,
+                        project_input.retained_loop_lines,
+                    )
+                ]
+            except KeyError as error:
+                raise AssertionError(
+                    "Missing projected-numerator audit for "
+                    f"{project_key}:{observable}"
+                ) from error
+            kept_terms = tuple(
+                term
+                for term in numerator_audit.reduction.terms
+                if all(
+                    term.integral_indices[position - 1] > 0
+                    for position in local_cut_positions
+                )
+            )
+            cancelled_terms = tuple(
+                term
+                for term in numerator_audit.reduction.terms
+                if term not in kept_terms
+            )
+            family_expression = sum(
+                (
+                    term.as_family_integral(family.name)
+                    for term in kept_terms
+                ),
+                E("0"),
+            )
+            required_targets = tuple(
+                sorted(
+                    {
+                        family(*term.integral_indices)
+                        for term in kept_terms
+                    },
+                    key=lambda target: target.format_plain(),
+                )
+            )
+            missing = tuple(
+                target for target in required_targets if target not in available_targets
+            )
+            if missing:
+                raise AssertionError(
+                    f"Smoke project {project_key} misses numerator targets {missing}"
+                )
+            handoffs.append(
+                DISKiraNumeratorHandoff(
+                    project_key=project_key,
+                    graph_name=project_input.graph_name,
+                    observable=observable,
+                    retained_loop_lines=project_input.retained_loop_lines,
+                    kept_indices=tuple(
+                        sorted(
+                            {term.integral_indices for term in kept_terms}
+                        )
+                    ),
+                    cut_cancelled_indices=tuple(
+                        sorted(
+                            {term.integral_indices for term in cancelled_terms}
+                        )
+                    ),
+                    family_expression=family_expression,
+                    required_targets=required_targets,
+                    requires_external_derivative=requires_external_derivative,
+                )
+            )
+    if len(handoffs) != 32:
+        raise AssertionError(
+            f"Expected 32 DIS numerator/Kira handoffs, got {len(handoffs)}"
+        )
+    unique_targets = {
+        (handoff.project_key, target)
+        for handoff in handoffs
+        for target in handoff.required_targets
+    }
+    if len(unique_targets) != 48:
+        raise AssertionError(
+            f"Expected 48 unique physical Kira targets, got {len(unique_targets)}"
+        )
+    return tuple(handoffs)
+
+
+def audit_kira_master_coefficients(
+    reductions: Mapping[str, ReductionResult],
+    *,
+    projects: Mapping[str, DISKiraProjectInput] | None = None,
+    numerator_handoffs: Sequence[DISKiraNumeratorHandoff] | None = None,
+) -> DISPhysicalReductionAudit:
+    """Apply cached Kira rules to all 32 graph/observable handoffs exactly."""
+
+    project_inputs = projects or build_kira_smoke_projects()
+    handoffs = tuple(
+        numerator_handoffs
+        or build_kira_numerator_handoffs(projects=project_inputs)
+    )
+    records: list[DISMasterCoefficientAudit] = []
+    missing_targets: list[tuple[str, Expression]] = []
+    for handoff in handoffs:
+        try:
+            project_input = project_inputs[handoff.project_key]
+            result = reductions[handoff.project_key]
+        except KeyError as error:
+            raise ValueError(
+                f"Missing cached DIS Kira reduction {handoff.project_key}"
+            ) from error
+        result.require_complete()
+        if project_input.expected_master_indices is None:
+            raise ValueError(
+                f"No analytic master declared for {handoff.project_key}"
+            )
+        expected_master = project_input.project.family(
+            *project_input.expected_master_indices
+        )
+        if set(result.masters) != {expected_master}:
+            raise ValueError(
+                f"{handoff.project_key} expected only {expected_master}, "
+                f"got {result.masters}"
+            )
+        for target in handoff.required_targets:
+            if target not in result.rules:
+                missing_targets.append((handoff.project_key, target))
+        reduced = result.apply(handoff.family_expression)
+        coefficient = canonical(reduced.replace(expected_master, E("1")))
+        residual = canonical(reduced - coefficient * expected_master)
+        records.append(
+            DISMasterCoefficientAudit(
+                handoff=handoff,
+                expected_master=expected_master,
+                reduced_expression=reduced,
+                coefficient=coefficient,
+                residual=residual,
+            )
+        )
+    unique_targets = {
+        (handoff.project_key, target)
+        for handoff in handoffs
+        for target in handoff.required_targets
+    }
+    return DISPhysicalReductionAudit(
+        coefficients=tuple(records),
+        unique_required_targets=len(unique_targets),
+        missing_targets=tuple(missing_targets),
     )
 
 
@@ -1618,6 +1901,9 @@ def build_validation_ledger(
     numerator_audits: Sequence[NumeratorReductionAudit] | None = None,
     apart_child_count: int | None = None,
     kira_reductions: Mapping[str, ReductionResult] | None = None,
+    physical_reduction_audit: DISPhysicalReductionAudit | None = None,
+    raised_external_audits: Sequence[RaisedExternalReductionAudit] | None = None,
+    master_insertion_audit: DISMasterInsertionAudit | None = None,
 ) -> DISValidationLedger:
     """Report exactly what the current module proves and what remains missing."""
 
@@ -1677,18 +1963,55 @@ def build_validation_ledger(
         for name, graph in DIS_GRAPH_SPECS.items()
     }
     actual_cut_signatures = _structural_cut_signatures(KNOWN_DIS_CUTS)
-    expected_master_names = (
+    expected_support_master_names = (
         "B(q^2)",
         "Bcut(p^2)",
         "Bcut((p+q)^2)",
         "Tcut(p^2,q^2,(p+q)^2)",
     )
-    actual_master_names = tuple(
+    actual_support_master_names = tuple(
         dict.fromkeys(
             project.expected_master_name
             for project in project_inputs.values()
             if project.expected_master_name is not None
         )
+    )
+    expected_inserted_master_names = (
+        *expected_support_master_names,
+        "B((p+q)^2)",
+        "B(p^2)",
+    )
+    actual_inserted_master_names = (
+        None
+        if master_insertion_audit is None
+        else tuple(
+            dict.fromkeys(
+                boundary.identity.kind
+                for boundary in (
+                    *master_insertion_audit.ordinary,
+                    *master_insertion_audit.raised,
+                )
+            )
+        )
+    )
+    expected_raised_audit_keys = {
+        (
+            f"{graph_name}__external_external_finite_virtuality__d123",
+            graph_name,
+            observable,
+        )
+        for graph_name in ("q_bubble", "q_lsz")
+        for observable in ("F2", "FL")
+    }
+    actual_raised_audit_keys = {
+        (audit.project_key, audit.graph_name, audit.observable)
+        for audit in (raised_external_audits or ())
+    }
+    raised_external_exact = bool(
+        raised_external_audits
+        and len(raised_external_audits) == 4
+        and actual_raised_audit_keys == expected_raised_audit_keys
+        and all(audit.exact for audit in raised_external_audits)
     )
     master_normalizations_ok = all(
         residual == E("0")
@@ -1797,7 +2120,7 @@ def build_validation_ledger(
                 if numerator_audits is None
                 else "pass"
                 if len(numerator_audits) == 18
-                and all(audit.residual == E("0") for audit in numerator_audits)
+                and all(_is_zero(audit.residual) for audit in numerator_audits)
                 else "fail"
             ),
             expected="18 exact zero residuals",
@@ -1807,7 +2130,7 @@ def build_validation_ledger(
                 else (
                     len(numerator_audits),
                     sum(
-                        int(bool(audit.residual == E("0")))
+                        int(_is_zero(audit.residual))
                         for audit in numerator_audits
                     ),
                 )
@@ -1818,7 +2141,7 @@ def build_validation_ledger(
             ),
         ),
         ValidationCheck(
-            key="structural initial/final all-cut coverage",
+            key="candidate initial/final all-cut ledger",
             stage="cut_coverage",
             status=(
                 "pass"
@@ -1828,22 +2151,71 @@ def build_validation_ledger(
             expected=EXPECTED_STRUCTURAL_CUT_SIGNATURES,
             actual=actual_cut_signatures,
             reason=(
-                "Exact topology-level comparison of every graph, channel, "
-                "initial/final mask, and raised-cut derivative order."
+                "Internal exact comparison of the manually declared candidate "
+                "graph/channel masks and raised-cut orders. This does not prove "
+                "that every physical Cut-operator orientation is represented."
             ),
         ),
         ValidationCheck(
-            key="oriented cut signs and multiplicities",
+            key="formal four-piece all-cut relative signs",
             stage="cut_coverage",
-            status="blocked",
-            expected="one weight for every structural cut sector",
+            status=(
+                "pass"
+                if all(
+                    cut.relative_sign is not None
+                    and canonical(cut.relative_sign - 1).format_plain() == "0"
+                    for cut in KNOWN_DIS_CUTS
+                )
+                else "fail"
+            ),
+            expected="plus sign for every formal all-cut piece",
             actual=sum(
-                cut.relative_sign is not None and cut.multiplicity is not None
+                int(
+                    cut.relative_sign is not None
+                    and canonical(cut.relative_sign - 1).format_plain() == "0"
+                )
                 for cut in KNOWN_DIS_CUTS
             ),
             reason=(
-                "The source does not ship the oriented Cutkosky ledger or its "
-                "relative graph weights."
+                "The pinned arXiv definition writes the external/external, "
+                "internal/external, external/internal, and internal/internal "
+                "pieces with universal plus signs. Each candidate row inherits "
+                "its sign from that four-class formula; the rows are not "
+                "independent sign determinations."
+            ),
+        ),
+        ValidationCheck(
+            key="raised-cut reverse-unitarity sign convention",
+            stage="cut_coverage",
+            status="blocked",
+            expected=(
+                "one convention map relating the historical positive "
+                "delta-derivative normalization to algebraic 1/D^a cuts"
+            ),
+            actual=(
+                "D2^2 in q_box/g_box and D5^2/D6^2 in q_lsz/q_bubble "
+                "remain exact IBP boundaries only"
+            ),
+            reason=(
+                "With disc f=f(D-i0)-f(D+i0), differentiating the simple-pole "
+                "identity gives an alternating (-1)^(a-1) sign for 1/D^a. "
+                "The historical source instead prints a positive "
+                "2*pi*i*delta^(a-1)/(a-1)! normalization. The two conventions "
+                "must be reconciled before any raised-cut coefficient is "
+                "called physical."
+            ),
+        ),
+        ValidationCheck(
+            key="oriented Cut-operator multiplicities",
+            stage="cut_coverage",
+            status="blocked",
+            expected="one oriented-cut multiplicity for every active sector",
+            actual=sum(cut.multiplicity is not None for cut in KNOWN_DIS_CUTS),
+            reason=(
+                "The formal Cut operators sum over energy orientations. The "
+                "published ancillary files retain one rooted representative, "
+                "not the full edge/orientation ledger needed to turn that sum "
+                "into active D1,...,D6 multiplicities."
             ),
         ),
         ValidationCheck(
@@ -1879,41 +2251,153 @@ def build_validation_ledger(
                 }
             ),
             reason=(
-                "These jobs check the scalar basis and cut kinematics only; "
-                "they do not contain the full projected-numerator target set."
+                "These overcomplete jobs check the scalar basis and cut "
+                "kinematics. The separate graph-level row proves which 48 "
+                "targets are actually required by the projected numerators."
             ),
             required_for_physical_result=False,
         ),
         ValidationCheck(
             key="graph-level projected-numerator Kira reductions",
             stage="kira_reduction",
-            status="blocked",
+            status=(
+                "not-run"
+                if physical_reduction_audit is None
+                else "pass" if physical_reduction_audit.exact else "fail"
+            ),
+            expected={
+                "coefficient records": 32,
+                "unique cut-preserving targets": 48,
+                "missing targets": (),
+                "master residuals": "all zero",
+            },
+            actual=(
+                None
+                if physical_reduction_audit is None
+                else {
+                    "coefficient records": len(
+                        physical_reduction_audit.coefficients
+                    ),
+                    "unique cut-preserving targets": (
+                        physical_reduction_audit.unique_required_targets
+                    ),
+                    "missing targets": physical_reduction_audit.missing_targets,
+                    "zero master residuals": sum(
+                        int(_is_zero(record.residual))
+                        for record in physical_reduction_audit.coefficients
+                    ),
+                }
+            ),
             reason=(
-                "The 18 exact numerator reconstructions have not yet been "
-                "translated into complete per-child integral target sets and "
-                "combined with authoritative graph weights."
+                "Every F2/FL numerator is filtered against protected cut lines, "
+                "reduced by the cached Kira rules, and required to contain only "
+                "its declared scalar master."
             ),
         ),
         ValidationCheck(
-            key="one-loop analytic master basis",
+            key="finite-virtuality raised-external Kira reductions",
+            stage="kira_reduction",
+            status=(
+                "not-run"
+                if not raised_external_audits
+                else "pass" if raised_external_exact else "fail"
+            ),
+            expected="generic finite-virtuality reductions for four records",
+            actual=(
+                None
+                if not raised_external_audits
+                else {
+                    "records": tuple(
+                        (
+                            audit.project_key,
+                            audit.graph_name,
+                            audit.observable,
+                        )
+                        for audit in raised_external_audits
+                    ),
+                    "zero residuals": sum(
+                        int(_is_zero(audit.residual))
+                        for audit in raised_external_audits
+                    ),
+                }
+            ),
+            reason=(
+                "q_bubble carries D6^2 and q_lsz carries D5^2. Their loop "
+                "integrals are reduced with x and p^2 still symbolic, before "
+                "the derivative delta is allowed to impose external support."
+            ),
+        ),
+        ValidationCheck(
+            key="raised external delta-prime endpoint action",
+            stage="virtuality",
+            status="blocked",
+            expected="explicit one-sided endpoint convention for four records",
+            actual=(
+                None
+                if master_insertion_audit is None
+                else tuple(
+                    (
+                        boundary.audit.project_key,
+                        boundary.audit.observable,
+                        boundary.derivative.line,
+                    )
+                    for boundary in master_insertion_audit.raised
+                )
+            ),
+            reason=(
+                "The historical source fixes 2*pi*i*d delta/ds, but not its "
+                "one-sided action at the lower p^2 boundary or the complete "
+                "change-of-variable convention for the final-state derivative."
+            ),
+        ),
+        ValidationCheck(
+            key="support-specialized analytic master formulas",
             stage="master",
             status=(
                 "pass"
-                if actual_master_names == expected_master_names
+                if actual_support_master_names == expected_support_master_names
                 and master_normalizations_ok
                 else "fail"
             ),
             expected={
-                "basis": expected_master_names,
+                "basis": expected_support_master_names,
                 "normalization residuals": "all zero",
             },
             actual={
-                "basis": actual_master_names,
+                "basis": actual_support_master_names,
                 "normalization residuals": NORMALIZATION_SELF_CHECKS,
             },
             reason=(
-                "The exact basis and nine analytic normalization identities "
+                "The exact basis and ten analytic normalization identities "
                 "pass; graph-level coefficients remain a separate Kira check."
+            ),
+        ),
+        ValidationCheck(
+            key="all graph-level analytic master insertions",
+            stage="master",
+            status=(
+                "not-run"
+                if master_insertion_audit is None
+                else "pass" if master_insertion_audit.exact else "fail"
+            ),
+            expected={
+                "ordinary records": 28,
+                "raised records": 4,
+                "inserted master identities": expected_inserted_master_names,
+            },
+            actual=(
+                None
+                if master_insertion_audit is None
+                else {
+                    "ordinary records": len(master_insertion_audit.ordinary),
+                    "raised records": len(master_insertion_audit.raised),
+                    "inserted master identities": actual_inserted_master_names,
+                }
+            ),
+            reason=(
+                "Each exact Kira coefficient is multiplied by the corresponding "
+                "phase-stripped B, Bcut, or Tcut expression while external cut "
+                "states and unresolved weights remain typed metadata."
             ),
         ),
         ValidationCheck(
@@ -1929,7 +2413,14 @@ def build_validation_ledger(
             key="leading p^2 integration",
             stage="virtuality",
             status="not-run",
-            reason="It can only follow insertion of the cut masters and raised-cut terms.",
+            reason=(
+                "The universal integral factor is implemented. Applying it to "
+                "the graph sum still requires the raised-cut sign map, the "
+                "regulated delta-prime endpoint action, oriented support, and "
+                "physical graph weights."
+                if master_insertion_audit is not None
+                else "It can only follow insertion of the cut masters and raised-cut terms."
+            ),
         ),
         ValidationCheck(
             key="all-cut epsilon-pole cancellation",
@@ -1966,9 +2457,9 @@ def build_validation_ledger(
 
 
 LIMITATIONS = (
-    "Cut-compatible sectors are known, but their oriented signs and multiplicities are not.",
-    "The scalar master basis is known, but graph-level DIS IBP coefficients are not.",
-    "No graph signs, multiplicities, or raw colour sums have been supplied.",
+    "Formal four-class signs are known, but the candidate ledger does not fix oriented Cut-operator multiplicities.",
+    "Raised-cut reverse-unitarity signs and regulated external delta-prime endpoints remain unresolved.",
+    "The active six-graph map, endpoint convention, and raw colour sums remain incomplete.",
     "The cited source defines P, but the active and historical F2 normalizations differ.",
     "The first two DIS formulas duplicate the F_L labels and are interpreted as F_2.",
     "No Kira process is started by this module.",
@@ -2056,6 +2547,18 @@ def self_check() -> Mapping[str, object]:
     projects = build_kira_smoke_projects()
     if len(projects) != 16:
         raise AssertionError("Expected sixteen cut-specialized Kira projects")
+    numerator_handoffs = build_kira_numerator_handoffs(
+        projects=projects,
+        numerator_audits=numerator_audits,
+    )
+    if len(numerator_handoffs) != 32:
+        raise AssertionError("Expected 32 graph/observable Kira handoffs")
+    derivative_sensitive = tuple(
+        handoff for handoff in numerator_handoffs
+        if handoff.requires_external_derivative
+    )
+    if len(derivative_sensitive) != 4:
+        raise AssertionError("Expected four raised-external-cut handoffs")
     serialized_paths: dict[str, tuple[str, ...]] = {}
     for key, project_input in projects.items():
         files = project_input.project.serialize()
@@ -2080,6 +2583,8 @@ def self_check() -> Mapping[str, object]:
             "paper_targets": targets,
             "projected_numerators": tuple(projected_numerators),
             "numerator_reductions": len(numerator_audits),
+            "numerator_kira_handoffs": len(numerator_handoffs),
+            "derivative_sensitive_handoffs": derivative_sensitive,
             "kira_projects": tuple(projects),
             "serialized_paths": MappingProxyType(serialized_paths),
             "validation": ledger,
@@ -2093,7 +2598,10 @@ __all__ = [
     "DISGraphSpec",
     "DISKinematics",
     "DISKiraProjectInput",
+    "DISKiraNumeratorHandoff",
+    "DISMasterCoefficientAudit",
     "DISNormalization",
+    "DISPhysicalReductionAudit",
     "DISStructureFunctions",
     "DISValidationLedger",
     "DIS_GRAPH_SPECS",
@@ -2101,6 +2609,7 @@ __all__ = [
     "DistributionCoefficient",
     "GammaTraceSpec",
     "HISTORICAL_SOURCE",
+    "HISTORICAL_ALL_CUT_SOURCE",
     "EXPECTED_STRUCTURAL_CUT_SIGNATURES",
     "KNOWN_DIS_CUTS",
     "LIMITATIONS",
@@ -2119,6 +2628,8 @@ __all__ = [
     "ValidationCheck",
     "alpha_s",
     "audit_projected_numerator_reductions",
+    "audit_kira_master_coefficients",
+    "build_kira_numerator_handoffs",
     "build_kira_projects",
     "build_kira_smoke_projects",
     "build_validation_ledger",
