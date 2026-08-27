@@ -119,10 +119,6 @@ class AncillaryAudit:
                 failures.append(f"{key} count is {actual}, expected {expected}")
         return tuple(failures)
 
-    @property
-    def valid(self) -> bool:
-        return not self.failures
-
     def require_valid(self) -> None:
         """Raise with all discrepancies rather than accepting partial data."""
 

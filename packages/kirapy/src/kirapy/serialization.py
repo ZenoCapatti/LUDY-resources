@@ -127,13 +127,6 @@ class _SymbolAlias:
     original: Expression
     wire: Expression
 
-    def manifest_dict(self) -> dict[str, str]:
-        return {
-            "kind": self.kind,
-            "digest": self.digest,
-            "wire_name": self.wire_name,
-        }
-
 
 def _make_symbol_alias(
     kind: str,
@@ -500,13 +493,6 @@ class _InvariantAdapter:
         return _scalar(converted, context=context)
 
 
-def _validate_identifier(name: str, *, context: str) -> None:
-    if not name or not (name[0].isalpha() or name[0] == "_"):
-        raise KiraConfigurationError(f"Invalid {context} identifier {name!r}")
-    if not all(character.isalnum() or character == "_" for character in name):
-        raise KiraConfigurationError(f"Invalid {context} identifier {name!r}")
-
-
 def _walk(expression: Expression):
     yield expression
     for argument in _arguments(expression):
@@ -688,12 +674,6 @@ def _integral_text(
     return f"{registry.family.wire_name}[{arguments}]"
 
 
-def integral_text(expression: Expression, project: KiraProject) -> str:
-    """Serialize one logical family integral using its deterministic wire head."""
-
-    return _integral_text(expression, project, _AliasRegistry(project))
-
-
 def _yaml(data: object) -> str:
     return yaml.safe_dump(
         data,
@@ -722,9 +702,6 @@ class ProjectFiles(Mapping[str, str]):
 
     def __len__(self) -> int:
         return len(self._items)
-
-    def as_mapping(self) -> Mapping[str, str]:
-        return MappingProxyType(dict(self._items))
 
     @property
     def symbol_aliases(self) -> Mapping[str, Expression]:
@@ -882,4 +859,4 @@ def serialize_project(project: KiraProject) -> ProjectFiles:
     return ProjectFiles(tuple(sorted(files.items())), registry.records)
 
 
-__all__ = ["ProjectFiles", "integral_text", "serialize_project"]
+__all__ = ["ProjectFiles", "serialize_project"]

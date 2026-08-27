@@ -30,8 +30,6 @@ __all__ = (
     "PAPER_PHASES",
     "MasterSupport",
     "NormalizationLedgerEntry",
-    "cut_bubble",
-    "cut_triangle",
     "kallen",
     "loop_normalization",
     "massless_cut_bubble",
@@ -41,7 +39,6 @@ __all__ = (
     "paper_cut_bubble",
     "paper_cut_triangle",
     "paper_uncut_bubble",
-    "three_mass_cut_triangle",
     "uncut_bubble",
     "virtuality_integral_factor",
 )
@@ -310,13 +307,6 @@ def massless_cut_triangle(
         p3_squared,
         dimension=dimension,
     )
-
-
-# Descriptive DIS names and DY-compatible names refer to the same exact
-# phase-stripped functions.
-cut_bubble = massless_cut_bubble
-cut_triangle = massless_cut_triangle
-three_mass_cut_triangle = massless_cut_triangle
 
 
 def virtuality_integral_factor(

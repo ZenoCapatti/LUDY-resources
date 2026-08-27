@@ -178,38 +178,10 @@ with app.setup(hide_code=True):
 
 @app.cell(hide_code=True)
 def _(E, Expression, mo):
-    from dataclasses import dataclass as _dataclass
     from html import escape as _escape_html
 
     def _typst_math(expression):
         return expression.to_typst()
-
-    @_dataclass(frozen=True, slots=True)
-    class SpensoMath:
-        expression: Expression
-        font_size: float = 13.0
-
-        @property
-        def typst(self):
-            return _typst_math(self.expression)
-
-        def _display_(self):
-            return mo.Html(
-                render_typst_html(
-                    f"$ {self.typst} $",
-                    font_size=self.font_size,
-                )
-            )
-
-        def __repr__(self):
-            return self.expression.format_plain()
-
-    def spenso_math(expression: Expression) -> SpensoMath:
-        """Return a rich display view without changing the exact expression."""
-
-        if not isinstance(expression, Expression):
-            raise TypeError("spenso_math expects a Symbolica Expression")
-        return SpensoMath(expression)
 
     def _spenso_math_cell(expression, *, include_styles=True):
         return mo.Html(

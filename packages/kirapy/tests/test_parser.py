@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from symbolica import E, ParseMode, S
+from symbolica import E, S
 
 from kirapy.errors import IncompleteReductionError, KiraParseError
 from kirapy.parser import parse_kira2math, parse_masters

@@ -180,10 +180,6 @@ class RaisedExternalMasterBoundary:
     def physically_ready(self) -> bool:
         return not self.blockers
 
-    def require_physical_inputs(self) -> None:
-        if self.blockers:
-            raise UnresolvedPhysicalInputError(self.blockers)
-
 
 @dataclass(frozen=True, slots=True)
 class OrdinaryMasterIdentity:
@@ -236,10 +232,6 @@ class OrdinaryMasterBoundary:
     @property
     def physically_ready(self) -> bool:
         return not self.blockers
-
-    def require_physical_inputs(self) -> None:
-        if self.blockers:
-            raise UnresolvedPhysicalInputError(self.blockers)
 
 
 @dataclass(frozen=True, slots=True)

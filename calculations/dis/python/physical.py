@@ -52,7 +52,6 @@ MANUSCRIPT_SOURCE_SHA256 = (
 )
 MANUSCRIPT_SOURCE_BYTES = 52_260
 HISTORICAL_SOURCE = "arXiv:2506.16489v1"
-DIS_DEFINITION_SOURCE = f"{MANUSCRIPT_SOURCE}:166-175,223-229"
 DIS_RESULT_SOURCE = f"{MANUSCRIPT_SOURCE}:293-311"
 DIS_INTEGRAND_SOURCE = f"{MANUSCRIPT_SOURCE}:394-412"
 HISTORICAL_ALL_CUT_SOURCE = (
@@ -155,12 +154,6 @@ class DISKinematics:
             self.incoming_virtuality,
             self.final_state_invariant,
         )
-
-    @property
-    def leading_power_rules(self) -> tuple[tuple[Expression, Expression], ...]:
-        """The named leading-power step; it is never imposed implicitly."""
-
-        return ((self.incoming_virtuality, E("0")),)
 
     def kira_kinematics(
         self,
@@ -268,7 +261,6 @@ class MomentumCombination:
 
 K = MomentumCombination(k_coefficient=1)
 P = MomentumCombination(p_coefficient=1)
-Q = MomentumCombination(q_coefficient=1)
 KP = MomentumCombination(k_coefficient=1, p_coefficient=1)
 KQ = MomentumCombination(k_coefficient=1, q_coefficient=1)
 PQ = MomentumCombination(p_coefficient=1, q_coefficient=1)
@@ -324,19 +316,6 @@ class DISGraphSpec:
     def __post_init__(self) -> None:
         if len(self.powers) != 6 or any(power < 0 for power in self.powers):
             raise ValueError("A DIS graph needs six non-negative denominator powers")
-
-    @property
-    def loop_powers(self) -> tuple[int, int, int, int]:
-        return self.powers[:4]
-
-    def external_denominator_factor(
-        self,
-        kinematics: DISKinematics = DIS_KINEMATICS,
-    ) -> Expression:
-        """Return the explicit ``D5,D6`` factor left outside Kira."""
-
-        d5, d6 = kinematics.scalar_denominators[4:]
-        return 1 / (d5 ** self.powers[4] * d6 ** self.powers[5])
 
 
 def _trace(
@@ -785,10 +764,6 @@ class DistributionCoefficient:
         object.__setattr__(self, "regular", _expression(self.regular))
         if any(coefficient.contains(self.variable) for coefficient in self.plus):
             raise ValueError("Canonical plus coefficients cannot depend on the endpoint variable")
-
-    @classmethod
-    def zero(cls, variable: Expression) -> DistributionCoefficient:
-        return cls(variable=variable)
 
     @classmethod
     def delta_basis(

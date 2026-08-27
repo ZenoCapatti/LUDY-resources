@@ -51,7 +51,6 @@ def _():
         ScalarProductRule,
     )
     from calculations.dy.python.physical import (
-        EndpointCoefficient,
         assemble_closed_form_dy,
         assemble_full_dy,
         crossed_box_reductions,
@@ -105,7 +104,6 @@ def _():
         ReductionBounds,
         S,
         ScalarProductRule,
-        EndpointCoefficient,
         assemble_closed_form_dy,
         assemble_full_dy,
         crossed_box_reductions,
@@ -197,52 +195,13 @@ def _(
     ReductionBounds,
     S,
     ScalarProductRule,
+    physical_topology_names,
 ):
-    q1, k1, p1, p2, m, msq, ipp1p1, ipp1p2, ipp2p2 = S(
-        "q1", "k1", "p1", "p2", "m", "msq", "ipp1p1", "ipp1p2", "ipp2p2"
+    q1, k1, p1, p2, msq, ipp1p1, ipp1p2, ipp2p2 = S(
+        "q1", "k1", "p1", "p2", "msq", "ipp1p1", "ipp1p2", "ipp2p2"
     )
 
     families = {
-        "topo1": IntegralFamily(
-            name="topo1",
-            loop_momenta=(q1,),
-            propagators=(
-                Propagator(q1, m**2),
-                Propagator(q1 - p1),
-                Propagator(q1 - p2),
-            ),
-            top_level_sectors=(7,),
-        ),
-        "topo2": IntegralFamily(
-            name="topo2",
-            loop_momenta=(q1,),
-            propagators=(
-                Propagator(q1, m**2),
-                Propagator(q1 - p1),
-                Propagator(q1 - p1 - p2),
-            ),
-            top_level_sectors=(7,),
-        ),
-        "topo3": IntegralFamily(
-            name="topo3",
-            loop_momenta=(q1,),
-            propagators=(
-                Propagator(q1, m**2),
-                Propagator(q1 - p2),
-                Propagator(q1 - p1 - p2),
-            ),
-            top_level_sectors=(7,),
-        ),
-        "topo4": IntegralFamily(
-            name="topo4",
-            loop_momenta=(q1,),
-            propagators=(
-                Propagator(q1 - p1),
-                Propagator(q1 - p2),
-                Propagator(q1 - p1 - p2),
-            ),
-            top_level_sectors=(7,),
-        ),
         "topo5": IntegralFamily(
             name="topo5",
             loop_momenta=(k1,),
@@ -424,19 +383,9 @@ def _(
             top_level_sectors=(7,),
         ),
     }
-    massive_kinematics = Kinematics(
-        incoming_momenta=(p1, p2),
-        kinematic_invariants=(
-            KinematicInvariant(m**2, 2),
-            KinematicInvariant(ipp1p2, 2),
-        ),
-        scalar_products=(
-            ScalarProductRule(p1, p1, 0),
-            ScalarProductRule(p2, p2, 0),
-            ScalarProductRule(p1, p2, ipp1p2),
-        ),
-        symbol_to_replace_by_one=m**2,
-    )
+    if tuple(families) != physical_topology_names:
+        raise ValueError("DY Kira families do not match the routed graph set")
+
     massless_kinematics = Kinematics(
         incoming_momenta=(p1, p2),
         kinematic_invariants=(KinematicInvariant(ipp1p2, 2),),
@@ -538,7 +487,7 @@ def _(
         ),
         symbol_to_replace_by_one=msq,
     )
-    topology_1_to_4_target_indices = (
+    crossed_box_target_indices = (
         (1, 1, 1),
         (1, 1, 0),
         (1, 1, -1),
@@ -640,10 +589,6 @@ def _(
         for third in (2, 1, 0, -1, -2)
     )
     master_indices = {
-        "topo1": ((1, 1, 1), (0, 1, 1), (1, 0, 0)),
-        "topo2": ((1, 0, 1), (1, 0, 0)),
-        "topo3": ((1, 0, 1), (1, 0, 0)),
-        "topo4": ((1, 1, 0),),
         "topo5": ((0, 1, 1),),
         "topo6": ((0, 1, 1), (1, 0, 1)),
         "topo7": ((0, 1, 1), (1, 1, 0)),
@@ -680,16 +625,16 @@ def _(
             return p2_massive_kinematics
         if name in {"topo7", "topo29"}:
             return p1_massive_kinematics
-        if name in {"topo4", "topo5", "topo21"}:
+        if name in {"topo5", "topo21"}:
             return massless_kinematics
-        return massive_kinematics
+        raise KeyError(f"No kinematics declared for {name}")
 
     def _target_indices_for_name(name):
         if name in {"topo10", "topo11"}:
             return topology_10_target_indices
         if name in {"topo5", "topo6", "topo7", "topo8"}:
             return topology_5_to_8_target_indices
-        return topology_1_to_4_target_indices
+        return crossed_box_target_indices
 
     def _bounds_for_name(name):
         return (
@@ -730,11 +675,11 @@ def _(
         dy_graphs,
         dy_numerators,
     )
-    crossed_apart_expression, crossed_children = crossed_box_reductions(
+    _, crossed_children = crossed_box_reductions(
         dy_graphs,
         dy_numerators,
     )
-    return crossed_apart_expression, crossed_children, dy_numerator_reductions
+    return crossed_children, dy_numerator_reductions
 
 
 @app.cell(hide_code=True)

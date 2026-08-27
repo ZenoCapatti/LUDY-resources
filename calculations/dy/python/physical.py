@@ -30,10 +30,8 @@ from symbolica import E, S, Expression
 from notebooks.ludy import (
     ApartTerm,
     NumeratorReduction,
-    ReducedIntegralTerm,
     apart_kernel as _apart_kernel,
     normalize_rational,
-    numerator_relations,
     reduce_numerator as _reduce_numerator,
     replace_all,
 )
@@ -70,19 +68,6 @@ def reduce_numerator(
         denominators,
         loop_scalar_products=loop_scalar_products,
         base_integral_indices=base_integral_indices,
-    )
-
-
-def apart_kernel(
-    denominators: Sequence[Expression],
-    *,
-    loop_scalar_products: Sequence[Expression] = (kk, kp1, kp2),
-) -> tuple[Expression, tuple[ApartTerm, ...]]:
-    """DY convenience wrapper around the cross-box notebook helper."""
-
-    return _apart_kernel(
-        denominators,
-        loop_scalar_products=loop_scalar_products,
     )
 
 
@@ -281,15 +266,6 @@ def dy_graph_specs() -> dict[str, DYGraphSpec]:
             numerator_divisor=qg_external**2,
         ),
     }
-
-
-PHYSICAL_TOPOLOGY_NAMES = tuple(
-    dict.fromkeys(
-        route.topology
-        for graph in dy_graph_specs().values()
-        for route in graph.routes
-    )
-)
 
 
 def routed_topology_names(
@@ -495,7 +471,7 @@ def crossed_box_reductions(
     graph = graphs["qq crossed box"]
     denominators = graph.denominators
     numerator = numerators["qq crossed box"]
-    apart_expression, apart_terms = apart_kernel(
+    apart_expression, apart_terms = _apart_kernel(
         denominators,
         loop_scalar_products=(kk, kp1, kp2),
     )
@@ -523,7 +499,7 @@ def crossed_box_reductions(
 
 
 def _coefficient_of_selected_masters(
-    result: "ReductionResult",
+    result: ReductionResult,
     input_expression: Expression,
     selected_masters: Sequence[Expression],
     *,
@@ -602,7 +578,7 @@ class ReductionAudit:
 
 
 def audit_physical_reductions(
-    reductions: Mapping[str, "ReductionResult"],
+    reductions: Mapping[str, ReductionResult],
     *,
     graphs: Mapping[str, DYGraphSpec] | None = None,
     numerators: Mapping[str, Expression] | None = None,
@@ -829,7 +805,7 @@ def audit_physical_reductions(
         ):
             if route.retained_indices is None:
                 raise ValueError(f"Crossed route {route.topology} has no apart child")
-            apart_term, child = crossed_by_retained[route.retained_indices]
+            _, child = crossed_by_retained[route.retained_indices]
             name = route.topology
             result = reductions[name]
             rules = _route_kinematic_rules(route)
@@ -1080,33 +1056,6 @@ class FullDYCoefficient:
     qg_manuscript: EndpointCoefficient
     qg_transverse_minus_manuscript: EndpointCoefficient
     master_handoff: AnalyticMasterHandoff | None = None
-
-    @property
-    def physical_target_channels(self) -> Mapping[str, EndpointCoefficient]:
-        """Return the manuscript coefficient functions as the physical target.
-
-        The exact native-transverse reconstruction remains separate because
-        its qqbar soft sign and regular terms do not agree with the manuscript,
-        while the recorded Mathematica qg result retains a Ward remainder.
-        """
-
-        return MappingProxyType(
-            {
-                "qqbar": self.qq_manuscript,
-                "qg": self.qg_manuscript,
-            }
-        )
-
-    @property
-    def native_transverse_channels(self) -> Mapping[str, EndpointCoefficient]:
-        """Return the consistently metric/transverse provenance result."""
-
-        return MappingProxyType(
-            {
-                "qqbar": self.qq_transverse.total,
-                "qg": self.qg_transverse.total,
-            }
-        )
 
 
 def _positive_branch_log_rules() -> tuple[tuple[Expression, Expression], ...]:
@@ -1858,7 +1807,7 @@ def assemble_closed_form_dy() -> FullDYCoefficient:
 
 
 def assemble_full_dy(
-    reductions: Mapping[str, "ReductionResult"],
+    reductions: Mapping[str, ReductionResult],
     *,
     graphs: Mapping[str, DYGraphSpec] | None = None,
     numerators: Mapping[str, Expression] | None = None,
@@ -1889,11 +1838,8 @@ __all__ = [
     "FullDYCoefficient",
     "MasterInsertion",
     "NumeratorReduction",
-    "PHYSICAL_TOPOLOGY_NAMES",
-    "ReducedIntegralTerm",
     "ReductionAudit",
     "alpha_s",
-    "apart_kernel",
     "assemble_closed_form_dy",
     "assemble_full_dy",
     "audit_physical_reductions",
@@ -1912,7 +1858,6 @@ __all__ = [
     "mu_r_squared",
     "normalize_rational",
     "numerator_reductions",
-    "numerator_relations",
     "physical_numerators",
     "qg_ward_reductions",
     "reduce_numerator",

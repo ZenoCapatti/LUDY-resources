@@ -298,7 +298,6 @@ def _(mo):
     rendering its Spenso-aware Typst form as semantic HTML/MathML. Notebook
     prose and expression displays share the same responsive HTML renderer.
 
-    - `spenso_math(expression)` wraps one exact expression for rich output.
     - `typst(template, **expressions)` safely combines prose with inline or
       display mathematics without first converting expressions to strings.
     - `spenso_table(rows)` installs the same renderer for expression-valued
@@ -393,18 +392,6 @@ def _(Expression, dataclass):
             return self.source
 
     return SpensoMath, TypstFragment
-
-
-@app.cell
-def _(Expression, SpensoMath):
-    def spenso_math(expression: Expression) -> SpensoMath:
-        """Return a rich Marimo display view of an exact Symbolica expression."""
-
-        if not isinstance(expression, Expression):
-            raise TypeError("spenso_math expects a Symbolica Expression")
-        return SpensoMath(expression)
-
-    return
 
 
 @app.cell
@@ -592,12 +579,6 @@ class ReducedIntegralTerm:
     coefficient: Expression
     propagators: list[Expression]
     integral_indices: tuple[int, ...]
-
-    @property
-    def denominators(self) -> tuple[Expression, ...]:
-        """Compatibility alias for the ordered propagator basis."""
-
-        return tuple(self.propagators)
 
     def as_expression(self) -> Expression:
         from math import prod
@@ -980,7 +961,6 @@ def _(Expression, loop_denominators, physical_numerator):
     )
     return (
         integrand,
-        user_numerator,
         using_physical_numerator,
         worked_numerator,
     )
@@ -1227,7 +1207,7 @@ def apart_kernel(
 
 @app.cell
 def _(integrand, loop_scalar_products):
-    apart_expression, apart_terms = apart_integrand(
+    _, apart_terms = apart_integrand(
         integrand,
         loop_scalar_products=loop_scalar_products,
     )

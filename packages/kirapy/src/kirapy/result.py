@@ -108,10 +108,6 @@ class ReductionResult:
         object.__setattr__(self, "zero_integrals", zeros)
 
     @property
-    def requested(self) -> tuple[Expression, ...]:
-        return self.requested_targets
-
-    @property
     def complete(self) -> bool:
         return not self.missing_targets and not self.unresolved_integrals
 

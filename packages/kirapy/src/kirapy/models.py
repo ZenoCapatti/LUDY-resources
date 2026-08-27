@@ -125,13 +125,6 @@ class Kinematics:
                 _expression(self.symbol_to_replace_by_one),
             )
 
-    @property
-    def scalarproduct_rules(self) -> tuple[ScalarProductRule, ...]:
-        """Alias matching Kira's spelling of the YAML key."""
-
-        return self.scalar_products
-
-
 @dataclass(frozen=True, slots=True)
 class IntegralFamily:
     name: str

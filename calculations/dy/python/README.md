@@ -3,10 +3,11 @@
 This application directory uses the repository-root environment and is the
 Python counterpart of the sibling
 [`DY_calculation.nb`](../mathematica/DY_calculation.nb) calculation.
-It uses the repository's reusable
-[`kirapy`](../../../packages/kirapy) package to reproduce the validated
-topology-1 through topology-8, topology-10 through topology-11, and topology-20
-through topology-31 IBP reductions with Kira.
+It uses the repository's reusable [`kirapy`](../../../packages/kirapy) package
+to run the 18 physical families: topology 5 through 8, topology 10 through 11,
+and topology 20 through 31. The package test suite separately retains the
+historical topology 1 through 4 oracle coverage; those nonphysical families
+are not instantiated by this notebook.
 
 The application contains two Marimo notebooks and one reusable assembly module:
 

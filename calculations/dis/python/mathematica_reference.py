@@ -19,7 +19,6 @@ from calculations.dis.python.physical import (
     DistributionCoefficient,
     alpha_s,
     canonical,
-    color_count,
     color_f,
     color_t,
     electric_charge,
