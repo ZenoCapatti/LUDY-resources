@@ -5,8 +5,20 @@ app = marimo.App(width="medium")
 
 
 with app.setup(hide_code=True):
+    from pathlib import Path as _Path
+    import sys as _sys
+
     import marimo as _marimo
-    from masters import typst_md as _typst_md
+
+    _repository_root = _Path(__file__).resolve().parents[3]
+    for _path in (
+        str(_repository_root),
+        str(_repository_root / "notebooks"),
+    ):
+        if _path not in _sys.path:
+            _sys.path.insert(0, _path)
+
+    from calculations.dy.python.masters import typst_md as _typst_md
 
     # Typst source cells retain Marimo's prose styling while remaining fully
     # editable as source, just like native Markdown cells.
@@ -19,7 +31,11 @@ def _():
 
     import marimo as mo
     from symbolica import S, Expression
-    from masters import render_typst_html, typst_md, typst_shared_css
+    from calculations.dy.python.masters import (
+        render_typst_html,
+        typst_md,
+        typst_shared_css,
+    )
 
     # Keep the patch in an ordinary dependency cell as well as app.setup.
     # Marimo's static exporter evaluates this cell before the prose cells.
@@ -34,11 +50,15 @@ def _():
         ReductionBounds,
         ScalarProductRule,
     )
-    from physical import (
-        PHYSICAL_TOPOLOGY_NAMES,
+    from calculations.dy.python.physical import (
         EndpointCoefficient,
         assemble_closed_form_dy,
         assemble_full_dy,
+        crossed_box_reductions,
+        dy_graph_specs,
+        numerator_reductions,
+        physical_numerators,
+        routed_topology_names,
     )
 
     def expression_table(data, **kwargs):
@@ -80,7 +100,6 @@ def _():
         KinematicInvariant,
         Kinematics,
         Kira,
-        PHYSICAL_TOPOLOGY_NAMES,
         Path,
         Propagator,
         ReductionBounds,
@@ -89,8 +108,13 @@ def _():
         EndpointCoefficient,
         assemble_closed_form_dy,
         assemble_full_dy,
+        crossed_box_reductions,
+        dy_graph_specs,
         expression_table,
         mo,
+        numerator_reductions,
+        physical_numerators,
+        routed_topology_names,
         typst_md,
     )
 
@@ -102,55 +126,65 @@ def _(typst_md):
 
     This is the portable Python counterpart of the validated IBP-reduction jobs in
     #link("../mathematica/DY_calculation.nb")[`DY_calculation.nb`].
-    It recreates the selected topology and its complete requested target set from the
-    retained FIRE fixture, asks Kira for a complete reduction, and parses the
-    result into exact Symbolica expressions. The second half runs the 18 physical
-    sector jobs, reduces all eight routed numerators, constructs the explicit
+    It first defines the complete graph set, its denominator bases, Kira routes,
+    and exact physical numerators. One batch pipeline then runs or resumes the 18
+    physical sector jobs, reduces all eight routed numerators, constructs the explicit
     Kira-to-analytic-master handoff, integrates the leading external virtualities,
     and assembles the quark--antiquark and $q g$ coefficient functions.
 
-    Kira is never launched merely by opening the notebook. Inspect the complete
-    project below, then use either run button when ready. The consistently transverse
-    native result, cached-notebook result, and manuscript physical target are separate
-    objects because their final projector and endpoint treatments are not mutually
-    consistent.
+    Kira is never launched merely by opening the notebook. The main calculation
+    contains only native graph data and pipeline results. Independent FIRE,
+    Mathematica, and manuscript comparisons are collected in the final validation
+    appendix.
     """)
     return
 
 
 @app.cell
-def _(mo):
-    topology_choice = mo.ui.radio(
-        options=[
-            "topo1",
-            "topo2",
-            "topo3",
-            "topo4",
-            "topo5",
-            "topo6",
-            "topo7",
-            "topo8",
-            "topo10",
-            "topo11",
-            "topo20",
-            "topo21",
-            "topo22",
-            "topo23",
-            "topo24",
-            "topo25",
-            "topo26",
-            "topo27",
-            "topo28",
-            "topo29",
-            "topo30",
-            "topo31",
-        ],
-        value="topo1",
-        label="Topology",
-        inline=True,
+def _(dy_graph_specs, physical_numerators, routed_topology_names):
+    # These are ordinary mutable Python objects on purpose. Edit this cell to
+    # replace a numerator, denominator basis, route, or selected master before
+    # running the batch pipeline below.
+    dy_graphs = dy_graph_specs()
+    dy_numerators = physical_numerators()
+    physical_topology_names = routed_topology_names(dy_graphs)
+    return dy_graphs, dy_numerators, physical_topology_names
+
+
+@app.cell(hide_code=True)
+def _(dy_graphs, dy_numerators, expression_table, mo, typst_md):
+    _graph_rows = [
+        {
+            "graph": graph_name,
+            "denominators": graph.denominators,
+            "base indices": graph.base_integral_indices,
+            "apart first": graph.apart_before_numerator_reduction,
+            "analytic cuts": graph.analytic_cuts,
+            "numerator": dy_numerators[graph_name],
+        }
+        for graph_name, graph in dy_graphs.items()
+    ]
+    _route_rows = [
+        {
+            "graph": graph_name,
+            "cut": route.cut,
+            "Kira family": route.topology,
+            "retained lines": route.retained_indices,
+            "selected master": route.selected_indices,
+            "p1 on shell": route.p1_on_shell,
+            "p2 on shell": route.p2_on_shell,
+        }
+        for graph_name, graph in dy_graphs.items()
+        for route in graph.routes
+    ]
+    mo.vstack(
+        [
+            typst_md("== 1. Physical graphs, denominators, routes, and numerators"),
+            expression_table(_graph_rows, pagination=False),
+            expression_table(_route_rows, pagination=False),
+        ]
     )
-    topology_choice
-    return (topology_choice,)
+    return
 
 
 @app.cell
@@ -163,7 +197,6 @@ def _(
     ReductionBounds,
     S,
     ScalarProductRule,
-    topology_choice,
 ):
     q1, k1, p1, p2, m, msq, ipp1p1, ipp1p2, ipp2p2 = S(
         "q1", "k1", "p1", "p2", "m", "msq", "ipp1p1", "ipp1p2", "ipp2p2"
@@ -391,7 +424,6 @@ def _(
             top_level_sectors=(7,),
         ),
     }
-    family = families[topology_choice.value]
     massive_kinematics = Kinematics(
         incoming_momenta=(p1, p2),
         kinematic_invariants=(
@@ -506,24 +538,6 @@ def _(
         ),
         symbol_to_replace_by_one=msq,
     )
-    if family.name == "topo11":
-        kinematics = topo11_kinematics
-    elif family.name in {"topo28", "topo30", "topo31"}:
-        kinematics = p1_massive_internal_kinematics
-    elif family.name in {"topo24", "topo26", "topo27"}:
-        kinematics = p2_massive_internal_kinematics
-    elif family.name in {"topo10", "topo20", "topo22", "topo23"}:
-        kinematics = topo10_kinematics
-    elif family.name == "topo8":
-        kinematics = fully_off_shell_kinematics
-    elif family.name in {"topo6", "topo25"}:
-        kinematics = p2_massive_kinematics
-    elif family.name in {"topo7", "topo29"}:
-        kinematics = p1_massive_kinematics
-    elif family.name in {"topo4", "topo5", "topo21"}:
-        kinematics = massless_kinematics
-    else:
-        kinematics = massive_kinematics
     topology_1_to_4_target_indices = (
         (1, 1, 1),
         (1, 1, 0),
@@ -625,18 +639,6 @@ def _(
         for second in (2, 1, 0, -1, -2)
         for third in (2, 1, 0, -1, -2)
     )
-    if family.name in {"topo10", "topo11"}:
-        target_indices = topology_10_target_indices
-    elif family.name in {"topo5", "topo6", "topo7", "topo8"}:
-        target_indices = topology_5_to_8_target_indices
-    else:
-        target_indices = topology_1_to_4_target_indices
-    targets = tuple(family(*indices) for indices in target_indices)
-    bounds = (
-        ReductionBounds(sectors=(7,), r=9, s=6, d=3)
-        if family.name in {"topo10", "topo11"}
-        else ReductionBounds(sectors=(7,), r=9, s=4, d=2)
-    )
     master_indices = {
         "topo1": ((1, 1, 1), (0, 1, 1), (1, 0, 0)),
         "topo2": ((1, 0, 1), (1, 0, 0)),
@@ -661,11 +663,7 @@ def _(
         "topo30": ((0, 1, 0), (0, 1, 1), (1, 1, 0)),
         "topo31": ((0, 1, 0), (0, 1, 1), (1, 0, 1), (1, 1, 1)),
     }
-    preferred_masters = tuple(
-        family(*indices) for indices in master_indices[family.name]
-    )
     application_root = Path(__file__).resolve().parent
-    kira_workdir = application_root / "runs" / "kirapy" / f"dy-{family.name}"
 
     def _kinematics_for_name(name):
         if name == "topo11":
@@ -718,190 +716,68 @@ def _(
         }
         for name, candidate in families.items()
     }
-    return (
-        bounds,
-        family,
-        ipp1p2,
-        kinematics,
-        kira_workdir,
-        preferred_masters,
-        targets,
-        topology_specs,
-    )
-
-
-@app.cell(hide_code=True)
-def _(bounds, family, kira_workdir, preferred_masters, targets, typst_md):
-    _target_domain = (
-        "{2, 1, 0, -1, -2}^3"
-        if family.name in {"topo10", "topo11"}
-        else (
-            "{1, 0, -1, -2}^3"
-            if family.name in {"topo5", "topo6", "topo7", "topo8"}
-            else "{1, 0, -1}^3"
-        )
-    )
-    if family.name in {"topo1", "topo2", "topo3"}:
-        _invariant_note = (
-            "The composite invariant `m**2` crosses Kira through a deterministic "
-            "private alias and is restored exactly on every parsed right-hand side."
-        )
-    elif family.name in {"topo6", "topo25"}:
-        _invariant_note = "The external invariant `p2**2 = ipp2p2` remains exact."
-    elif family.name in {"topo7", "topo29"}:
-        _invariant_note = "The external invariant `p1**2 = ipp1p1` remains exact."
-    elif family.name == "topo8":
-        _invariant_note = (
-            "The external invariants `p1**2 = ipp1p1`, `p1*p2 = ipp1p2`, "
-            "and `p2**2 = ipp2p2` remain exact."
-        )
-    elif family.name in {"topo10", "topo20", "topo22", "topo23"}:
-        _invariant_note = (
-            "The internal mass-squared invariant `msq` and external invariant "
-            "`p1*p2 = ipp1p2` remain exact."
-        )
-    elif family.name in {"topo24", "topo26", "topo27"}:
-        _invariant_note = (
-            "The internal mass-squared invariant `msq`, external invariant "
-            "`p2**2 = ipp2p2`, and `p1*p2 = ipp1p2` remain exact."
-        )
-    elif family.name in {"topo28", "topo30", "topo31"}:
-        _invariant_note = (
-            "The internal mass-squared invariant `msq`, external invariant "
-            "`p1**2 = ipp1p1`, and `p1*p2 = ipp1p2` remain exact."
-        )
-    elif family.name == "topo11":
-        _invariant_note = (
-            "The internal mass-squared invariant `msq`, external invariant "
-            "`p1**2 = ipp1p1`, and `p1*p2 = ipp1p2` remain exact."
-        )
-    else:
-        _invariant_note = (
-            "This family is massless; its kinematic symbols still cross Kira "
-            "through `kirapy`'s private aliases."
-        )
-    typst_md(f"""
-    #table(
-      columns: (auto, 1fr),
-      table.header([*project item*], [*value*]),
-      [family], [`{family.name}` with `{family.arity}` propagators],
-      [targets], [`{len(targets)}` (`{_target_domain}`)],
-      [reduction seed], [sector `{bounds.sectors[0]}`, `r={bounds.r}`, `s={bounds.s}`, `d={bounds.d}`],
-      [preferred masters], [`{len(preferred_masters)}` with `check_masters=True`],
-      [persistent workdir], [`{kira_workdir}`],
-    )
-
-    {_invariant_note} The historical notebook later identifies `ipp1p2 = s/2`.
-    """)
-    return
-
-
-@app.cell
-def _(family, mo):
-    run_kira = mo.ui.run_button(
-        label=f"Run the complete Kira reduction for {family.name}"
-    )
-    run_kira
-    return (run_kira,)
+    return (topology_specs,)
 
 
 @app.cell
 def _(
-    Kira,
-    bounds,
-    family,
-    kinematics,
-    kira_workdir,
-    preferred_masters,
-    run_kira,
-    targets,
+    crossed_box_reductions,
+    dy_graphs,
+    dy_numerators,
+    numerator_reductions,
 ):
-    if run_kira.value:
-        kira = Kira()
-        doctor_report = kira.doctor()
-        doctor_report.raise_for_errors()
-        reduction = kira.reduce(
-            family=family,
-            kinematics=kinematics,
-            targets=targets,
-            bounds=bounds,
-            preferred_masters=preferred_masters,
-            check_masters=True,
-            workdir=kira_workdir,
-            parallel="physical",
-            resume=True,
-        )
-    else:
-        doctor_report = None
-        reduction = None
-    return doctor_report, reduction
+    dy_numerator_reductions = numerator_reductions(
+        dy_graphs,
+        dy_numerators,
+    )
+    crossed_apart_expression, crossed_children = crossed_box_reductions(
+        dy_graphs,
+        dy_numerators,
+    )
+    return crossed_apart_expression, crossed_children, dy_numerator_reductions
 
 
 @app.cell(hide_code=True)
-def _(doctor_report, mo, reduction):
-    if reduction is None:
-        _summary = mo.callout(
-            "Ready. No subprocess has been started.",
-            kind="neutral",
-        )
-    else:
-        _summary = mo.callout(
-            f"Kira `{doctor_report.version}` completed: "
-            f"{len(reduction.requested_targets)} targets, "
-            f"{len(reduction.masters)} masters, "
-            f"{len(reduction.zero_integrals)} zero integrals, "
-            f"complete={reduction.complete}.",
-            kind="success",
-        )
-    _summary
-    return
-
-
-@app.cell(hide_code=True)
-def _(expression_table, reduction, typst_md):
-    if reduction is None:
-        _rules = typst_md("Reduction rules will appear here after the run.")
-    else:
-        _rules = expression_table(
-            [
-                {
-                    "target": target,
-                    "reduction": reduction.rules[target],
-                }
-                for target in reduction.requested_targets
-            ],
-            pagination=True,
-            page_size=27,
-        )
-    _rules
-    return
-
-
-@app.cell(hide_code=True)
-def _(family, ipp1p2, reduction, typst_md):
-    if reduction is None:
-        _physical_rules = typst_md(
-            "The downstream substitution `ipp1p2 -> s/2` will be shown here."
-        )
-    else:
-        _physical_rules = typst_md(
-            "The result remains exact and can now enter the downstream DY "
-            f"calculation. For example, the rule for `{family.name}(1, -1, 1)` is "
-            f"`{reduction.rules[next(target for target in reduction.requested_targets if target.format_plain() == f'{family.name}(1,-1,1)')].format_plain()}` "
-            f"before applying `{ipp1p2.format_plain()} -> s/2`."
-        )
-    _physical_rules
+def _(
+    crossed_children,
+    dy_numerator_reductions,
+    expression_table,
+    mo,
+    typst_md,
+):
+    _reduction_rows = [
+        {
+            "graph": graph_name,
+            "apart child": None,
+            "input powers": reduction.base_integral_indices,
+            "output terms": len(reduction.terms),
+        }
+        for graph_name, reduction in dy_numerator_reductions.items()
+    ] + [
+        {
+            "graph": "qq crossed box",
+            "apart child": apart_term.retained_indices,
+            "input powers": reduction.base_integral_indices,
+            "output terms": len(reduction.terms),
+        }
+        for apart_term, reduction in crossed_children
+    ]
+    mo.vstack(
+        [
+            typst_md("== 2. Native apart and numerator-reduction pipeline"),
+            expression_table(_reduction_rows, pagination=False),
+        ]
+    )
     return
 
 
 @app.cell(hide_code=True)
 def _(typst_md):
     typst_md(r"""
-    == Assemble the complete leading-power NLO DY coefficient
+    == 3. Kira, analytic masters, and complete DY assembly
 
-    The topology selector above remains useful for inspecting one FIRE/Kira job.
-    The physical button below instead runs or resumes every sector used by the
-    eight routed transverse numerators:
+    The button below runs or resumes every sector used by the eight routed
+    transverse numerators as one calculation:
 
     - `topo5`--`topo8`: the virtual triangle and bubble, including all cuts;
     - `topo10`--`topo11`: the direct quark--antiquark box and the three $q g$ graphs;
@@ -938,8 +814,10 @@ def _(mo):
 @app.cell
 def _(
     Kira,
-    PHYSICAL_TOPOLOGY_NAMES,
     assemble_full_dy,
+    dy_graphs,
+    dy_numerators,
+    physical_topology_names,
     run_full_dy,
     topology_specs,
 ):
@@ -948,7 +826,7 @@ def _(
         full_doctor_report = full_kira.doctor()
         full_doctor_report.raise_for_errors()
         full_reductions = {}
-        for physical_name in PHYSICAL_TOPOLOGY_NAMES:
+        for physical_name in physical_topology_names:
             spec = topology_specs[physical_name]
             full_reductions[physical_name] = full_kira.reduce(
                 family=spec["family"],
@@ -961,7 +839,11 @@ def _(
                 parallel="physical",
                 resume=True,
             )
-        full_audit, full_dy = assemble_full_dy(full_reductions)
+        full_audit, full_dy = assemble_full_dy(
+            full_reductions,
+            graphs=dy_graphs,
+            numerators=dy_numerators,
+        )
     else:
         full_audit = None
         full_doctor_report = None
@@ -988,7 +870,6 @@ def _(assemble_closed_form_dy):
 
 @app.cell(hide_code=True)
 def _(
-    PHYSICAL_TOPOLOGY_NAMES,
     endpoint_row,
     expression_table,
     full_audit,
@@ -997,6 +878,7 @@ def _(
     full_dy_preview,
     full_reductions,
     mo,
+    physical_topology_names,
     typst_md,
 ):
     displayed_dy = full_dy if full_dy is not None else full_dy_preview
@@ -1009,7 +891,6 @@ def _(
         _reduction_table = typst_md(
             "Press the physical run button to load or compute all 18 sector jobs."
         )
-        _audit_table = typst_md("Exact Kira residuals will appear after that run.")
         _master_table = typst_md(
             "The explicit Kira-to-analytic-master ledger will appear after that run."
         )
@@ -1024,7 +905,7 @@ def _(
         _run_status = mo.callout(
             f"Kira `{full_doctor_report.version}` completed the native provenance "
             f"assembly: "
-            f"{len(full_audit.complete_topologies)}/{len(PHYSICAL_TOPOLOGY_NAMES)} "
+            f"{len(full_audit.complete_topologies)}/{len(physical_topology_names)} "
             f"sector jobs complete; all algebra, Ward, selected-master, and "
             f"finite master-handoff residuals are zero.",
             kind="success",
@@ -1038,105 +919,10 @@ def _(
                     "complete": full_reductions[name].complete,
                     "workdir": str(full_reductions[name].workdir),
                 }
-                for name in PHYSICAL_TOPOLOGY_NAMES
+                for name in physical_topology_names
             ],
             pagination=True,
             page_size=18,
-        )
-        _audit_rows = [
-            {
-                "check": f"numerator reconstruction: {name}",
-                "residual": residual,
-            }
-            for name, residual in full_audit.numerator_reconstruction_residuals.items()
-        ]
-        _audit_rows.extend(
-            {
-                "check": f"virtual master coefficient: {name}",
-                "residual": residual,
-            }
-            for name, residual in full_audit.virtual_expected_residuals.items()
-        )
-        _audit_rows.extend(
-            {
-                "check": f"direct-box master coefficient: {name}",
-                "residual": residual,
-            }
-            for name, residual in full_audit.direct_box_expected_residuals.items()
-        )
-        _audit_rows.extend(
-            {
-                "check": f"qg master coefficient: {name}",
-                "residual": residual,
-            }
-            for name, residual in full_audit.qg_expected_residuals.items()
-        )
-        _audit_rows.extend(
-            {
-                "check": f"qg Ward master equality: {name}",
-                "residual": residual,
-            }
-            for name, residual in full_audit.qg_ward_expected_residuals.items()
-        )
-        _audit_rows.append(
-            {
-                "check": "qg Ward combination 2 triangle - box - bubble",
-                "residual": full_audit.qg_ward_cancellation_residual,
-            }
-        )
-        _audit_rows.extend(
-            {
-                "check": f"crossed-box cut {name} master coefficient",
-                "residual": residual,
-            }
-            for name, residual in full_audit.crossed_box_expected_residuals.items()
-        )
-        _audit_rows.extend(
-            [
-                {
-                    "check": "crossed-box apart reconstruction",
-                    "residual": full_audit.crossed_box_reconstruction_residual,
-                },
-                {
-                    "check": "direct qqbar analytic-master finite term",
-                    "residual": _handoff.direct_finite_residual,
-                },
-                {
-                    "check": "qg analytic-master finite term",
-                    "residual": _handoff.qg_finite_residual,
-                },
-            ]
-        )
-        _endpoint_components = ("delta", "D0", "D1", "ordinary")
-        for _power, _residual in _handoff.crossed_pole_residuals.items():
-            _audit_rows.extend(
-                {
-                    "check": (
-                        f"crossed all-cut epsilon^{_power}: {_component}"
-                    ),
-                    "residual": _value,
-                }
-                for _component, _value in zip(
-                    _endpoint_components,
-                    _residual.canonical().residuals(),
-                    strict=True,
-                )
-            )
-        _audit_rows.extend(
-            {
-                "check": f"crossed all-cut finite term: {_component}",
-                "residual": _value,
-            }
-            for _component, _value in zip(
-                _endpoint_components,
-                _handoff.crossed_finite_residual.canonical().residuals(),
-                strict=True,
-            )
-        )
-        _audit_table = expression_table(
-            _audit_rows,
-            pagination=True,
-            page_size=40,
         )
         _master_table = expression_table(
             [
@@ -1166,10 +952,6 @@ def _(
                 endpoint_row(
                     "crossed 11+10+01+00: finite coefficient",
                     _handoff.crossed_finite,
-                ),
-                endpoint_row(
-                    "finite coefficient - crossed graph ledger",
-                    _handoff.crossed_finite_residual.canonical(),
                 ),
             ]
         )
@@ -1206,37 +988,12 @@ def _(
     _qg_graph_rows.append(
         endpoint_row("native transverse qg candidate", displayed_dy.qg_transverse.total)
     )
-    _comparison_rows = [
-        endpoint_row("qqbar: physical target, manuscript Eq. 317", displayed_dy.qq_manuscript),
-        endpoint_row("qqbar: native transverse", displayed_dy.qq_transverse.total),
-        endpoint_row("qqbar: cached notebook", displayed_dy.qq_cached_notebook),
-        endpoint_row(
-            "qqbar: transverse - notebook",
-            displayed_dy.qq_transverse_minus_notebook,
-        ),
-        endpoint_row(
-            "qqbar: transverse - manuscript",
-            displayed_dy.qq_transverse_minus_manuscript,
-        ),
-        endpoint_row(
-            "qqbar: notebook - manuscript",
-            displayed_dy.qq_notebook_minus_manuscript,
-        ),
-        endpoint_row("qg: physical target, manuscript Eq. 318", displayed_dy.qg_manuscript),
-        endpoint_row("qg: native transverse", displayed_dy.qg_transverse.total),
-        endpoint_row("qg: cached notebook", displayed_dy.qg_cached_notebook),
-        endpoint_row(
-            "qg: transverse - manuscript",
-            displayed_dy.qg_transverse_minus_manuscript,
-        ),
-    ]
     mo.vstack(
         [
             _run_status,
+            typst_md("== 4. Native assembled result"),
             typst_md("=== Physical Kira sectors"),
             _reduction_table,
-            typst_md("=== Exact native audits"),
-            _audit_table,
             typst_md("=== Kira-to-analytic-master handoff"),
             _master_table,
             _normalization_table,
@@ -1248,14 +1005,145 @@ def _(
             expression_table(_qq_graph_rows, pagination=False),
             typst_md("=== qg graph ledger"),
             expression_table(_qg_graph_rows, pagination=False),
-            typst_md("=== Final partonic channels and independent oracles"),
+        ]
+    )
+    return (displayed_dy,)
+
+
+@app.cell(hide_code=True)
+def _(
+    displayed_dy,
+    endpoint_row,
+    expression_table,
+    full_audit,
+    mo,
+    typst_md,
+):
+    if full_audit is None:
+        _audit_table = typst_md(
+            "Exact Kira and analytic-handoff residuals will appear after the run."
+        )
+        _crossed_validation_table = typst_md(
+            "The crossed-box ledger residual will appear after the run."
+        )
+    else:
+        _handoff = displayed_dy.master_handoff
+        _audit_rows = [
+            {"check": f"numerator reconstruction: {name}", "residual": residual}
+            for name, residual in full_audit.numerator_reconstruction_residuals.items()
+        ]
+        for _label, _residuals in (
+            ("virtual master coefficient", full_audit.virtual_expected_residuals),
+            ("direct-box master coefficient", full_audit.direct_box_expected_residuals),
+            ("qg master coefficient", full_audit.qg_expected_residuals),
+            ("qg Ward master equality", full_audit.qg_ward_expected_residuals),
+            ("crossed-box master coefficient", full_audit.crossed_box_expected_residuals),
+        ):
+            _audit_rows.extend(
+                {"check": f"{_label}: {name}", "residual": residual}
+                for name, residual in _residuals.items()
+            )
+        _audit_rows.extend(
+            [
+                {
+                    "check": "qg Ward combination 2 triangle - box - bubble",
+                    "residual": full_audit.qg_ward_cancellation_residual,
+                },
+                {
+                    "check": "crossed-box apart reconstruction",
+                    "residual": full_audit.crossed_box_reconstruction_residual,
+                },
+                {
+                    "check": "direct qqbar analytic-master finite term",
+                    "residual": _handoff.direct_finite_residual,
+                },
+                {
+                    "check": "qg analytic-master finite term",
+                    "residual": _handoff.qg_finite_residual,
+                },
+            ]
+        )
+        _endpoint_components = ("delta", "D0", "D1", "ordinary")
+        for _power, _residual in _handoff.crossed_pole_residuals.items():
+            _audit_rows.extend(
+                {
+                    "check": f"crossed all-cut epsilon^{_power}: {_component}",
+                    "residual": _value,
+                }
+                for _component, _value in zip(
+                    _endpoint_components,
+                    _residual.canonical().residuals(),
+                    strict=True,
+                )
+            )
+        _audit_rows.extend(
+            {
+                "check": f"crossed all-cut finite term: {_component}",
+                "residual": _value,
+            }
+            for _component, _value in zip(
+                _endpoint_components,
+                _handoff.crossed_finite_residual.canonical().residuals(),
+                strict=True,
+            )
+        )
+        _audit_table = expression_table(
+            _audit_rows,
+            pagination=True,
+            page_size=40,
+        )
+        _crossed_validation_table = expression_table(
+            [
+                endpoint_row(
+                    "finite coefficient - crossed graph ledger",
+                    _handoff.crossed_finite_residual.canonical(),
+                )
+            ],
+            pagination=False,
+        )
+
+    _comparison_rows = [
+        endpoint_row("qqbar: physical target, manuscript Eq. 317", displayed_dy.qq_manuscript),
+        endpoint_row("qqbar: native transverse", displayed_dy.qq_transverse.total),
+        endpoint_row("qqbar: recorded Mathematica output", displayed_dy.qq_recorded_mathematica),
+        endpoint_row(
+            "qqbar: transverse - recorded Mathematica",
+            displayed_dy.qq_transverse_minus_recorded_mathematica,
+        ),
+        endpoint_row("qqbar: transverse - manuscript", displayed_dy.qq_transverse_minus_manuscript),
+        endpoint_row(
+            "qqbar: recorded Mathematica - manuscript",
+            displayed_dy.qq_recorded_mathematica_minus_manuscript,
+        ),
+        endpoint_row("qg: physical target, manuscript Eq. 318", displayed_dy.qg_manuscript),
+        endpoint_row("qg: native transverse", displayed_dy.qg_transverse.total),
+        endpoint_row("qg: recorded Mathematica output", displayed_dy.qg_recorded_mathematica),
+        endpoint_row("qg: transverse - manuscript", displayed_dy.qg_transverse_minus_manuscript),
+        endpoint_row(
+            "qg: recorded Mathematica - manuscript",
+            displayed_dy.qg_recorded_mathematica - displayed_dy.qg_manuscript,
+        ),
+    ]
+    mo.vstack(
+        [
+            typst_md("= Validation and comparisons"),
+            typst_md(
+                "Everything below is an internal reconstruction check or an "
+                "independent FIRE, Mathematica, or manuscript comparison. It "
+                "does not feed back into the native graph assembly."
+            ),
+            typst_md("== Exact native pipeline checks"),
+            _audit_table,
+            typst_md("== Crossed-box endpoint ledger check"),
+            _crossed_validation_table,
+            typst_md("== Independent source presentations"),
             expression_table(_comparison_rows, pagination=False),
             mo.callout(
                 "The source comparison residuals are intentionally nonzero. "
                 "The manuscript equations are the physical targets: in particular, "
                 "their positive qqbar soft D1 sign agrees with the standard soft "
                 "check. The native transverse reconstruction is retained as exact "
-                "provenance rather than silently tuned, and the cached notebook's qg "
+                "provenance rather than silently tuned, and the recorded Mathematica qg "
                 "formula contains the displayed Ward remainder even though the exact "
                 "native Ward combination vanishes.",
                 kind="warn",

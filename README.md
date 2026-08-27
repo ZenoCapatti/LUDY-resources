@@ -15,8 +15,7 @@ calculations/
     mathematica/              original DY calculation and FIRE reference data
     python/                   Kira and analytic-master notebooks
 notebooks/
-  ludy.py                     cross-box helpers, walkthrough, and validation
-  dy_topologies.py            physical DY runner reusing ludy.py helpers
+  ludy.py                     physical/editable cross-box and all shared helpers
   collinear-cone.py           independent cone visualization
 docs/symbolica-fork.md        Symbolica pin and state-round-trip scope
 reproducers/                  standalone dependency-regression programs
@@ -47,15 +46,14 @@ runtime:
 $ nix develop
 $ uv sync --locked
 $ uv run --locked marimo edit notebooks/ludy.py
-$ uv run --locked marimo edit notebooks/dy_topologies.py
 $ uv run --locked marimo edit notebooks/collinear-cone.py
 $ uv run --locked marimo edit calculations/dy/python/notebook.py
 $ uv run --locked marimo edit calculations/dy/python/masters.py
 $ uv run --locked marimo edit calculations/dis/python/notebook.py
 ```
 
-`notebook.py` defines and displays the selectable topology but does not launch
-Kira until its run button is pressed. `masters.py` derives and evaluates the
+The DY `notebook.py` defines the full editable graph/routing/numerator set and
+does not launch Kira until its batch run button is pressed. `masters.py` derives and evaluates the
 closed-form `B`, `Bcut`, `Tcut`, `Bcutm`, `Tcutm`, and maximal-cut `M00` basis
 in radial and light-cone coordinates, with exact normalization, virtuality, and
 soft-endpoint checks, without launching Kira or reading a reduction work
@@ -123,7 +121,6 @@ require FIRE. Snapshot provenance and exact inclusions are documented in
 The shared root environment intentionally uses editable sibling checkouts at
 `../gammaloop/ludy` and `../symbolica-community`. It serves
 [`notebooks/ludy.py`](notebooks/ludy.py),
-[`notebooks/dy_topologies.py`](notebooks/dy_topologies.py),
 [`notebooks/collinear-cone.py`](notebooks/collinear-cone.py), and both notebooks
 under [`calculations/dy/python`](calculations/dy/python), together with
 [`calculations/dis/python/notebook.py`](calculations/dis/python/notebook.py).
@@ -134,16 +131,15 @@ the walkthrough first needs it, while the Mathematica/FIRE comparisons and
 other validation checks are collected in a final appendix. Its Kira project
 builder, algebraic reduction pipeline, and resumable runner are module-visible
 for companion notebooks.
-Analytic master evaluators are imported from
+The physical trace is the default worked numerator; assigning a native
+Symbolica expression to `user_numerator` runs the same helper pipeline on an
+editable numerator. Analytic master evaluators are imported from
 [`calculations/dy/python/masters.py`](calculations/dy/python/masters.py), which
-is their single implementation site. `dy_topologies.py` imports that public
-surface to evaluate the paper's metric-contracted physical crossed-box
-numerator. It combines the three IBP-reducible cuts with the analytic
-maximal-cut master `M00(s)`, performs the leading virtuality integrations, and
-represents the endpoint answer in a typed delta/plus-distribution basis. Kira
-remains behind an explicit run button, and the notebook labels the result as
-one diagram contribution rather than the complete renormalized and factorized
-DY observable.
+is their single implementation site. The complete DY notebook imports the
+same cross-box apart and numerator-reduction helpers, defines all eight graphs
+and their Kira routes first, and then processes that graph set as one batch.
+Every independent FIRE, Mathematica, and manuscript comparison is confined to
+its final validation appendix.
 
 The DIS implementation is split by evidence layer. `ancillary.py` pins and
 audits the two official arXiv source fixtures without fetching them on import;
@@ -161,13 +157,11 @@ $ direnv exec . nix develop --command uv run --locked python -c 'from calculatio
 $ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.masters import normalization_self_checks; normalization_self_checks()'
 $ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.physical import self_check; self_check()'
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/ludy.py
-$ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/dy_topologies.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/collinear-cone.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dy/python/notebook.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dy/python/masters.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dis/python/notebook.py
 $ direnv exec . nix develop --command uv run --locked marimo export html notebooks/ludy.py -o /tmp/ludy-validation.html --force
-$ direnv exec . nix develop --command uv run --locked marimo export html notebooks/dy_topologies.py -o /tmp/ludy-dy-topologies-validation.html --force
 $ direnv exec . nix develop --command uv run --locked marimo export html notebooks/collinear-cone.py -o /tmp/ludy-collinear-cone-validation.html --force
 $ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/notebook.py -o /tmp/ludy-dy-notebook-validation.html --force
 $ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/masters.py -o /tmp/ludy-dy-masters-validation.html --force

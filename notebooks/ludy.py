@@ -4,13 +4,22 @@ __generated_with = "0.24.0"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
+    from collections.abc import Sequence as _SequenceType
     from html import escape as _escape_html
     from inspect import cleandoc as _cleandoc
     import re as _re
     from threading import Lock as _Lock
 
     import marimo as _marimo
+    from symbolica import Expression as _ExpressionType
     import typst as _typst
+
+    # Reusable definitions are created while this module is imported, before
+    # ordinary notebook cells export their values.  Make the two annotation
+    # types available at that point without quoting annotations or defining a
+    # second Marimo producer for the public ``Expression``/``Sequence`` names.
+    globals()["Expression"] = _ExpressionType
+    globals()["Sequence"] = _SequenceType
 
     _TYPST_FRAGMENT_CSS = r"""
     <style>
@@ -191,6 +200,7 @@ def _():
         Replacement,
         Representation,
         S,
+        Sequence,
         TensorName,
         dataclass,
         dot,
@@ -549,10 +559,10 @@ def _(mo):
 class Integrand:
     """An editable numerator and an ordered list of denominator factors."""
 
-    numerator: "Expression"
-    denominators: list["Expression"]
+    numerator: Expression
+    denominators: list[Expression]
 
-    def as_expression(self) -> "Expression":
+    def as_expression(self) -> Expression:
         from math import prod
 
         return self.numerator / prod(self.denominators)
@@ -563,9 +573,15 @@ class Integrand:
 class ApartTerm:
     """One native ``apart`` term mapped back to graph propagators."""
 
-    coefficient: "Expression"
+    coefficient: Expression
     retained_indices: tuple[int, ...]
-    integrand: "Integrand"
+    integrand: Integrand
+
+    @property
+    def denominators(self) -> tuple[Expression, ...]:
+        """Return retained denominators for kernel-only adapter consumers."""
+
+        return tuple(self.integrand.denominators)
 
 
 @app.class_definition
@@ -573,11 +589,17 @@ class ApartTerm:
 class ReducedIntegralTerm:
     """One coefficient times an integral-index vector in a fixed basis."""
 
-    coefficient: "Expression"
-    propagators: list["Expression"]
+    coefficient: Expression
+    propagators: list[Expression]
     integral_indices: tuple[int, ...]
 
-    def as_expression(self) -> "Expression":
+    @property
+    def denominators(self) -> tuple[Expression, ...]:
+        """Compatibility alias for the ordered propagator basis."""
+
+        return tuple(self.propagators)
+
+    def as_expression(self) -> Expression:
         from math import prod
 
         return self.coefficient / prod(
@@ -587,15 +609,69 @@ class ReducedIntegralTerm:
             )
         )
 
+    def as_integrand(self) -> Expression:
+        """Return this term as an ordinary rational integrand."""
+
+        return self.as_expression()
+
+    def as_family_integral(self, family_name: str) -> Expression:
+        """Return this term as a coefficient times one family atom."""
+
+        from symbolica import S
+
+        return self.coefficient * S(family_name)(*self.integral_indices)
+
 
 @app.class_definition
 @__import__("dataclasses").dataclass(slots=True)
 class NumeratorReduction:
     """A numerator rewritten in one independent propagator basis."""
 
-    terms: list["ReducedIntegralTerm"]
-    relations: list[tuple["Expression", "Expression"]]
-    reduced_numerator: "Expression"
+    terms: list[ReducedIntegralTerm]
+    relations: list[tuple[Expression, Expression]]
+    reduced_numerator: Expression
+    numerator: Expression
+    denominators: tuple[Expression, ...]
+    base_integral_indices: tuple[int, ...]
+
+    def reconstructed_integrand(self) -> Expression:
+        """Sum every shifted-index term back into an ordinary integrand."""
+
+        from symbolica import E
+
+        return sum((term.as_integrand() for term in self.terms), E("0"))
+
+    def input_integrand(self) -> Expression:
+        """Return the numerator over its original denominator powers."""
+
+        from math import prod
+
+        return self.numerator / prod(
+            denominator**index
+            for denominator, index in zip(
+                self.denominators,
+                self.base_integral_indices,
+                strict=True,
+            )
+        )
+
+    def family_expression(self, family_name: str) -> Expression:
+        """Return all shifted terms in one named integral family."""
+
+        from symbolica import E
+
+        return sum(
+            (term.as_family_integral(family_name) for term in self.terms),
+            E("0"),
+        )
+
+    @property
+    def reconstruction_residual(self) -> Expression:
+        """Return the exact difference between reconstructed and input forms."""
+
+        return normalize_rational(
+            self.reconstructed_integrand() - self.input_integrand()
+        )
 
 
 @app.class_definition
@@ -604,11 +680,11 @@ class IntegralContribution:
     """One native Python contribution ready to become an IBP target."""
 
     source_indices: tuple[int, ...]
-    propagators: list["Expression"]
+    propagators: list[Expression]
     integral_indices: tuple[int, ...]
-    coefficient: "Expression"
+    coefficient: Expression
 
-    def as_expression(self) -> "Expression":
+    def as_expression(self) -> Expression:
         from math import prod
 
         return self.coefficient / prod(
@@ -625,14 +701,14 @@ class IBPReductionTerm:
     """One family integral together with its exact reduced right-hand side."""
 
     project_key: tuple[str, tuple[int, ...]]
-    coefficient: "Expression"
-    target: "Expression"
-    reduced_integral: "Expression"
+    coefficient: Expression
+    target: Expression
+    reduced_integral: Expression
 
-    def input_expression(self) -> "Expression":
+    def input_expression(self) -> Expression:
         return self.coefficient * self.target
 
-    def reduced_expression(self) -> "Expression":
+    def reduced_expression(self) -> Expression:
         return self.coefficient * self.reduced_integral
 
 
@@ -641,18 +717,18 @@ class IBPReductionTerm:
 class PreIBPResult:
     """All exact intermediate data at the cross-box IBP boundary."""
 
-    denominators: list["Expression"]
-    loop_scalar_products: list["Expression"]
-    delta: "Expression"
-    integrand: "Integrand"
-    apart_expression: "Expression"
-    apart_terms: list["ApartTerm"]
-    numerator_reductions: list["NumeratorReduction"]
-    contributions: list["IntegralContribution"]
+    denominators: list[Expression]
+    loop_scalar_products: list[Expression]
+    delta: Expression
+    integrand: Integrand
+    apart_expression: Expression
+    apart_terms: list[ApartTerm]
+    numerator_reductions: list[NumeratorReduction]
+    contributions: list[IntegralContribution]
 
 
 @app.function
-def square(momentum: "Expression") -> "Expression":
+def square(momentum: Expression) -> Expression:
     """Return a Spenso scalar square without imposing kinematics."""
 
     from symbolica.community.spenso import dot
@@ -722,8 +798,8 @@ def gamma_trace_to_dots(
 
 @app.function
 def propagator_denominators(
-    propagators: "Sequence[tuple[Expression, Expression]]",
-) -> "list[Expression]":
+    propagators: Sequence[tuple[Expression, Expression]],
+) -> list[Expression]:
     """Convert ordered ``(momentum, mass_squared)`` pairs to denominators."""
 
     return [
@@ -734,7 +810,7 @@ def propagator_denominators(
 
 @app.function
 def find_loop_propagator_indices(
-    propagators: "Sequence[tuple[Expression, Expression]]",
+    propagators: Sequence[tuple[Expression, Expression]],
     *,
     loop_tag: str = "ludy::loop_momentum",
 ) -> list[int]:
@@ -754,8 +830,8 @@ def find_loop_propagator_indices(
 
 @app.function(hide_code=True)
 def project_cutset(
-    cutset: "Sequence[int]",
-    propagator_indices: "Sequence[int]",
+    cutset: Sequence[int],
+    propagator_indices: Sequence[int],
 ) -> tuple[int, ...]:
     """Project one graph-level cut mask onto an ordered propagator subset."""
 
@@ -855,15 +931,10 @@ def _(N, S, dimension, dot, k, minkd, p):
         dot(k1, p2),
     ]
     delta = q**2 - 2 * dot(p1, p2)
-    integrand = Integrand(
-        numerator=physical_numerator,
-        denominators=loop_denominators,
-    )
     return (
         cutsets,
         delta,
         denominators,
-        integrand,
         k1,
         loop_denominators,
         loop_propagator_indices,
@@ -878,6 +949,44 @@ def _(N, S, dimension, dot, k, minkd, p):
 
 
 @app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    === Choose the worked numerator
+
+    `user_numerator` is a native Symbolica-expression override. Leave it as
+    `None` to use the physical Spenso/Idenso trace above, or replace `None` with
+    any editable Symbolica expression built from the declared scalar products.
+    No string parsing is involved.
+    """)
+    return
+
+
+@app.cell
+def _(Expression, loop_denominators, physical_numerator):
+    user_numerator = None
+
+    if user_numerator is not None and not isinstance(
+        user_numerator,
+        Expression,
+    ):
+        raise TypeError("user_numerator must be a native Symbolica Expression")
+    worked_numerator = (
+        physical_numerator if user_numerator is None else user_numerator
+    )
+    using_physical_numerator = user_numerator is None
+    integrand = Integrand(
+        numerator=worked_numerator,
+        denominators=loop_denominators,
+    )
+    return (
+        integrand,
+        user_numerator,
+        using_physical_numerator,
+        worked_numerator,
+    )
+
+
+@app.cell(hide_code=True)
 def _(
     cutsets,
     denominators,
@@ -888,6 +997,8 @@ def _(
     projected_cutsets,
     propagators,
     typst,
+    using_physical_numerator,
+    worked_numerator,
 ):
     mo.vstack(
         [
@@ -917,6 +1028,18 @@ def _(
                     {
                         "stage": "simplify_gamma → simplify_metrics → to_dots",
                         "physical numerator": physical_numerator,
+                    }
+                ]
+            ),
+            spenso_table(
+                [
+                    {
+                        "worked numerator": worked_numerator,
+                        "source": (
+                            "physical trace"
+                            if using_physical_numerator
+                            else "user_numerator override"
+                        ),
                     }
                 ]
             ),
@@ -955,9 +1078,9 @@ def _(mo):
 
     `Expression.apart(*loop_scalar_products)` performs the multivariate
     Gröbner-basis decomposition. We apply it to the propagator kernel and only
-    then attach the physical numerator, so the following numerator-reduction
-    step remains explicit instead of being folded into lower-topology contact
-    terms.
+    then attach the worked numerator (the physical trace by default), so the
+    following numerator-reduction step remains explicit instead of being folded
+    into lower-topology contact terms.
 
     Symbolica returns an expression rather than graph metadata.
     `apart_integrand` therefore performs one non-algebraic bookkeeping step:
@@ -969,18 +1092,31 @@ def _(mo):
 
 
 @app.function
-def normalize_rational(expression: "Expression") -> "Expression":
+def normalize_rational(expression: Expression) -> Expression:
     """Return a canonical expanded rational expression."""
 
     return expression.expand().together().cancel()
 
 
 @app.function
+def replace_all(
+    expression: Expression,
+    rules: Sequence[tuple[Expression, Expression | int]],
+) -> Expression:
+    """Apply an ordered sequence of exact replacements."""
+
+    result = expression
+    for source, target in rules:
+        result = result.replace(source, target)
+    return result
+
+
+@app.function
 def apart_integrand(
     integrand: Integrand,
     *,
-    loop_scalar_products: "Sequence[Expression]",
-) -> "tuple[Expression, list[ApartTerm]]":
+    loop_scalar_products: Sequence[Expression],
+) -> tuple[Expression, list[ApartTerm]]:
     """Delegate to Symbolica ``apart`` and restore graph provenance."""
 
     from math import prod
@@ -1070,6 +1206,23 @@ def apart_integrand(
             "Graph-labelled apart terms do not reconstruct the integrand"
         )
     return apart_expression, terms
+
+
+@app.function
+def apart_kernel(
+    denominators: Sequence[Expression],
+    *,
+    loop_scalar_products: Sequence[Expression],
+) -> tuple[Expression, tuple[ApartTerm, ...]]:
+    """Apply ``apart`` to a unit-numerator kernel with graph provenance."""
+
+    from symbolica import E
+
+    expression, terms = apart_integrand(
+        Integrand(numerator=E("1"), denominators=list(denominators)),
+        loop_scalar_products=loop_scalar_products,
+    )
+    return expression, tuple(terms)
 
 
 @app.cell
@@ -1168,10 +1321,10 @@ def _(mo):
 
 @app.function
 def numerator_relations(
-    denominators: "Sequence[Expression]",
-    denominator_labels: "Sequence[Expression]",
-    loop_scalar_products: "Sequence[Expression]",
-) -> "list[tuple[Expression, Expression]]":
+    denominators: Sequence[Expression],
+    denominator_labels: Sequence[Expression],
+    loop_scalar_products: Sequence[Expression],
+) -> list[tuple[Expression, Expression]]:
     """Invert one independent denominator basis.
 
     Solves ``D_i(loop products) = P_i`` and returns ordered
@@ -1235,15 +1388,15 @@ def _(mo):
 
     $ c P_0^(n_0) dots P_(r-1)^(n_(r-1)), $
 
-    then $P_i$ stands for $D_i$, while the child started with one inverse
-    power of every denominator. Therefore
+    then $P_i$ stands for $D_i$. With original denominator powers $a_i$,
 
-    $ frac(c product_i P_i^(n_i), product_i D_i)
-      = frac(c, product_i D_i^(1-n_i)), quad a_i = 1-n_i. $
+    $ frac(c product_i P_i^(n_i), product_i D_i^(a_i))
+      = frac(c, product_i D_i^(a_i-n_i)). $
 
-    Thus $n_i=0$ leaves index $a_i=1$, $n_i=1$ cancels that denominator
-    and gives $a_i=0$, and $n_i>1$ produces a negative index—a numerator
-    insertion in the integral-family convention.
+    The default is $a_i=1$: $n_i=0$ leaves index one, $n_i=1$ cancels that
+    denominator, and $n_i>1$ produces a negative index—a numerator insertion
+    in the integral-family convention. `base_integral_indices` exposes the same
+    rule for graphs that start with repeated or absent propagator powers.
 
     In the example above, a numerator $N=k dot p_1$ becomes
 
@@ -1270,22 +1423,49 @@ def _(mo):
 
 @app.function
 def reduce_numerator(
-    integrand: "Integrand",
+    integrand_or_numerator: Integrand | Expression,
+    denominators: Sequence[Expression] | None = None,
     *,
-    loop_scalar_products: "Sequence[Expression]",
-) -> "NumeratorReduction":
+    loop_scalar_products: Sequence[Expression],
+    base_integral_indices: Sequence[int] | None = None,
+) -> NumeratorReduction:
     """Rewrite a numerator as coefficients times shifted integrals.
 
-    A label monomial with powers ``n_i`` cancels the corresponding
-    denominator powers and therefore produces indices ``1 - n_i``.
+    Accept either an :class:`Integrand` or a numerator followed by its ordered
+    denominators. A label monomial with powers ``n_i`` shifts an original
+    denominator index ``a_i`` to ``a_i - n_i``. The default base is one inverse
+    power of every denominator.
     """
 
-    from symbolica import S
+    from symbolica import E, S
+
+    if isinstance(integrand_or_numerator, Integrand):
+        if denominators is not None:
+            raise TypeError(
+                "Do not pass denominators separately with an Integrand"
+            )
+        integrand = integrand_or_numerator
+    else:
+        if denominators is None:
+            raise TypeError(
+                "A numerator expression requires an ordered denominator basis"
+            )
+        integrand = Integrand(
+            numerator=integrand_or_numerator,
+            denominators=list(denominators),
+        )
 
     if len(integrand.denominators) != len(loop_scalar_products):
         raise ValueError(
             "Choose one independent denominator for each loop scalar product"
         )
+    if base_integral_indices is None:
+        base_indices = (1,) * len(integrand.denominators)
+    else:
+        base_indices = tuple(int(index) for index in base_integral_indices)
+    if len(base_indices) != len(integrand.denominators):
+        raise ValueError("One base integral index is required per denominator")
+
     labels = [
         S("Prop")(index) for index in range(len(integrand.denominators))
     ]
@@ -1294,10 +1474,7 @@ def reduce_numerator(
         labels,
         loop_scalar_products,
     )
-    reduced = integrand.numerator.expand()
-    for loop_product, replacement in relations:
-        reduced = reduced.replace(loop_product, replacement)
-    reduced = reduced.expand()
+    reduced = replace_all(integrand.numerator.expand(), relations).expand()
 
     terms = []
     polynomial = reduced.to_polynomial(vars=labels)
@@ -1306,10 +1483,23 @@ def reduce_numerator(
             ReducedIntegralTerm(
                 coefficient=coefficient.to_expression(),
                 propagators=integrand.denominators,
-                integral_indices=tuple(1 - int(power) for power in powers),
+                integral_indices=tuple(
+                    base - int(power)
+                    for base, power in zip(base_indices, powers, strict=True)
+                ),
             )
         )
-    return NumeratorReduction(terms, relations, reduced)
+    reduction = NumeratorReduction(
+        terms=terms,
+        relations=relations,
+        reduced_numerator=reduced,
+        numerator=integrand.numerator,
+        denominators=tuple(integrand.denominators),
+        base_integral_indices=base_indices,
+    )
+    if reduction.reconstruction_residual != E("0"):
+        raise ValueError("Numerator reduction did not reconstruct its integrand")
+    return reduction
 
 
 @app.cell
@@ -1413,7 +1603,7 @@ def prepare_pre_ibp(
     loop_scalar_products,
     loop_propagator_indices,
     delta,
-) -> "PreIBPResult":
+):
     """Run native Symbolica apart and numerator preparation for IBP."""
 
     loop_denominators = list(loop_denominators)
@@ -1482,10 +1672,10 @@ def _(
     loop_denominators,
     loop_propagator_indices,
     loop_scalar_products,
-    physical_numerator,
+    worked_numerator,
 ):
     pre_ibp = prepare_pre_ibp(
-        numerator=physical_numerator,
+        numerator=worked_numerator,
         loop_denominators=loop_denominators,
         loop_scalar_products=loop_scalar_products,
         loop_propagator_indices=loop_propagator_indices,
@@ -1761,15 +1951,12 @@ def _(mo):
 
 @app.function
 def apply_kinematic_rules(
-    expression: "Expression",
-    rules: "Sequence[tuple[Expression, Expression]]",
-) -> "Expression":
+    expression: Expression,
+    rules: Sequence[tuple[Expression, Expression | int]],
+) -> Expression:
     """Apply an explicit ordered set of kinematic replacements."""
 
-    result = expression
-    for source, target in rules:
-        result = result.replace(source, target)
-    return result.expand()
+    return replace_all(expression, rules).expand()
 
 
 @app.cell
@@ -1792,7 +1979,7 @@ def _(E, p1, p2):
 
 @app.function
 def contribution_to_kira_expression(
-    contribution: "IntegralContribution",
+    contribution,
     cut_name: str,
     projects,
 ):
@@ -2414,8 +2601,8 @@ def _(S, dot, p1, p2):
 
 @app.function
 def validate_pre_ibp(
-    result: "PreIBPResult",
-) -> "dict[str, Expression]":
+    result: PreIBPResult,
+) -> dict[str, Expression]:
     """Validate every algebraic handoff represented by a pre-IBP result."""
 
     from math import prod
@@ -2740,12 +2927,14 @@ def _(display_validation_rows):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == Validation 1 — native multivariate apart delegation
+    == Validation 1 — native apart and numerator-helper interfaces
 
     We exercise Symbolica's decomposition and the graph-provenance adapter for
     affine families with two through seven propagators. The expected
     coefficients follow from how each synthetic family is constructed; they
-    are validation data, not inputs to `apart_integrand`.
+    are validation data, not inputs to `apart_integrand`. The final two cases
+    check both numerator-reducer call styles, including non-unit starting
+    propagator powers.
     """)
     return
 
@@ -2842,13 +3031,47 @@ def _(E, S, prod):
         {"case": "duplicate apart variables rejected", "residual": E("0")}
     )
 
+    _y = S("validation_y")
+    _integrand_reduction = reduce_numerator(
+        Integrand(_x + _y, [_x, _y]),
+        loop_scalar_products=[_x, _y],
+    )
+    assert _integrand_reduction.reconstruction_residual == E("0")
+    _validation_rows.append(
+        {
+            "case": "Integrand numerator-reducer interface",
+            "residual": _integrand_reduction.reconstruction_residual,
+        }
+    )
+
+    _base_reduction = reduce_numerator(
+        _x**2 + _y,
+        (_x, _y),
+        loop_scalar_products=(_x, _y),
+        base_integral_indices=(1, 2),
+    )
+    _family = S("validation_family")
+    _family_residual = normalize_rational(
+        _base_reduction.family_expression("validation_family")
+        - _family(-1, 2)
+        - _family(1, 1)
+    )
+    assert _base_reduction.reconstruction_residual == E("0")
+    assert _family_residual == E("0")
+    _validation_rows.append(
+        {
+            "case": "explicit base powers and family expression",
+            "residual": _family_residual,
+        }
+    )
+
     apart_validation_rows = _validation_rows
     return (apart_validation_rows,)
 
 
 @app.cell(hide_code=True)
 def _(E, apart_validation_rows):
-    assert len(apart_validation_rows) == 8
+    assert len(apart_validation_rows) == 10
     assert all(_row["residual"] == E("0") for _row in apart_validation_rows)
     spenso_table(
         [
@@ -3505,10 +3728,10 @@ def _(mo):
         "and the analytic master evaluations for cuts 11, 10, and 01 are "
         "complete. The final appendix maps those projects to the historical "
         "topo20--31 oracle. Cut 00 is the analytic maximal-cut master M00(s), "
-        "not a missing Kira rule and not zero by default. The companion "
-        "dy_topologies.py notebook evaluates the physical numerator on that "
-        "maximal-cut support and supplies virtuality integrations and endpoint "
-        "distribution dressing for all four cuts.",
+        "not a missing Kira rule and not zero by default. This notebook evaluates "
+        "the physical numerator on that maximal-cut support and supplies the "
+        "cross-box virtuality and endpoint steps. The complete graph-set assembly "
+        "lives in calculations/dy/python/notebook.py.",
         kind="info",
     )
     return

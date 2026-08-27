@@ -11,17 +11,17 @@ dy/
     mma/, tools/               local Wolfram packages and trace data
     temp/FIRE/                 historical topology 1--8 FIRE fixtures
   python/
-    notebook.py                single-sector and full-DY Kira workflow
+    notebook.py                declarative graph-set and full-DY workflow
     physical.py                exact physical-sector and channel assembly
     masters.py                 analytic master derivations and evaluation
 ```
 
 The Mathematica notebook is the scientific source context. Its retained FIRE
-inputs and tables are golden evidence. The Python notebook can either
-run one selectable topology through `packages/kirapy` or explicitly run/resume
-the 18 Kira families in the physical graph set and assemble their exact
-Symbolica results. The reusable `physical.py` module owns the native numerator
-reductions, cut-compatible master selection, normalization ledgers, 20 master
+inputs and tables are golden evidence. The Python notebook defines all physical
+graphs, denominators, Kira routes, and numerators first, then explicitly runs or resumes
+the 18 Kira families in that graph set and assembles their exact
+Symbolica results. The reusable `physical.py` module applies the shared cross-box
+numerator-reduction helpers, owns cut-compatible master selection, normalization ledgers, 20 master
 insertions, and final partonic coefficient data model. The companion
 `masters.py` notebook derives
 the closed-form bubble and triangle basis used by the historical substitutions,
@@ -57,27 +57,21 @@ implementation. Only the final validation appendix maps native graph order
 `(D3,D4,D5,D6)` to the historical FIRE order `(D3,D4,D6,D5)` and names
 `topo20`--`topo31`.
 
-`notebooks/dy_topologies.py` provides the crossed-box runner.
-It imports the public graph, numerator-reduction, project-building, Kira, and
-validation helpers from `notebooks/ludy.py`. That calculation uses the paper's
-metric-contracted crossed-box trace, reduces the three three-line cuts,
-evaluates the analytic maximal-cut master `M00(s)` with its separate cut
-numerator, integrates the leading beam virtualities, and assembles the
-endpoint delta/plus coefficients. It remains a focused crossed-box validation,
-not the full diagram-set driver. `python/notebook.py` owns the broader
-18-family physical-sector assembly and does not import either companion
-notebook.
+`notebooks/ludy.py` is itself the crossed-box example and the only implementation
+site for the generic apart, numerator-reduction, project, Kira, and master-routing
+helpers. Its default numerator is the physical metric-contracted trace, with a
+native `user_numerator` override. `python/notebook.py` imports that helper surface
+and owns the broader 18-family graph-set assembly.
 
 The corresponding Mathematica section is a semantic validation oracle rather
 than an implementation template. The scalar historical route and generic
 helper checks remain in the final validation appendix of `notebooks/ludy.py`.
-The root runner ports the transverse, metric-contracted part of the later
+The cross-box example ports the transverse, metric-contracted part of the later
 `xboxNumContr` calculation and verifies its maximal-cut limit; it does not port
-the warned longitudinal projector. Because that runner uses Community/Spenso,
-run it from the repository-root environment. The full application instead
+the warned longitudinal projector. The full application instead
 assembles the full quark--antiquark and quark--gluon physical target
-coefficients from its 18 Kira sectors and analytic `00` cut. It keeps the
-native transverse reconstruction, cached Mathematica presentation, and
+coefficients from its 18 Kira sectors and analytic `00` cut. Its final validation appendix keeps the
+native transverse reconstruction, recorded Mathematica presentation, and
 manuscript targets distinct, displaying the remaining qqbar soft/regular and
 qg Ward residuals rather than tuning them away.
 
@@ -97,8 +91,7 @@ $ uv run --locked marimo edit calculations/dy/python/masters.py
 ```
 
 Opening, statically checking, or exporting the notebook does not start a
-reduction. The first button creates or resumes one selected topology. The
-second button runs or resumes all 18 physical Kira families and assembles the
+reduction. Its one button runs or resumes all 18 physical Kira families and assembles the
 20-row Kira-to-analytic-master handoff, including the analytic four-line `00`
 cut. The Nix shell supplies the pinned Kira/Fermat executables and
 `FERMATPATH`; alternatively configure compatible executables outside Nix.
@@ -136,14 +129,11 @@ $ nix develop --command uv run --locked pytest
 $ cd ../..
 $ direnv exec . nix develop --command uv lock --check
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/ludy.py
-$ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/dy_topologies.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/collinear-cone.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dy/python/notebook.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dy/python/masters.py
 $ direnv exec . nix develop --command uv run --locked marimo export html notebooks/ludy.py \
     -o /tmp/ludy-validation.html --force
-$ direnv exec . nix develop --command uv run --locked marimo export html notebooks/dy_topologies.py \
-    -o /tmp/ludy-dy-topologies-validation.html --force
 $ direnv exec . nix develop --command uv run --locked marimo export html notebooks/collinear-cone.py \
     -o /tmp/ludy-collinear-cone-validation.html --force
 $ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/notebook.py \

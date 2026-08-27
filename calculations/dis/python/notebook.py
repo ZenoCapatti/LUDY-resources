@@ -57,7 +57,10 @@ with app.setup(hide_code=True):
         d,
         derive_all_projected_numerators,
         epsilon,
+        k,
+        p,
         p_squared,
+        q,
     )
     from calculations.dy.python.masters import typst_md
     from kirapy import Kira, KiraWorkdirError
@@ -70,62 +73,33 @@ with app.setup(hide_code=True):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    = Native DIS paper-validation notebook
+    = Native DIS calculation pipeline
 
-    This notebook reconstructs the NLO DIS input layer used by the active LU
-    manuscript. It keeps three kinds of evidence separate:
+    This notebook follows the NLO DIS calculation in dependency order. It first
+    defines the six graphs, their common denominator basis and momentum routing,
+    and the projected physical numerators. It then applies the generic
+    apart/numerator-reduction pipeline, constructs the Kira projects, restores
+    every currently available reduction, and inserts analytic masters wherever
+    the required boundary is complete.
 
-    - *source transcription*: six graph families, their eight-gamma traces,
-      normalizations, and the printed coefficient-function targets;
-    - *native algebra*: Spenso gamma simplification, the metric and transverse
-      projector contractions, Symbolica multivariate partial fractioning, and
-      exact numerator reconstruction;
-    - *physical validation*: oriented all-cut weights, Kira reductions, master
-      insertion, the $p^2$ integral, pole cancellation, and the final channel
-      residual.
-
-    The first two layers are executable below. The third is deliberately not
-    called complete while oriented multiplicities, graph weights, the raised-cut
+    Partial cached reductions remain visible rather than being promoted to a
+    complete graph sum. Oriented multiplicities, graph weights, the raised-cut
     reverse-unitarity sign map, derivative-cut endpoint rules, and the
-    active-to-historical $F_2$ projector normalization remain unresolved.
-    Opening or exporting this notebook never launches Kira; subprocesses are
-    only behind the explicit run buttons.
+    active-to-historical $F_2$ projector normalization remain unresolved. All
+    residual checks, paper targets, historical Mathematica regressions, and
+    provenance tables are collected in the final validation appendix. Opening
+    or exporting this notebook never launches Kira; subprocesses are only behind
+    the explicit run buttons.
     """)
     return
-
-
-@app.cell
-def _():
-    projected_numerators = derive_all_projected_numerators()
-    apart_expression, apart_terms = crossed_box_apart()
-    numerator_audits = audit_projected_numerator_reductions(
-        projected_numerators
-    )
-
-    smoke_projects = build_kira_smoke_projects()
-    numerator_handoffs = build_kira_numerator_handoffs(
-        projects=smoke_projects,
-        numerator_audits=numerator_audits,
-    )
-    raised_external_projects = build_raised_external_kira_projects(
-        source_projects=smoke_projects,
-        numerator_handoffs=numerator_handoffs,
-    )
-    return (
-        apart_expression,
-        apart_terms,
-        numerator_audits,
-        numerator_handoffs,
-        projected_numerators,
-        raised_external_projects,
-        smoke_projects,
-    )
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 1. Exact finite-virtuality kinematics
+    == 1. DIS graphs, routing, and physical numerators
+
+    === Exact finite-virtuality kinematics and denominator basis
 
     We use $Q^2=-q^2>0$ and Bjorken $x in (0,1)$. The finite-$p^2$
     parametrization is
@@ -145,9 +119,11 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(spenso_table):
+    _routing = (k, k + p, k + p + q, k + q, p, p + q)
     denominator_rows = [
         {
             "line": f"D{index}",
+            "momentum routing": _routing[index - 1],
             "expression": denominator,
             "role": "loop" if index <= 4 else "external virtuality",
         }
@@ -163,7 +139,7 @@ def _(spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 2. Six physical graphs and their source traces
+    === Six physical graphs and their source traces
 
     All graphs share $D_1,...,D_6$. Five use the three-line loop family
     $(D_1,D_2,D_3)$ directly. Only the gluon crossed box contains all four loop
@@ -195,6 +171,14 @@ def _(spenso_table):
                 "graph": _graph.name,
                 "channel": _graph.channel,
                 "powers D1...D6": _graph.powers,
+                "denominator product": prod(
+                    denominator**power
+                    for denominator, power in zip(
+                        DIS_KINEMATICS.scalar_denominators,
+                        _graph.powers,
+                        strict=True,
+                    )
+                ),
                 "photon slots": _graph.trace.photon_slots,
                 "source trace": source_chain,
             }
@@ -203,10 +187,16 @@ def _(spenso_table):
     return
 
 
+@app.cell
+def _():
+    projected_numerators = derive_all_projected_numerators()
+    return (projected_numerators,)
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 3. Spenso projectors and physical numerators
+    === Spenso projectors and physical numerators
 
     The active manuscript prints an uppercase $P$ without defining it. Its cited
     DIS source does define the transverse vector
@@ -218,10 +208,10 @@ def _(mo):
     contractions of the two photon slots. Linearity then constructs
     $P_mu P_nu N^(mu nu)/P^2$ without wrapping $P$ in an opaque atom.
 
-    The table shows the printed-manuscript projector result after the transparent
+    The table shows the physical projected numerators after the transparent
     leading-power display replacement $p^2=0$ and $d=4-2 epsilon$. The full
-    finite-$p^2$ expressions, not these shortened displays, are what the exact
-    numerator-reconstruction checks use.
+    finite-$p^2$ expressions, not these shortened displays, continue into the
+    reduction pipeline.
     """)
     return
 
@@ -278,13 +268,6 @@ def _(graph_choice, projected_numerators, spenso_table):
                     selected_numerator.FL
                 ),
             },
-            {
-                "graph": graph_choice.value,
-                "contraction": "Ward q_mu q_nu",
-                "leading-power numerator": display_limit(
-                    selected_numerator.ward
-                ),
-            },
         ],
         pagination=False,
     )
@@ -294,24 +277,33 @@ def _(graph_choice, projected_numerators, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 4. Native partial fractioning and numerator reduction
+    == 2. Generic apart and numerator-reduction pipeline
 
     Symbolica's multivariate `apart(kk,kp,kq)` rewrites
     $1/(D_1D_2D_3D_4)$ into four three-denominator children. Their alternating
-    coefficients are retained as exact expressions, and the sum reconstructs
-    the four-line kernel with zero residual.
+    coefficients are retained as exact expressions. The reconstruction check is
+    reported in the final validation appendix.
 
     Each projected numerator is then rewritten in independent denominator
     coordinates. The graph's actual base powers are used: in particular, both
     boxes start at $(1,2,1)$, the bubble at $(1,0,1)$, and the LSZ graph at
-    $(1,1,0)$. A zero residual means the shifted family integrals reconstruct
-    the original rational integrand exactly; it is not an IBP result yet.
+    $(1,1,0)$. The complete set of shifted family integrals is handed to the cut
+    families below; this is not an IBP result yet.
     """)
     return
 
 
+@app.cell
+def _(projected_numerators):
+    apart_expression, apart_terms = crossed_box_apart()
+    numerator_audits = audit_projected_numerator_reductions(
+        projected_numerators
+    )
+    return apart_expression, apart_terms, numerator_audits
+
+
 @app.cell(hide_code=True)
-def _(apart_expression, apart_terms, spenso_table):
+def _(apart_terms, spenso_table):
     apart_rows = [
         {
             "retained graph lines": tuple(
@@ -321,19 +313,6 @@ def _(apart_expression, apart_terms, spenso_table):
         }
         for term in apart_terms
     ]
-    apart_rows.append(
-        {
-            "retained graph lines": "all four children",
-            "coefficient": (
-                apart_expression
-                - 1
-                / prod(DIS_KINEMATICS.scalar_denominators[:4])
-            )
-            .expand()
-            .together()
-            .cancel(),
-        }
-    )
     spenso_table(apart_rows, pagination=False)
     return
 
@@ -346,14 +325,76 @@ def _(numerator_audits, spenso_table):
                 "graph": audit.graph_name,
                 "observable": audit.observable,
                 "retained lines": audit.retained_loop_lines,
+                "apart coefficient": audit.apart_coefficient,
                 "shifted terms": audit.term_count,
-                "reconstruction residual": audit.residual,
             }
             for audit in numerator_audits
         ],
         pagination=False,
     )
     return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    === Candidate structural ledger for the all-cut contribution
+
+    The historical definition fixes a *plus sign* between all four formal
+    pieces: both external channel poles, an internal initial cut with the
+    external final pole, the external initial pole with an internal final cut,
+    and a pair of internal cuts sharing one edge. Expanding those possibilities
+    in the common $D$ basis gives six channel patterns. Intersecting them with
+    each graph's nonzero propagator support leaves the 15 candidate rows below.
+
+    `order 0` denotes an ordinary cut delta. `order 1` exposes the derivative
+    generated by a raised propagator: $D_2^2$ in the two boxes, $D_6^2$ in the
+    bubble, or $D_5^2$ in the LSZ graph. Each displayed $+1$ is inherited from
+    the formal four-class sum; it is not an independent sign determination for
+    that row. This internal ledger does not prove that every physical Cut
+    orientation is present. A formal Cut operator sums over energy orientations,
+    and the source does not resolve those sums into one multiplicity for each
+    active $D_1,...,D_6$ sector. The graph weights, oriented multiplicities, and
+    raised-cut convention map therefore remain unknown, so the weighted all-cut
+    contribution is not fabricated.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(spenso_table):
+    spenso_table(
+        [
+            {
+                "graph": cut.graph_name,
+                "sector": cut.name,
+                "disc p^2 lines": cut.initial_cut_lines,
+                "disc (1-x) lines": cut.final_cut_lines,
+                "cut derivative orders": cut.cut_orders,
+                "formal four-piece sign": (
+                    "missing" if cut.relative_sign is None else cut.relative_sign
+                ),
+                "oriented multiplicity": (
+                    "unresolved"
+                    if cut.multiplicity is None
+                    else cut.multiplicity
+                ),
+            }
+            for cut in KNOWN_DIS_CUTS
+        ],
+        pagination=False,
+    )
+    return
+
+
+@app.cell
+def _(numerator_audits):
+    smoke_projects = build_kira_smoke_projects()
+    numerator_handoffs = build_kira_numerator_handoffs(
+        projects=smoke_projects,
+        numerator_audits=numerator_audits,
+    )
+    return numerator_handoffs, smoke_projects
 
 
 @app.cell(hide_code=True)
@@ -434,59 +475,7 @@ def _(mo, numerator_handoffs, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 5. Candidate structural ledger for the full all-cut contribution
-
-    The historical definition fixes a *plus sign* between all four formal
-    pieces: both external channel poles, an internal initial cut with the
-    external final pole, the external initial pole with an internal final cut,
-    and a pair of internal cuts sharing one edge. Expanding those possibilities
-    in the common $D$ basis gives six channel patterns. Intersecting them with
-    each graph's nonzero propagator support leaves the 15 candidate rows below.
-
-    `order 0` denotes an ordinary cut delta. `order 1` exposes the derivative
-    generated by a raised propagator: $D_2^2$ in the two boxes, $D_6^2$ in the
-    bubble, or $D_5^2$ in the LSZ graph. Each displayed $+1$ is inherited from
-    the formal four-class sum; it is not an independent sign determination for
-    that row. This internal ledger does not prove that every physical Cut
-    orientation is present. A formal Cut operator sums over energy orientations,
-    and the source does not resolve those sums into one multiplicity for each
-    active $D_1,...,D_6$ sector. The graph weights, oriented multiplicities, and
-    raised-cut convention map therefore remain unknown, so the weighted all-cut
-    contribution is not fabricated.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(spenso_table):
-    spenso_table(
-        [
-            {
-                "graph": cut.graph_name,
-                "sector": cut.name,
-                "disc p^2 lines": cut.initial_cut_lines,
-                "disc (1-x) lines": cut.final_cut_lines,
-                "cut derivative orders": cut.cut_orders,
-                "formal four-piece sign": (
-                    "missing" if cut.relative_sign is None else cut.relative_sign
-                ),
-                "oriented multiplicity": (
-                    "unresolved"
-                    if cut.multiplicity is None
-                    else cut.multiplicity
-                ),
-            }
-            for cut in KNOWN_DIS_CUTS
-        ],
-        pagination=False,
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    == 6. Cut-specialized Kira projects and master handoff
+    == 3. Kira projects, run controls, and available reductions
 
     External $D_5,D_6$ cuts specialize the invariant rules but never become Kira
     propagators. Internal cut lines are written to `cut_propagators` using local
@@ -496,11 +485,11 @@ def _(mo):
 
     The expected scalar basis is $B(q^2)$, $slash(B)(p^2)$,
     $slash(B)((p+q)^2)$, and the fully three-mass $slash(T)$. These identities
-    are supplied to Kira as checked preferred masters. Compatible caches, when
-    present for all 16 jobs, are loaded without starting a subprocess and their
-    rules are applied to all 32 numerator handoffs. A manifest whose fingerprint
-    differs from the in-memory project is rejected as stale; it cannot enter the
-    target or one-master audits below.
+    are supplied to Kira as checked preferred masters. Each compatible cache is
+    loaded independently without starting a subprocess, so completed subsets
+    remain visible. Their rules are applied only to the matching numerator
+    handoffs. A manifest whose fingerprint differs from the in-memory project is
+    rejected as stale; it cannot enter the coefficient rows below.
 
     The button asks Kira 3.1 to run or resume the current project definitions.
     These reductions establish the graph-level master coefficients. The four
@@ -510,6 +499,15 @@ def _(mo):
     derivative-distribution endpoint rules.
     """)
     return
+
+
+@app.cell
+def _(numerator_handoffs, smoke_projects):
+    raised_external_projects = build_raised_external_kira_projects(
+        source_projects=smoke_projects,
+        numerator_handoffs=numerator_handoffs,
+    )
+    return (raised_external_projects,)
 
 
 @app.cell(hide_code=True)
@@ -609,56 +607,62 @@ def _(
     smoke_projects,
     spenso_table,
 ):
-    if not kira_reductions:
-        kira_summary = mo.callout(
-            f"Ready; no Kira subprocess was started. Work root: {kira_work_root}",
-            kind="neutral",
+    complete = sum(result.complete for result in kira_reductions.values())
+    full_cache = complete == len(smoke_projects)
+    runtime_label = (
+        f"Kira {kira_doctor.version}"
+        if kira_doctor is not None
+        else "Cached Kira outputs"
+    )
+    _project_rows = []
+    for _key in sorted(smoke_projects):
+        _result = kira_reductions.get(_key)
+        _project_rows.append(
+            {
+                "project": _key,
+                "load mode": kira_cache_modes[_key],
+                "complete": False if _result is None else _result.complete,
+                "rules": 0 if _result is None else len(_result.rules),
+                "masters": () if _result is None else _result.masters,
+            }
         )
-    else:
-        complete = sum(result.complete for result in kira_reductions.values())
-        full_cache = set(kira_reductions) == set(smoke_projects)
-        runtime_label = (
-            f"Kira {kira_doctor.version}"
-            if kira_doctor is not None
-            else "Cached Kira outputs"
-        )
-        kira_summary = mo.vstack(
-            [
-                mo.callout(
-                    f"{runtime_label}: {complete}/{len(smoke_projects)} "
-                    "cut-specialized reductions complete.",
-                    kind=(
-                        "success"
-                        if full_cache and complete == len(smoke_projects)
-                        else "warn"
-                    ),
-                ),
-                spenso_table(
-                    [
-                        {
-                            "project": key,
-                            "load mode": kira_cache_modes[key],
-                            "complete": result.complete,
-                            "rules": len(result.rules),
-                            "masters": result.masters,
-                        }
-                        for key, result in sorted(kira_reductions.items())
-                    ],
-                    pagination=False,
-                ),
-            ]
-        )
+    kira_summary = mo.vstack(
+        [
+            mo.callout(
+                f"{runtime_label}: {complete}/{len(smoke_projects)} "
+                f"cut-specialized reductions complete. Work root: {kira_work_root}",
+                kind="success" if full_cache else "neutral" if complete == 0 else "warn",
+            ),
+            spenso_table(_project_rows, pagination=False),
+        ]
+    )
     kira_summary
     return
 
 
 @app.cell
 def _(kira_reductions, numerator_handoffs, smoke_projects):
-    if set(kira_reductions) == set(smoke_projects):
+    _available_project_keys = {
+        key
+        for key, result in kira_reductions.items()
+        if key in smoke_projects and result.complete
+    }
+    _available_projects = {
+        key: smoke_projects[key] for key in _available_project_keys
+    }
+    _available_reductions = {
+        key: kira_reductions[key] for key in _available_project_keys
+    }
+    _available_handoffs = tuple(
+        handoff
+        for handoff in numerator_handoffs
+        if handoff.project_key in _available_project_keys
+    )
+    if _available_handoffs:
         physical_reduction_audit = audit_kira_master_coefficients(
-            kira_reductions,
-            projects=smoke_projects,
-            numerator_handoffs=numerator_handoffs,
+            _available_reductions,
+            projects=_available_projects,
+            numerator_handoffs=_available_handoffs,
         )
     else:
         physical_reduction_audit = None
@@ -669,9 +673,9 @@ def _(kira_reductions, numerator_handoffs, smoke_projects):
 def _(mo, physical_reduction_audit, spenso_table):
     if physical_reduction_audit is None:
         physical_reduction_summary = mo.callout(
-            "The complete 16-project cache is unavailable, so the 32 "
-            "master-coefficient records were not assembled.",
-            kind="warn",
+            "No completed compatible cut-specialized reduction is currently "
+            "available, so there are no master-coefficient rows yet.",
+            kind="neutral",
         )
     else:
         physical_reduction_summary = mo.vstack(
@@ -711,7 +715,6 @@ def _(mo, physical_reduction_audit, spenso_table):
                                 if record.handoff.requires_external_derivative
                                 else "ordinary"
                             ),
-                            "one-master residual": record.residual,
                         }
                         for record in physical_reduction_audit.coefficients
                     ],
@@ -832,7 +835,10 @@ def _(
     raised_kira_reductions,
     smoke_projects,
 ):
-    if set(raised_kira_reductions) == set(raised_external_projects):
+    if (
+        set(raised_kira_reductions) == set(raised_external_projects)
+        and all(result.complete for result in raised_kira_reductions.values())
+    ):
         raised_external_audits = audit_raised_external_reductions(
             raised_kira_reductions,
             projects=raised_external_projects,
@@ -844,7 +850,11 @@ def _(
     else:
         raised_external_audits = ()
         raised_external_boundaries = ()
-    if physical_reduction_audit is not None and raised_external_audits:
+    if (
+        physical_reduction_audit is not None
+        and physical_reduction_audit.exact
+        and len(raised_external_audits) == 4
+    ):
         master_insertion_audit = build_master_insertion_audit(
             physical_reduction_audit,
             raised_external_audits,
@@ -863,9 +873,7 @@ def _(
 @app.cell(hide_code=True)
 def _(
     mo,
-    master_insertion_audit,
     raised_external_audits,
-    raised_external_boundaries,
     raised_external_projects,
     raised_kira_cache_modes,
     raised_kira_doctor,
@@ -873,25 +881,29 @@ def _(
     raised_kira_work_root,
     spenso_table,
 ):
-    if not raised_kira_reductions:
-        raised_kira_summary = mo.callout(
-            "Ready; no raised-external Kira cache is available and no "
-            f"subprocess was started. Work root: {raised_kira_work_root}",
-            kind="neutral",
+    raised_complete = sum(
+        result.complete for result in raised_kira_reductions.values()
+    )
+    raised_full_cache = raised_complete == len(raised_external_projects)
+    raised_runtime_label = (
+        f"Kira {raised_kira_doctor.version}"
+        if raised_kira_doctor is not None
+        else "Cached Kira outputs"
+    )
+    _raised_project_rows = []
+    for _key in sorted(raised_external_projects):
+        _result = raised_kira_reductions.get(_key)
+        _raised_project_rows.append(
+            {
+                "project": _key,
+                "load mode": raised_kira_cache_modes[_key],
+                "complete": False if _result is None else _result.complete,
+                "rules": 0 if _result is None else len(_result.rules),
+                "masters": () if _result is None else _result.masters,
+            }
         )
-    else:
-        raised_complete = sum(
-            result.complete for result in raised_kira_reductions.values()
-        )
-        raised_full_cache = (
-            set(raised_kira_reductions) == set(raised_external_projects)
-        )
-        raised_runtime_label = (
-            f"Kira {raised_kira_doctor.version}"
-            if raised_kira_doctor is not None
-            else "Cached Kira outputs"
-        )
-        raised_summary_items = [
+    raised_kira_summary = mo.vstack(
+        [
             mo.callout(
                 f"{raised_runtime_label}: {raised_complete}/"
                 f"{len(raised_external_projects)} finite-virtuality jobs "
@@ -900,91 +912,22 @@ def _(
                 kind=(
                     "success"
                     if raised_full_cache
-                    and raised_complete == len(raised_external_projects)
                     and len(raised_external_audits) == 4
                     and all(audit.exact for audit in raised_external_audits)
-                    else "warn"
+                    else "neutral" if raised_complete == 0 else "warn"
                 ),
             ),
-            spenso_table(
-                [
-                    {
-                        "project": key,
-                        "load mode": raised_kira_cache_modes[key],
-                        "complete": result.complete,
-                        "rules": len(result.rules),
-                        "masters": result.masters,
-                    }
-                    for key, result in sorted(raised_kira_reductions.items())
-                ],
-                pagination=False,
-            ),
+            spenso_table(_raised_project_rows, pagination=False),
         ]
-        if raised_external_boundaries:
-            raised_summary_items.append(
-                spenso_table(
-                    [
-                        {
-                            "project": boundary.audit.project_key,
-                            "observable": boundary.audit.observable,
-                            "derivative cut": (
-                                f"D{boundary.derivative.line}, order "
-                                f"{boundary.derivative.order}"
-                            ),
-                            "analytic master": boundary.identity.kind,
-                            "one-master residual": boundary.audit.residual,
-                            "physical blockers": "; ".join(
-                                blocker.description
-                                for blocker in boundary.blockers
-                            ),
-                        }
-                        for boundary in raised_external_boundaries
-                    ],
-                    pagination=False,
-                )
-            )
-        if master_insertion_audit is not None:
-            raised_summary_items.append(
-                mo.callout(
-                    f"Analytic masters inserted at the unweighted boundary: "
-                    f"{len(master_insertion_audit.ordinary)} ordinary + "
-                    f"{len(master_insertion_audit.raised)} raised records.",
-                    kind="success",
-                )
-            )
-        raised_kira_summary = mo.vstack(raised_summary_items)
+    )
     raised_kira_summary
     return
-
-
-@app.cell
-def _(
-    apart_terms,
-    kira_reductions,
-    master_insertion_audit,
-    numerator_audits,
-    physical_reduction_audit,
-    projected_numerators,
-    raised_external_audits,
-    smoke_projects,
-):
-    validation_ledger = build_validation_ledger(
-        smoke_projects,
-        projected_numerators=projected_numerators,
-        numerator_audits=numerator_audits,
-        apart_child_count=len(apart_terms),
-        kira_reductions=kira_reductions,
-        physical_reduction_audit=physical_reduction_audit,
-        raised_external_audits=raised_external_audits,
-        master_insertion_audit=master_insertion_audit,
-    )
-    return (validation_ledger,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 7. Analytic one-loop masters and normalization ownership
+    == 4. Analytic master insertion and current assembly boundary
 
     Every displayed master now uses the physical relation $d=4-2 epsilon$;
     $d$ and $epsilon$ are not treated as independent regulators.
@@ -1112,25 +1055,228 @@ def _(spenso_table):
 
 
 @app.cell(hide_code=True)
-def _(spenso_table):
-    spenso_table(
-        [
-            {
-                "master check": name,
-                "residual": residual,
-                "status": "pass" if residual == E("0") else "fail",
-            }
-            for name, residual in NORMALIZATION_SELF_CHECKS.items()
-        ],
-        pagination=False,
+def _(mo):
+    mo.md(r"""
+    === Available master insertions and unresolved assembly inputs
+
+    A coefficient/master product is displayed as soon as the corresponding
+    exact boundary can be formed. It remains unweighted: external cut states,
+    graph weights, raised-cut signs, oriented support, and derivative endpoints
+    are retained explicitly. A partial Kira cache is useful intermediate output,
+    but the strict 32-record insertion audit is only constructed when its full
+    ordinary and raised inputs are present.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    master_insertion_audit,
+    mo,
+    physical_reduction_audit,
+    raised_external_boundaries,
+    spenso_table,
+):
+    _ordinary_boundaries = (
+        () if master_insertion_audit is None else master_insertion_audit.ordinary
     )
+    _raised_boundaries = (
+        raised_external_boundaries
+        if master_insertion_audit is None
+        else master_insertion_audit.raised
+    )
+    _coefficient_count = (
+        0
+        if physical_reduction_audit is None
+        else len(physical_reduction_audit.coefficients)
+    )
+    if master_insertion_audit is not None:
+        _boundary_status = mo.callout(
+            f"Analytic masters inserted for "
+            f"{len(_ordinary_boundaries)} ordinary and "
+            f"{len(_raised_boundaries)} raised records. Physical assembly "
+            "remains blocked by the recorded convention inputs.",
+            kind="success",
+        )
+    else:
+        _boundary_status = mo.callout(
+            f"Current partial state: {_coefficient_count}/32 cached coefficient "
+            f"records and {len(_raised_boundaries)}/4 raised "
+            "master boundaries are available. Complete master insertion and "
+            "the physical graph sum remain pending.",
+            kind="warn" if _coefficient_count or _raised_boundaries else "neutral",
+        )
+    _boundary_items = [_boundary_status]
+    if _ordinary_boundaries:
+        _boundary_items.append(
+            spenso_table(
+                [
+                    {
+                        "project": boundary.audit.handoff.project_key,
+                        "graph": boundary.audit.handoff.graph_name,
+                        "observable": boundary.audit.handoff.observable,
+                        "analytic master": boundary.identity.kind,
+                        "unweighted loop term": boundary.unweighted_loop_term,
+                        "external lines": tuple(
+                            (
+                                state.line,
+                                state.denominator_power,
+                                state.cut_order,
+                            )
+                            for state in boundary.external_lines
+                        ),
+                        "physical blockers": "; ".join(
+                            blocker.description for blocker in boundary.blockers
+                        ),
+                    }
+                    for boundary in _ordinary_boundaries
+                ],
+                pagination=False,
+            )
+        )
+    if _raised_boundaries:
+        _boundary_items.append(
+            spenso_table(
+                [
+                    {
+                        "project": boundary.audit.project_key,
+                        "graph": boundary.audit.graph_name,
+                        "observable": boundary.audit.observable,
+                        "derivative cut": (
+                            boundary.derivative.line,
+                            boundary.derivative.order,
+                        ),
+                        "analytic master": boundary.identity.kind,
+                        "unweighted loop term": boundary.unweighted_term,
+                        "physical blockers": "; ".join(
+                            blocker.description for blocker in boundary.blockers
+                        ),
+                    }
+                    for boundary in _raised_boundaries
+                ],
+                pagination=False,
+            )
+        )
+    mo.vstack(_boundary_items)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 8. Historical Mathematica formulas are regression references
+    = Validation and comparisons
+
+    Everything below checks, compares, or records provenance for the calculation
+    above. These tables do not feed values back into the reduction pipeline.
+
+    == Exact algebraic residuals
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    apart_expression,
+    numerator_audits,
+    physical_reduction_audit,
+    projected_numerators,
+    raised_external_audits,
+    spenso_table,
+):
+    _apart_residual = (
+        apart_expression
+        - 1 / prod(DIS_KINEMATICS.scalar_denominators[:4])
+    ).expand().together().cancel()
+    _residual_items = [
+        spenso_table(
+            [
+                {
+                    "check": "crossed-box apart reconstruction",
+                    "residual": _apart_residual,
+                    "status": "pass" if _apart_residual == E("0") else "fail",
+                }
+            ],
+            pagination=False,
+        ),
+        spenso_table(
+            [
+                {
+                    "graph": audit.graph_name,
+                    "observable": audit.observable,
+                    "retained lines": audit.retained_loop_lines,
+                    "numerator reconstruction residual": audit.residual,
+                }
+                for audit in numerator_audits
+            ],
+            pagination=False,
+        ),
+        spenso_table(
+            [
+                {
+                    "graph": name,
+                    "leading-power Ward q_mu q_nu contraction": (
+                        numerator.ward
+                        .replace(p_squared, E("0"))
+                        .replace(d, 4 - 2 * epsilon)
+                        .expand()
+                        .together()
+                        .cancel()
+                    ),
+                }
+                for name, numerator in projected_numerators.items()
+            ],
+            pagination=False,
+        ),
+        spenso_table(
+            [
+                {
+                    "master check": name,
+                    "residual": residual,
+                    "status": "pass" if residual == E("0") else "fail",
+                }
+                for name, residual in NORMALIZATION_SELF_CHECKS.items()
+            ],
+            pagination=False,
+        ),
+    ]
+    if physical_reduction_audit is not None:
+        _residual_items.append(
+            spenso_table(
+                [
+                    {
+                        "project": record.handoff.project_key,
+                        "graph": record.handoff.graph_name,
+                        "observable": record.handoff.observable,
+                        "one-master residual": record.residual,
+                    }
+                    for record in physical_reduction_audit.coefficients
+                ],
+                pagination=False,
+            )
+        )
+    if raised_external_audits:
+        _residual_items.append(
+            spenso_table(
+                [
+                    {
+                        "project": audit.project_key,
+                        "graph": audit.graph_name,
+                        "observable": audit.observable,
+                        "one-master residual": audit.residual,
+                    }
+                    for audit in raised_external_audits
+                ],
+                pagination=False,
+            )
+        )
+    mo.vstack(_residual_items)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    == Historical Mathematica formulas are regression references
 
     The sibling `DY_calculation.nb` does not contain a DIS graph derivation.
     Its `MPDISgluonic` and final `MPDISfermionic` cells are closed expressions
@@ -1252,7 +1398,7 @@ def _(mo, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 9. Paper targets are targets, not derived answers
+    == Paper targets are targets, not derived answers
 
     The two scale-dependent equations at active-manuscript lines 296--297 are
     both labelled $F_L$, while lines 302--303 give a second, different pair of
@@ -1315,15 +1461,40 @@ def _(spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 10. Validation ledger
+    == Consolidated validation ledger
 
     A `pass` below means an exact check was actually executed. `not-run` means
     the necessary stage exists but its subprocess or analytic handoff has not
     run. `blocked` means required source information or a convention choice is
-    missing. Only the conjunction of every required row may set
+    missing. An available subset is reported in `actual` but does not pass a
+    complete-coverage row. Only the conjunction of every required row may set
     `physical_result_validated` to true.
     """)
     return
+
+
+@app.cell
+def _(
+    apart_terms,
+    kira_reductions,
+    master_insertion_audit,
+    numerator_audits,
+    physical_reduction_audit,
+    projected_numerators,
+    raised_external_audits,
+    smoke_projects,
+):
+    validation_ledger = build_validation_ledger(
+        smoke_projects,
+        projected_numerators=projected_numerators,
+        numerator_audits=numerator_audits,
+        apart_child_count=len(apart_terms),
+        kira_reductions=kira_reductions,
+        physical_reduction_audit=physical_reduction_audit,
+        raised_external_audits=raised_external_audits,
+        master_insertion_audit=master_insertion_audit,
+    )
+    return (validation_ledger,)
 
 
 @app.cell(hide_code=True)
@@ -1362,6 +1533,17 @@ def _(mo, validation_ledger):
             kind="warn",
         )
     final_status
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    == Ancillary provenance
+
+    These are pinned source fixtures only. Fetching them remains an explicit
+    operation outside notebook evaluation.
+    """)
     return
 
 

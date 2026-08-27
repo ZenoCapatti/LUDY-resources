@@ -14,7 +14,6 @@ unless the user explicitly asks to modify a sibling repository.
 - DY/Kira application notebooks: `calculations/dy/python`
 - Mathematica source snapshot: `calculations/dy/mathematica`
 - Cross-box helper source and walkthrough: `notebooks/ludy.py`
-- Root physical DY diagram runner: `notebooks/dy_topologies.py`
 - Analytic master implementations: `calculations/dy/python/masters.py`
 - General cone notebook: `notebooks/collinear-cone.py`
 - GammaLoop: `/Users/lcnbr/dev/work/bern/gammaloop/ludy`
@@ -33,8 +32,8 @@ The root uv sources intentionally use the relative sibling paths
 `../gammaloop/ludy` and `../symbolica-community`. The root Nix flake uses a
 public, exact GammaLoop revision while uv overlays the editable local source.
 If the working copies move, update the uv paths. This root environment serves
-all five notebooks: the cross-box source/walkthrough, physical diagram runner,
-cone visualization, full-DY Kira application, and analytic-master derivation.
+the cross-box source/walkthrough, cone visualization, full-DY Kira application,
+analytic-master derivation, and DIS application.
 
 The Mathematica directory is a curated source snapshot. Preserve the complete
 notebook, first-party packages, `tools/trace_form.log`, and historical FIRE
@@ -66,10 +65,10 @@ Marimo are not assumed to exist.
 $ nix develop
 $ uv sync --locked
 $ uv run --locked marimo edit notebooks/ludy.py
-$ uv run --locked marimo edit notebooks/dy_topologies.py
 $ uv run --locked marimo edit notebooks/collinear-cone.py
 $ uv run --locked marimo edit calculations/dy/python/notebook.py
 $ uv run --locked marimo edit calculations/dy/python/masters.py
+$ uv run --locked marimo edit calculations/dis/python/notebook.py
 ```
 
 The equivalent one-shot launch is:
@@ -100,9 +99,8 @@ the pinned runtime and `FERMATPATH`; Fermat's restrictive license must remain
 explicit in its derivation and documentation.
 
 Opening or checking `notebook.py` must not launch Kira. Preserve the explicit
-run control and resumable, ignored work directory. Sharing an environment does
-not make it necessary for this notebook to import `notebooks/ludy.py` or
-`notebooks/dy_topologies.py`.
+run control and resumable, ignored work directory. The DY and DIS applications
+import the process-independent helpers from `notebooks/ludy.py`.
 
 `notebooks/ludy.py` owns the reusable cross-box helper implementations and
 presents them immediately before first use in the walkthrough. Keep its
@@ -110,10 +108,10 @@ Mathematica/FIRE comparisons and other oracle code in the final validation
 appendix. Import analytic master evaluators from
 `calculations/dy/python/masters.py` rather than duplicating them.
 
-`notebooks/dy_topologies.py` is a root-environment physical diagram runner that
-imports the public helper surface from `notebooks/ludy.py`. Keep Kira behind
-its explicit run control, keep process normalization separate from the loop
-numerator, and do not copy helper implementations into the runner.
+`notebooks/ludy.py` is the root-environment physical cross-box example and the
+single public implementation site for generic apart, numerator-reduction,
+Kira, cut, and master-routing helpers. Keep process normalization separate from
+the loop numerator and do not copy helper implementations into applications.
 
 ## uv Dependency Wiring
 
@@ -217,10 +215,10 @@ After changing the environment or notebook, run:
 $ direnv exec . nix flake check
 $ direnv exec . nix develop --command uv lock --check
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/ludy.py
-$ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/dy_topologies.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/collinear-cone.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dy/python/notebook.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dy/python/masters.py
+$ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dis/python/notebook.py
 ```
 
 After changing `packages/kirapy`, also run from that directory:
@@ -237,10 +235,10 @@ starting the editor or pressing Kira's explicit run controls:
 
 ```console
 $ direnv exec . nix develop --command uv run --locked marimo export html notebooks/ludy.py -o /tmp/ludy-notebook-validation.html --force
-$ direnv exec . nix develop --command uv run --locked marimo export html notebooks/dy_topologies.py -o /tmp/ludy-dy-topologies-validation.html --force
 $ direnv exec . nix develop --command uv run --locked marimo export html notebooks/collinear-cone.py -o /tmp/ludy-collinear-cone-validation.html --force
 $ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/notebook.py -o /tmp/ludy-dy-notebook-validation.html --force
 $ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/masters.py -o /tmp/ludy-dy-masters-validation.html --force
+$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dis/python/notebook.py -o /tmp/ludy-dis-notebook-validation.html --force
 ```
 
 Do not commit `.venv/`, `.direnv/`, `.marimo/`, `__marimo__/`, Cargo build

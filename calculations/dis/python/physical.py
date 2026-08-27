@@ -35,6 +35,7 @@ from kirapy import (
 from symbolica import E, S, Expression
 
 from calculations.dis.python.masters import NORMALIZATION_SELF_CHECKS
+from notebooks.ludy import apart_kernel, reduce_numerator
 
 if TYPE_CHECKING:
     from calculations.dis.python.assembly import (
@@ -686,10 +687,6 @@ class DISPhysicalReductionAudit:
 def crossed_box_apart():
     """Return Symbolica's exact four-child crossed-box decomposition."""
 
-    # These helpers are process independent but presently live at the single
-    # tested implementation site used by the DY pipeline.
-    from calculations.dy.python.physical import apart_kernel
-
     return apart_kernel(
         DIS_KINEMATICS.scalar_denominators[:4],
         loop_scalar_products=(kk, kp, kq),
@@ -706,8 +703,6 @@ def audit_projected_numerator_reductions(
     native multivariate ``apart`` and each of its four three-line children is
     reduced with the graph's actual base powers.
     """
-
-    from calculations.dy.python.physical import reduce_numerator
 
     numerators = projected or derive_all_projected_numerators()
     denominators = DIS_KINEMATICS.scalar_denominators

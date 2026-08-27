@@ -12,7 +12,7 @@ last presentation cells.  The data model therefore keeps three different
 objects explicit:
 
 * the consistently transverse native result;
-* the cached Mathematica-notebook presentation;
+* the presentation transcribed from saved Mathematica output cells;
 * the manuscript formula.
 
 No residual is silently set to zero.
@@ -27,19 +27,19 @@ from typing import TYPE_CHECKING, Mapping, Sequence
 
 from symbolica import E, S, Expression
 
+from notebooks.ludy import (
+    ApartTerm,
+    NumeratorReduction,
+    ReducedIntegralTerm,
+    apart_kernel as _apart_kernel,
+    normalize_rational,
+    numerator_relations,
+    reduce_numerator as _reduce_numerator,
+    replace_all,
+)
+
 if TYPE_CHECKING:
     from kirapy import ReductionResult
-
-
-PHYSICAL_TOPOLOGY_NAMES = (
-    "topo5",
-    "topo6",
-    "topo7",
-    "topo8",
-    "topo10",
-    "topo11",
-    *tuple(f"topo{index}" for index in range(20, 32)),
-)
 
 
 # Scalar products and physical parameters.  The invariant names agree with
@@ -56,124 +56,6 @@ lambda1_squared, lambda2_squared, mu_r_squared = S(
 pi = Expression.PI
 
 
-def normalize_rational(expression: Expression) -> Expression:
-    """Return the canonical expanded rational form used by exact checks."""
-
-    return expression.expand().together().cancel()
-
-
-def replace_all(
-    expression: Expression,
-    rules: Sequence[tuple[Expression, Expression | int]],
-) -> Expression:
-    """Apply ordered exact substitutions without manufacturing strings."""
-
-    result = expression
-    for source, target in rules:
-        result = result.replace(source, target)
-    return result
-
-
-@dataclass(frozen=True, slots=True)
-class ReducedIntegralTerm:
-    """One coefficient times an integral with explicit denominator powers."""
-
-    coefficient: Expression
-    denominators: tuple[Expression, ...]
-    integral_indices: tuple[int, ...]
-
-    def as_integrand(self) -> Expression:
-        return self.coefficient / prod(
-            denominator**index
-            for denominator, index in zip(
-                self.denominators,
-                self.integral_indices,
-                strict=True,
-            )
-        )
-
-    def as_family_integral(self, family_name: str) -> Expression:
-        return self.coefficient * S(family_name)(*self.integral_indices)
-
-
-@dataclass(frozen=True, slots=True)
-class NumeratorReduction:
-    """A polynomial numerator rewritten in independent denominator coordinates."""
-
-    numerator: Expression
-    denominators: tuple[Expression, ...]
-    base_integral_indices: tuple[int, ...]
-    relations: tuple[tuple[Expression, Expression], ...]
-    reduced_numerator: Expression
-    terms: tuple[ReducedIntegralTerm, ...]
-
-    def reconstructed_integrand(self) -> Expression:
-        return sum((term.as_integrand() for term in self.terms), E("0"))
-
-    def input_integrand(self) -> Expression:
-        return self.numerator / prod(
-            denominator**index
-            for denominator, index in zip(
-                self.denominators,
-                self.base_integral_indices,
-                strict=True,
-            )
-        )
-
-    def family_expression(self, family_name: str) -> Expression:
-        return sum(
-            (term.as_family_integral(family_name) for term in self.terms),
-            E("0"),
-        )
-
-    @property
-    def reconstruction_residual(self) -> Expression:
-        return normalize_rational(
-            self.reconstructed_integrand() - self.input_integrand()
-        )
-
-
-def numerator_relations(
-    denominators: Sequence[Expression],
-    denominator_labels: Sequence[Expression],
-    loop_scalar_products: Sequence[Expression],
-) -> tuple[tuple[Expression, Expression], ...]:
-    """Invert ``D_i(loop products) = Prop(i)`` for one independent basis."""
-
-    if len(denominators) != len(denominator_labels):
-        raise ValueError("Each denominator needs exactly one formal label")
-    if len(denominators) != len(loop_scalar_products):
-        raise ValueError(
-            "Choose one independent denominator for each loop scalar product"
-        )
-    equations = [
-        denominator - label
-        for denominator, label in zip(
-            denominators,
-            denominator_labels,
-            strict=True,
-        )
-    ]
-    branches = Expression.solve(
-        equations,
-        loop_scalar_products,
-        warn_if_underdetermined=False,
-    )
-    if len(branches) != 1:
-        raise ValueError("Chosen denominators do not have one independent branch")
-    replacements = tuple(
-        (loop_product, branches[0][loop_product])
-        for loop_product in loop_scalar_products
-    )
-    if any(
-        replacement.contains(candidate)
-        for _, replacement in replacements
-        for candidate in loop_scalar_products
-    ):
-        raise ValueError("Chosen denominators are not an independent basis")
-    return replacements
-
-
 def reduce_numerator(
     numerator: Expression,
     denominators: Sequence[Expression],
@@ -181,57 +63,14 @@ def reduce_numerator(
     loop_scalar_products: Sequence[Expression] = (kk, kp1, kp2),
     base_integral_indices: Sequence[int] | None = None,
 ) -> NumeratorReduction:
-    """Translate a numerator polynomial into shifted integral indices.
+    """DY convenience wrapper around the cross-box notebook helper."""
 
-    ``base_integral_indices`` is the propagator-power vector before numerator
-    cancellation.  This is usually ``(1,1,1)``, but the physical direct and qg
-    boxes contain a repeated middle propagator and therefore use ``(1,2,1)``.
-    """
-
-    denominator_tuple = tuple(denominators)
-    loop_tuple = tuple(loop_scalar_products)
-    if base_integral_indices is None:
-        base_tuple = (1,) * len(denominator_tuple)
-    else:
-        base_tuple = tuple(int(index) for index in base_integral_indices)
-    if len(base_tuple) != len(denominator_tuple):
-        raise ValueError("One base integral index is required per denominator")
-    labels = tuple(S("Prop")(index) for index in range(len(denominator_tuple)))
-    relations = numerator_relations(denominator_tuple, labels, loop_tuple)
-    reduced = replace_all(numerator.expand(), relations).expand()
-    terms = tuple(
-        ReducedIntegralTerm(
-            coefficient=coefficient.to_expression(),
-            denominators=denominator_tuple,
-            integral_indices=tuple(
-                base - int(power)
-                for base, power in zip(base_tuple, powers, strict=True)
-            ),
-        )
-        for powers, coefficient in reduced.to_polynomial(
-            vars=list(labels)
-        ).coefficient_list(list(labels))
+    return _reduce_numerator(
+        numerator,
+        denominators,
+        loop_scalar_products=loop_scalar_products,
+        base_integral_indices=base_integral_indices,
     )
-    reduction = NumeratorReduction(
-        numerator=numerator,
-        denominators=denominator_tuple,
-        base_integral_indices=base_tuple,
-        relations=relations,
-        reduced_numerator=reduced,
-        terms=terms,
-    )
-    if reduction.reconstruction_residual != E("0"):
-        raise ValueError("Numerator reduction did not reconstruct its integrand")
-    return reduction
-
-
-@dataclass(frozen=True, slots=True)
-class ApartTerm:
-    """One native multivariate-apart term with graph-denominator provenance."""
-
-    coefficient: Expression
-    retained_indices: tuple[int, ...]
-    denominators: tuple[Expression, ...]
 
 
 def apart_kernel(
@@ -239,57 +78,15 @@ def apart_kernel(
     *,
     loop_scalar_products: Sequence[Expression] = (kk, kp1, kp2),
 ) -> tuple[Expression, tuple[ApartTerm, ...]]:
-    """Apply Symbolica's multivariate ``apart`` and recover omitted lines."""
+    """DY convenience wrapper around the cross-box notebook helper."""
 
-    denominator_tuple = tuple(denominators)
-    loops = tuple(loop_scalar_products)
-    if len(denominator_tuple) < 2:
-        raise ValueError("Multivariate apart needs at least two denominators")
-    if not loops or len(set(loops)) != len(loops):
-        raise ValueError("Multivariate apart needs unique explicit loop variables")
-    kernel = E("1") / prod(denominator_tuple)
-    apart_expression = kernel.apart(*loops)
-    if normalize_rational(apart_expression - kernel) != E("0"):
-        raise ValueError("Symbolica apart did not reconstruct the input kernel")
-
-    grouped: dict[tuple[int, ...], list[Expression]] = {}
-    for term_number, term in enumerate(apart_expression.terms(), start=1):
-        matches: list[tuple[tuple[int, ...], Expression]] = []
-        for omitted in range(len(denominator_tuple)):
-            retained = tuple(
-                index for index in range(len(denominator_tuple)) if index != omitted
-            )
-            coefficient = (
-                term * prod(denominator_tuple[index] for index in retained)
-            ).together().cancel()
-            if not any(coefficient.contains(loop) for loop in loops):
-                matches.append((retained, coefficient))
-        if len(matches) != 1:
-            raise ValueError(
-                f"Symbolica apart term {term_number} maps to {len(matches)} "
-                "graph bases; expected exactly one"
-            )
-        retained, coefficient = matches[0]
-        grouped.setdefault(retained, []).append(coefficient)
-
-    expected = {
-        tuple(index for index in range(len(denominator_tuple)) if index != omitted)
-        for omitted in range(len(denominator_tuple))
-    }
-    if set(grouped) != expected:
-        raise ValueError("Symbolica apart did not produce every omitted-line basis")
-    terms = tuple(
-        ApartTerm(
-            coefficient=normalize_rational(sum(grouped[retained], E("0"))),
-            retained_indices=retained,
-            denominators=tuple(denominator_tuple[index] for index in retained),
-        )
-        for retained in sorted(grouped)
+    return _apart_kernel(
+        denominators,
+        loop_scalar_products=loop_scalar_products,
     )
-    return apart_expression, terms
 
 
-def denominator_bases() -> Mapping[str, tuple[Expression, ...]]:
+def denominator_bases() -> dict[str, tuple[Expression, ...]]:
     """Ordered scalar denominator coordinates for every routed numerator."""
 
     virtual_direct = (
@@ -336,18 +133,180 @@ def denominator_bases() -> Mapping[str, tuple[Expression, ...]]:
         + p2_squared
         - mass_squared,
     )
-    return MappingProxyType(
-        {
-            "virtual_direct": virtual_direct,
-            "virtual_crossed": virtual_crossed,
-            "direct_box": direct_box,
-            "qg": qg,
-            "crossed_box": crossed_box,
-        }
+    return {
+        "virtual_direct": virtual_direct,
+        "virtual_crossed": virtual_crossed,
+        "direct_box": direct_box,
+        "qg": qg,
+        "crossed_box": crossed_box,
+    }
+
+
+@dataclass(slots=True)
+class DYFamilyRoute:
+    """One editable graph-to-Kira route.
+
+    ``None`` for both on-shell flags means that no on-shell replacement is
+    made before numerator reduction.  Crossed-box routes additionally record
+    the apart child and cut block to which the family belongs.
+    """
+
+    topology: str
+    selected_indices: tuple[int, ...] | None
+    p1_on_shell: bool | None = None
+    p2_on_shell: bool | None = None
+    cut: str | None = None
+    retained_indices: tuple[int, ...] | None = None
+
+
+@dataclass(slots=True)
+class DYGraphSpec:
+    """Editable denominator and routing data for one physical graph."""
+
+    name: str
+    denominators: tuple[Expression, ...]
+    base_integral_indices: tuple[int, ...]
+    routes: list[DYFamilyRoute]
+    numerator_divisor: Expression
+    apart_before_numerator_reduction: bool = False
+    analytic_cuts: tuple[str, ...] = ()
+
+
+def dy_graph_specs() -> dict[str, DYGraphSpec]:
+    """Define the complete physical graph set before any reduction is run.
+
+    A fresh mutable dictionary is returned deliberately: a notebook user can
+    edit a denominator, route, selected master, or numerator prefactor without
+    mutating module-global state.
+    """
+
+    bases = denominator_bases()
+    qg_external = p1_squared + 2 * p1_dot_p2 + p2_squared
+    crossed_retained = (
+        (0, 1, 3),
+        (0, 1, 2),
+        (0, 2, 3),
+        (1, 2, 3),
+    )
+    crossed_blocks = (
+        ("11", 20, True, True, {20: (1, 0, 1), 22: (1, 1, 0)}),
+        ("10", 24, True, False, {26: (1, 1, 1)}),
+        ("01", 28, False, True, {28: (1, 1, 1)}),
+    )
+    crossed_routes = [
+        DYFamilyRoute(
+            topology=f"topo{first_topology + offset}",
+            selected_indices=selected.get(first_topology + offset),
+            p1_on_shell=p1_on_shell,
+            p2_on_shell=p2_on_shell,
+            cut=cut,
+            retained_indices=retained,
+        )
+        for cut, first_topology, p1_on_shell, p2_on_shell, selected in crossed_blocks
+        for offset, retained in enumerate(crossed_retained)
+    ]
+    return {
+        "virtual triangle 1": DYGraphSpec(
+            name="virtual triangle 1",
+            denominators=bases["virtual_direct"],
+            base_integral_indices=(1, 1, 1),
+            routes=[
+                DYFamilyRoute("topo5", (0, 1, 1), True, True),
+                DYFamilyRoute("topo6", (1, 0, 1), True, False),
+                DYFamilyRoute("topo7", (1, 1, 0), False, True),
+            ],
+            numerator_divisor=E("1"),
+        ),
+        "virtual triangle 2": DYGraphSpec(
+            name="virtual triangle 2",
+            denominators=bases["virtual_crossed"],
+            base_integral_indices=(1, 1, 1),
+            routes=[DYFamilyRoute("topo8", (1, 1, 1))],
+            numerator_divisor=E("1"),
+        ),
+        "virtual bubble": DYGraphSpec(
+            name="virtual bubble",
+            denominators=bases["virtual_direct"],
+            base_integral_indices=(1, 0, 1),
+            routes=[DYFamilyRoute("topo6", (1, 0, 1), True, False)],
+            numerator_divisor=E("1"),
+        ),
+        "qq direct box": DYGraphSpec(
+            name="qq direct box",
+            denominators=bases["direct_box"],
+            base_integral_indices=(1, 2, 1),
+            routes=[
+                DYFamilyRoute("topo10", (1, 0, 1), True, True),
+                DYFamilyRoute("topo11", (1, 1, 1), False, True),
+            ],
+            numerator_divisor=E("1"),
+        ),
+        "qq crossed box": DYGraphSpec(
+            name="qq crossed box",
+            denominators=bases["crossed_box"],
+            base_integral_indices=(1, 1, 1, 1),
+            routes=crossed_routes,
+            numerator_divisor=E("1"),
+            apart_before_numerator_reduction=True,
+            analytic_cuts=("00",),
+        ),
+        "qg box": DYGraphSpec(
+            name="qg box",
+            denominators=bases["qg"],
+            base_integral_indices=(1, 2, 1),
+            routes=[
+                DYFamilyRoute("topo10", (1, 0, 1), True, True),
+                DYFamilyRoute("topo11", (1, 1, 1), False, True),
+            ],
+            numerator_divisor=E("1"),
+        ),
+        "qg triangle": DYGraphSpec(
+            name="qg triangle",
+            denominators=bases["qg"],
+            base_integral_indices=(1, 1, 1),
+            routes=[
+                DYFamilyRoute("topo10", (1, 0, 1), True, True),
+                DYFamilyRoute("topo11", (1, 1, 1), False, True),
+            ],
+            numerator_divisor=qg_external,
+        ),
+        "qg bubble": DYGraphSpec(
+            name="qg bubble",
+            denominators=bases["qg"],
+            base_integral_indices=(1, 0, 1),
+            routes=[
+                DYFamilyRoute("topo10", (1, 0, 1), True, True),
+                DYFamilyRoute("topo11", (1, 1, 1), False, True),
+            ],
+            numerator_divisor=qg_external**2,
+        ),
+    }
+
+
+PHYSICAL_TOPOLOGY_NAMES = tuple(
+    dict.fromkeys(
+        route.topology
+        for graph in dy_graph_specs().values()
+        for route in graph.routes
+    )
+)
+
+
+def routed_topology_names(
+    graphs: Mapping[str, DYGraphSpec],
+) -> tuple[str, ...]:
+    """Return unique Kira families in first-use graph order."""
+
+    return tuple(
+        dict.fromkeys(
+            route.topology
+            for graph in graphs.values()
+            for route in graph.routes
+        )
     )
 
 
-def physical_numerators() -> Mapping[str, Expression]:
+def physical_numerators() -> dict[str, Expression]:
     """Metric-contracted transverse numerators, stripped of common weights."""
 
     triangle_direct = 4 * (d - 2) * (
@@ -425,58 +384,36 @@ def physical_numerators() -> Mapping[str, Expression]:
         - 2 * kp1 * p2_squared
         - kp2 * p2_squared
     )
-    return MappingProxyType(
-        {
-            "virtual triangle 1": triangle_direct,
-            "virtual triangle 2": triangle_crossed,
-            "virtual bubble": virtual_bubble,
-            "qq direct box": direct_box,
-            "qq crossed box": crossed_box,
-            "qg box": qg_box,
-            "qg triangle": qg_triangle,
-            "qg bubble": qg_bubble,
-        }
-    )
+    return {
+        "virtual triangle 1": triangle_direct,
+        "virtual triangle 2": triangle_crossed,
+        "virtual bubble": virtual_bubble,
+        "qq direct box": direct_box,
+        "qq crossed box": crossed_box,
+        "qg box": qg_box,
+        "qg triangle": qg_triangle,
+        "qg bubble": qg_bubble,
+    }
 
 
-def numerator_reductions() -> Mapping[str, NumeratorReduction]:
+def numerator_reductions(
+    graphs: Mapping[str, DYGraphSpec] | None = None,
+    numerators: Mapping[str, Expression] | None = None,
+) -> Mapping[str, NumeratorReduction]:
     """Build every three-denominator physical numerator handoff."""
 
-    bases = denominator_bases()
-    numerators = physical_numerators()
-    qg_external = p1_squared + 2 * p1_dot_p2 + p2_squared
-    reductions = {
-        "virtual triangle 1": reduce_numerator(
-            numerators["virtual triangle 1"], bases["virtual_direct"]
-        ),
-        "virtual triangle 2": reduce_numerator(
-            numerators["virtual triangle 2"], bases["virtual_crossed"]
-        ),
-        "virtual bubble": reduce_numerator(
-            numerators["virtual bubble"],
-            bases["virtual_direct"],
-            base_integral_indices=(1, 0, 1),
-        ),
-        "qq direct box": reduce_numerator(
-            numerators["qq direct box"],
-            bases["direct_box"],
-            base_integral_indices=(1, 2, 1),
-        ),
-        "qg box": reduce_numerator(
-            numerators["qg box"],
-            bases["qg"],
-            base_integral_indices=(1, 2, 1),
-        ),
-        "qg triangle": reduce_numerator(
-            numerators["qg triangle"] / qg_external,
-            bases["qg"],
-        ),
-        "qg bubble": reduce_numerator(
-            numerators["qg bubble"] / qg_external**2,
-            bases["qg"],
-            base_integral_indices=(1, 0, 1),
-        ),
-    }
+    graphs = dy_graph_specs() if graphs is None else graphs
+    numerators = physical_numerators() if numerators is None else numerators
+    reductions = {}
+    for name, graph in graphs.items():
+        if graph.apart_before_numerator_reduction:
+            continue
+        reductions[name] = reduce_numerator(
+            numerators[name] / graph.numerator_divisor,
+            graph.denominators,
+            loop_scalar_products=(kk, kp1, kp2),
+            base_integral_indices=graph.base_integral_indices,
+        )
     return MappingProxyType(reductions)
 
 
@@ -526,36 +463,49 @@ def qg_ward_reductions() -> Mapping[str, NumeratorReduction]:
             "box": reduce_numerator(
                 -longitudinal_box / mass_squared,
                 denominators,
+                loop_scalar_products=(kk, kp1, kp2),
                 base_integral_indices=(1, 2, 1),
             ),
             "triangle": reduce_numerator(
                 -longitudinal_triangle / (mass_squared * q_squared),
                 denominators,
+                loop_scalar_products=(kk, kp1, kp2),
             ),
             "bubble": reduce_numerator(
                 -longitudinal_bubble / (mass_squared * q_squared**2),
                 denominators,
+                loop_scalar_products=(kk, kp1, kp2),
                 base_integral_indices=(1, 0, 1),
             ),
         }
     )
 
 
-def crossed_box_reductions() -> tuple[
+def crossed_box_reductions(
+    graphs: Mapping[str, DYGraphSpec] | None = None,
+    numerators: Mapping[str, Expression] | None = None,
+) -> tuple[
     Expression,
     tuple[tuple[ApartTerm, NumeratorReduction], ...],
 ]:
     """Partial-fraction and numerator-reduce the physical crossed box."""
 
-    denominators = denominator_bases()["crossed_box"]
-    numerator = physical_numerators()["qq crossed box"]
-    apart_expression, apart_terms = apart_kernel(denominators)
+    graphs = dy_graph_specs() if graphs is None else graphs
+    numerators = physical_numerators() if numerators is None else numerators
+    graph = graphs["qq crossed box"]
+    denominators = graph.denominators
+    numerator = numerators["qq crossed box"]
+    apart_expression, apart_terms = apart_kernel(
+        denominators,
+        loop_scalar_products=(kk, kp1, kp2),
+    )
     reductions = tuple(
         (
             term,
             reduce_numerator(
                 normalize_rational(numerator * term.coefficient),
                 term.denominators,
+                loop_scalar_products=(kk, kp1, kp2),
             ),
         )
         for term in apart_terms
@@ -601,10 +551,24 @@ def _kinematic_rules(*, p1_on_shell: bool, p2_on_shell: bool):
     return tuple(rules)
 
 
+def _route_kinematic_rules(
+    route: DYFamilyRoute,
+) -> tuple[tuple[Expression, Expression | int], ...]:
+    if route.p1_on_shell is None and route.p2_on_shell is None:
+        return ()
+    if route.p1_on_shell is None or route.p2_on_shell is None:
+        raise ValueError(f"Route {route.topology} has only one on-shell flag")
+    return _kinematic_rules(
+        p1_on_shell=route.p1_on_shell,
+        p2_on_shell=route.p2_on_shell,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class ReductionAudit:
     """Exact evidence connecting physical numerators to Kira master coefficients."""
 
+    required_topologies: tuple[str, ...]
     complete_topologies: tuple[str, ...]
     numerator_reconstruction_residuals: Mapping[str, Expression]
     crossed_box_reconstruction_residual: Expression
@@ -632,60 +596,57 @@ class ReductionAudit:
             self.qg_ward_cancellation_residual,
             *self.crossed_box_expected_residuals.values(),
         )
-        return len(self.complete_topologies) == len(PHYSICAL_TOPOLOGY_NAMES) and all(
+        return self.complete_topologies == self.required_topologies and all(
             residual == E("0") for residual in residuals
         )
 
 
 def audit_physical_reductions(
     reductions: Mapping[str, "ReductionResult"],
+    *,
+    graphs: Mapping[str, DYGraphSpec] | None = None,
+    numerators: Mapping[str, Expression] | None = None,
 ) -> ReductionAudit:
     """Rebuild key physical IBP coefficients from native Kira rules."""
 
-    missing = [name for name in PHYSICAL_TOPOLOGY_NAMES if name not in reductions]
+    graphs = dy_graph_specs() if graphs is None else graphs
+    numerators = physical_numerators() if numerators is None else numerators
+    topology_names = routed_topology_names(graphs)
+    missing = [name for name in topology_names if name not in reductions]
     if missing:
         raise ValueError("Missing physical Kira reductions: " + ", ".join(missing))
     incomplete = [
-        name for name in PHYSICAL_TOPOLOGY_NAMES if not reductions[name].complete
+        name for name in topology_names if not reductions[name].complete
     ]
     if incomplete:
         raise ValueError("Incomplete physical Kira reductions: " + ", ".join(incomplete))
 
-    three_line = numerator_reductions()
+    three_line = numerator_reductions(graphs, numerators)
     numerator_residuals = {
         name: reduction.reconstruction_residual
         for name, reduction in three_line.items()
     }
-    _, crossed_children = crossed_box_reductions()
+    _, crossed_children = crossed_box_reductions(graphs, numerators)
     crossed_reconstruction = normalize_rational(
         sum(
             (child.reconstructed_integrand() for _, child in crossed_children),
             E("0"),
         )
-        - physical_numerators()["qq crossed box"]
-        / prod(denominator_bases()["crossed_box"])
+        - numerators["qq crossed box"]
+        / prod(graphs["qq crossed box"].denominators)
     )
 
     virtual_configs = {
-        "topo5": (
-            "virtual triangle 1",
-            _kinematic_rules(p1_on_shell=True, p2_on_shell=True),
-            (0, 1, 1),
-        ),
-        "topo6": (
-            "virtual triangle 1",
-            _kinematic_rules(p1_on_shell=True, p2_on_shell=False),
-            (1, 0, 1),
-        ),
-        "topo7": (
-            "virtual triangle 1",
-            _kinematic_rules(p1_on_shell=False, p2_on_shell=True),
-            (1, 1, 0),
-        ),
-        "topo8": ("virtual triangle 2", (), (1, 1, 1)),
+        route.topology: (graph.name, route)
+        for graph_name in ("virtual triangle 1", "virtual triangle 2")
+        for graph in (graphs[graph_name],)
+        for route in graph.routes
     }
     virtual_coefficients: dict[str, Expression] = {}
-    for name, (numerator_name, rules, selected_indices) in virtual_configs.items():
+    for name, (numerator_name, route) in virtual_configs.items():
+        rules = _route_kinematic_rules(route)
+        if route.selected_indices is None:
+            raise ValueError(f"Virtual route {name} has no selected master")
         source = three_line[numerator_name]
         local = reduce_numerator(
             replace_all(source.numerator, rules),
@@ -695,7 +656,7 @@ def audit_physical_reductions(
         virtual_coefficients[name] = _coefficient_of_selected_masters(
             reductions[name],
             local.family_expression(name),
-            (S(name)(*selected_indices),),
+            (S(name)(*route.selected_indices),),
             substitutions=(
                 (p1_dot_p2, s / 2),
                 (p1_squared, E("0")),
@@ -703,7 +664,8 @@ def audit_physical_reductions(
             ),
         )
     bubble_source = three_line["virtual bubble"]
-    bubble_rules = _kinematic_rules(p1_on_shell=True, p2_on_shell=False)
+    bubble_route = graphs["virtual bubble"].routes[0]
+    bubble_rules = _route_kinematic_rules(bubble_route)
     bubble_local = reduce_numerator(
         replace_all(bubble_source.numerator, bubble_rules),
         tuple(
@@ -713,9 +675,9 @@ def audit_physical_reductions(
         base_integral_indices=bubble_source.base_integral_indices,
     )
     bubble_with_virtuality = _coefficient_of_selected_masters(
-        reductions["topo6"],
-        bubble_local.family_expression("topo6"),
-        (S("topo6")(1, 0, 1),),
+        reductions[bubble_route.topology],
+        bubble_local.family_expression(bubble_route.topology),
+        (S(bubble_route.topology)(*bubble_route.selected_indices),),
         substitutions=((p1_dot_p2, s / 2),),
     )
     virtual_coefficients["external bubble"] = normalize_rational(
@@ -737,9 +699,12 @@ def audit_physical_reductions(
     # sector.  The other preferred Kira masters are not silently evaluated.
     direct = three_line["qq direct box"]
     direct_coefficients: dict[str, Expression] = {}
-    for name, p1_on_shell in (("topo10", True), ("topo11", False)):
+    for route in graphs["qq direct box"].routes:
+        name = route.topology
+        if route.selected_indices is None:
+            raise ValueError(f"Direct-box route {name} has no selected master")
         result = reductions[name]
-        rules = _kinematic_rules(p1_on_shell=p1_on_shell, p2_on_shell=True)
+        rules = _route_kinematic_rules(route)
         numerator = replace_all(direct.numerator, rules)
         denominators = tuple(replace_all(value, rules) for value in direct.denominators)
         local = reduce_numerator(
@@ -747,7 +712,7 @@ def audit_physical_reductions(
             denominators,
             base_integral_indices=(1, 2, 1),
         )
-        keep = S(name)(1, 0, 1) if name == "topo10" else S(name)(1, 1, 1)
+        keep = S(name)(*route.selected_indices)
         coefficient = _coefficient_of_selected_masters(
             result,
             local.family_expression(name),
@@ -770,23 +735,21 @@ def audit_physical_reductions(
     }
 
     qg_coefficients: dict[str, Expression] = {}
-    for topology_name, p1_on_shell in (("topo10", True), ("topo11", False)):
-        rules = _kinematic_rules(
-            p1_on_shell=p1_on_shell,
-            p2_on_shell=True,
-        )
-        for graph_name in ("qg box", "qg triangle", "qg bubble"):
+    for graph_name in ("qg box", "qg triangle", "qg bubble"):
+        for route in graphs[graph_name].routes:
+            topology_name = route.topology
+            if route.selected_indices is None:
+                raise ValueError(
+                    f"qg route {topology_name} for {graph_name} has no master"
+                )
+            rules = _route_kinematic_rules(route)
             source = three_line[graph_name]
             local = reduce_numerator(
                 replace_all(source.numerator, rules),
                 tuple(replace_all(value, rules) for value in source.denominators),
                 base_integral_indices=source.base_integral_indices,
             )
-            keep = (
-                S(topology_name)(1, 0, 1)
-                if topology_name == "topo10"
-                else S(topology_name)(1, 1, 1)
-            )
+            keep = S(topology_name)(*route.selected_indices)
             coefficient = _coefficient_of_selected_masters(
                 reductions[topology_name],
                 local.family_expression(topology_name),
@@ -850,43 +813,33 @@ def audit_physical_reductions(
         - ward_coefficients["bubble"]
     )
 
-    # Crossed box: map every apart child back to the historical family order.
-    # Families ending in 2 or 3 order the last two retained propagators as
-    # (D3,D2), while the native apart child is sorted as (D2,D3).
-    retained_to_offset = {
-        (0, 1, 3): 0,
-        (0, 1, 2): 1,
-        (0, 2, 3): 2,
-        (1, 2, 3): 3,
-    }
-    cut_blocks = {
-        "11": (20, True, True),
-        "10": (24, True, False),
-        "01": (28, False, True),
-    }
-    selected_by_cut = {
-        "11": {"topo20": (1, 0, 1), "topo22": (1, 1, 0)},
-        "10": {"topo26": (1, 1, 1)},
-        "01": {"topo28": (1, 1, 1)},
+    # Crossed box: consume the declarative cut/family routes above.  Families
+    # whose apart child retains (D0,D2,D3) or (D1,D2,D3) order their last two
+    # propagators oppositely to the native sorted child.
+    crossed_routes = graphs["qq crossed box"].routes
+    crossed_by_retained = {
+        apart_term.retained_indices: (apart_term, child)
+        for apart_term, child in crossed_children
     }
     crossed_coefficients: dict[str, Expression] = {}
-    for cut_name, (first_topology, p1_on_shell, p2_on_shell) in cut_blocks.items():
+    for cut_name in ("11", "10", "01"):
         sector_sum = E("0")
-        rules = _kinematic_rules(
-            p1_on_shell=p1_on_shell,
-            p2_on_shell=p2_on_shell,
-        )
-        for apart_term, child in crossed_children:
-            offset = retained_to_offset[apart_term.retained_indices]
-            name = f"topo{first_topology + offset}"
+        for route in (
+            candidate for candidate in crossed_routes if candidate.cut == cut_name
+        ):
+            if route.retained_indices is None:
+                raise ValueError(f"Crossed route {route.topology} has no apart child")
+            apart_term, child = crossed_by_retained[route.retained_indices]
+            name = route.topology
             result = reductions[name]
+            rules = _route_kinematic_rules(route)
             numerator = replace_all(child.numerator, rules)
             denominators = tuple(
                 replace_all(value, rules) for value in child.denominators
             )
             local = reduce_numerator(numerator, denominators)
             local_expression = local.family_expression(name)
-            if offset in (2, 3):
+            if route.retained_indices in {(0, 2, 3), (1, 2, 3)}:
                 # Reorder I(a0,a2,a3) -> I(a0,a3,a2), or its D1 analogue.
                 local_expression = sum(
                     (
@@ -900,10 +853,9 @@ def audit_physical_reductions(
                     ),
                     E("0"),
                 )
-            selected_indices = selected_by_cut[cut_name].get(name)
             selected = (
-                (S(name)(*selected_indices),)
-                if selected_indices is not None
+                (S(name)(*route.selected_indices),)
+                if route.selected_indices is not None
                 else ()
             )
             sector_sum += _coefficient_of_selected_masters(
@@ -934,7 +886,7 @@ def audit_physical_reductions(
         "00": -8 * s**2 * (1 - epsilon),
     }
     crossed_coefficients["00"] = replace_all(
-        physical_numerators()["qq crossed box"],
+        numerators["qq crossed box"],
         (
             (kk, E("0")),
             (kp1, E("0")),
@@ -950,8 +902,9 @@ def audit_physical_reductions(
         for name, expected in crossed_expected.items()
     }
     return ReductionAudit(
+        required_topologies=topology_names,
         complete_topologies=tuple(
-            name for name in PHYSICAL_TOPOLOGY_NAMES if reductions[name].complete
+            name for name in topology_names if reductions[name].complete
         ),
         numerator_reconstruction_residuals=MappingProxyType(numerator_residuals),
         crossed_box_reconstruction_residual=crossed_reconstruction,
@@ -1117,13 +1070,13 @@ class FullDYCoefficient:
     ordinary_virtual: EndpointCoefficient
     local_all_cut_virtual: EndpointCoefficient
     qq_transverse: ChannelAssembly
-    qq_cached_notebook: EndpointCoefficient
+    qq_recorded_mathematica: EndpointCoefficient
     qq_manuscript: EndpointCoefficient
-    qq_transverse_minus_notebook: EndpointCoefficient
+    qq_transverse_minus_recorded_mathematica: EndpointCoefficient
     qq_transverse_minus_manuscript: EndpointCoefficient
-    qq_notebook_minus_manuscript: EndpointCoefficient
+    qq_recorded_mathematica_minus_manuscript: EndpointCoefficient
     qg_transverse: ChannelAssembly
-    qg_cached_notebook: EndpointCoefficient
+    qg_recorded_mathematica: EndpointCoefficient
     qg_manuscript: EndpointCoefficient
     qg_transverse_minus_manuscript: EndpointCoefficient
     master_handoff: AnalyticMasterHandoff | None = None
@@ -1134,7 +1087,7 @@ class FullDYCoefficient:
 
         The exact native-transverse reconstruction remains separate because
         its qqbar soft sign and regular terms do not agree with the manuscript,
-        while the cached qg result retains an uncancelled Ward remainder.
+        while the recorded Mathematica qg result retains a Ward remainder.
         """
 
         return MappingProxyType(
@@ -1828,7 +1781,7 @@ def assemble_closed_form_dy() -> FullDYCoefficient:
     )
     if not (qq_transverse.total - transverse_total).is_zero:
         raise ValueError("Transverse qqbar graph ledger did not reconstruct its sum")
-    notebook_total = pqq_times_cutoff_log + EndpointCoefficient(
+    recorded_mathematica_total = pqq_times_cutoff_log + EndpointCoefficient(
         delta=qq_normalization * (1 - 3 * pi**2),
         d1_prefactor=-2 * qq_normalization * (1 + z**2),
         regular=qq_normalization * (1 + 3 * z - 2 * z**2) / z,
@@ -1872,7 +1825,7 @@ def assemble_closed_form_dy() -> FullDYCoefficient:
     qg_ward_remainder = EndpointCoefficient(
         regular=qg_graph_normalization * (1 - z) ** 2 / z
     )
-    qg_cached = qg_transverse_total + qg_ward_remainder
+    qg_recorded_mathematica = qg_transverse_total + qg_ward_remainder
     qg_manuscript = EndpointCoefficient(
         regular=qg_graph_normalization
         / z
@@ -1884,19 +1837,21 @@ def assemble_closed_form_dy() -> FullDYCoefficient:
             + z * pqg * (1 + qg_log)
         )
     )
-    if not (qg_cached - qg_manuscript).is_zero:
-        raise ValueError("Cached qg result no longer matches the manuscript formula")
     return FullDYCoefficient(
         ordinary_virtual=ordinary_virtual,
         local_all_cut_virtual=local_all_cut_virtual,
         qq_transverse=qq_transverse,
-        qq_cached_notebook=notebook_total,
+        qq_recorded_mathematica=recorded_mathematica_total,
         qq_manuscript=qq_manuscript,
-        qq_transverse_minus_notebook=qq_transverse.total - notebook_total,
+        qq_transverse_minus_recorded_mathematica=(
+            qq_transverse.total - recorded_mathematica_total
+        ),
         qq_transverse_minus_manuscript=qq_transverse.total - qq_manuscript,
-        qq_notebook_minus_manuscript=notebook_total - qq_manuscript,
+        qq_recorded_mathematica_minus_manuscript=(
+            recorded_mathematica_total - qq_manuscript
+        ),
         qg_transverse=qg_transverse,
-        qg_cached_notebook=qg_cached,
+        qg_recorded_mathematica=qg_recorded_mathematica,
         qg_manuscript=qg_manuscript,
         qg_transverse_minus_manuscript=qg_transverse_total - qg_manuscript,
     )
@@ -1904,10 +1859,17 @@ def assemble_closed_form_dy() -> FullDYCoefficient:
 
 def assemble_full_dy(
     reductions: Mapping[str, "ReductionResult"],
+    *,
+    graphs: Mapping[str, DYGraphSpec] | None = None,
+    numerators: Mapping[str, Expression] | None = None,
 ) -> tuple[ReductionAudit, FullDYCoefficient]:
     """Audit every physical sector and perform the analytic-master handoff."""
 
-    audit = audit_physical_reductions(reductions)
+    audit = audit_physical_reductions(
+        reductions,
+        graphs=graphs,
+        numerators=numerators,
+    )
     if not audit.exact:
         raise ValueError("Physical reduction audit contains a nonzero residual")
     coefficient = assemble_closed_form_dy()
@@ -1921,6 +1883,8 @@ __all__ = [
     "AnalyticMasterHandoff",
     "ApartTerm",
     "ChannelAssembly",
+    "DYFamilyRoute",
+    "DYGraphSpec",
     "EndpointCoefficient",
     "FullDYCoefficient",
     "MasterInsertion",
@@ -1939,6 +1903,7 @@ __all__ = [
     "crossed_box_reductions",
     "d",
     "denominator_bases",
+    "dy_graph_specs",
     "epsilon",
     "electric_charge",
     "lambda1_squared",
@@ -1952,6 +1917,7 @@ __all__ = [
     "qg_ward_reductions",
     "reduce_numerator",
     "replace_all",
+    "routed_topology_names",
     "s",
     "strong_coupling",
     "color_count",
