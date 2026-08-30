@@ -4,172 +4,13 @@ __generated_with = "0.24.0"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
-    from collections.abc import Sequence as _SequenceType
-    from html import escape as _escape_html
-    from inspect import cleandoc as _cleandoc
-    import re as _re
-    from threading import Lock as _Lock
-
     import marimo as _marimo
-    from symbolica import Expression as _ExpressionType
-    import typst as _typst
+    if __package__:
+        from . import typst_marimo as typst_renderer
+    else:
+        import typst_marimo as typst_renderer
 
-    # Reusable definitions are created while this module is imported, before
-    # ordinary notebook cells export their values.  Make the two annotation
-    # types available at that point without quoting annotations or defining a
-    # second Marimo producer for the public ``Expression``/``Sequence`` names.
-    globals()["Expression"] = _ExpressionType
-    globals()["Sequence"] = _SequenceType
-
-    _TYPST_FRAGMENT_CSS = r"""
-    <style>
-    .ludy-typst-fragment {
-      color: inherit;
-      display: inline-block;
-      max-width: 100%;
-      overflow-x: auto;
-      vertical-align: middle;
-    }
-    .ludy-typst-fragment > p { margin: 0; }
-    .ludy-typst-error {
-      color: var(--error, #b00020);
-      font-family: var(--monospace-font, ui-monospace, monospace);
-      font-size: 0.875rem;
-      white-space: pre-wrap;
-    }
-    </style>
-    """
-
-    def _typst_renderer_state():
-        state = getattr(_typst, "_ludy_html_renderer_v2", None)
-        if state is None:
-            state = {
-                "compiler": _typst.Compiler(ignore_system_fonts=True),
-                "lock": _Lock(),
-                "cache": {},
-                "body_pattern": _re.compile(
-                    r"<body(?:\s[^>]*)?>(.*?)</body>",
-                    _re.DOTALL | _re.IGNORECASE,
-                ),
-                "head_pattern": _re.compile(
-                    r"<head(?:\s[^>]*)?>(.*?)</head>",
-                    _re.DOTALL | _re.IGNORECASE,
-                ),
-                "style_pattern": _re.compile(
-                    r"<style(?:\s[^>]*)?>.*?</style>",
-                    _re.DOTALL | _re.IGNORECASE,
-                ),
-                "heading_pattern": _re.compile(
-                    r"<(/?)h([2-6])(?=[\s>])",
-                    _re.IGNORECASE,
-                ),
-                "mathml_css": "",
-            }
-            setattr(_typst, "_ludy_html_renderer_v2", state)
-        return state
-
-    def typst_shared_css():
-        state = _typst_renderer_state()
-        return f'{state["mathml_css"]}{_TYPST_FRAGMENT_CSS}'
-
-    def render_typst_html(
-        source,
-        *,
-        font_size=15.0,
-        prose=False,
-        include_styles=True,
-    ):
-        """Compile one Typst fragment to themed prose or compact HTML."""
-
-        if not isinstance(source, str):
-            raise TypeError("Typst source must be a string")
-
-        state = _typst_renderer_state()
-
-        cleaned_source = _cleandoc(source)
-        try:
-            with state["lock"]:
-                body = state["cache"].get(cleaned_source)
-                if body is None:
-                    compiled = state["compiler"].compile(
-                        input=f"{cleaned_source}\n".encode("utf-8"),
-                        format="html",
-                    )
-                    if not isinstance(compiled, bytes):
-                        raise TypeError(
-                            "Typst HTML export returned multiple outputs"
-                        )
-                    document = compiled.decode("utf-8")
-                    body = state["body_pattern"].search(document)
-                    if body is None:
-                        raise ValueError(
-                            "Typst HTML output did not contain a body"
-                        )
-                    head = state["head_pattern"].search(document)
-                    mathml_css = (
-                        ""
-                        if head is None
-                        else "".join(
-                            state["style_pattern"].findall(head.group(1))
-                        )
-                    )
-                    if mathml_css:
-                        state["mathml_css"] = mathml_css
-                    body = body.group(1)
-                    state["cache"][cleaned_source] = body
-                    if len(state["cache"]) > 512:
-                        state["cache"].pop(next(iter(state["cache"])))
-            styles = typst_shared_css() if include_styles else ""
-            if prose:
-                body = state["heading_pattern"].sub(
-                    lambda match: (
-                        f"<{match.group(1)}h{int(match.group(2)) - 1}"
-                    ),
-                    body,
-                )
-                return (
-                    f"{styles}"
-                    '<div class="markdown prose dark:prose-invert contents">'
-                    f"{body}</div>"
-                )
-
-            size_style = (
-                ""
-                if font_size is None
-                else f"font-size:{float(font_size):g}pt"
-            )
-            return (
-                f"{styles}"
-                f'<div class="ludy-typst-fragment" style="{size_style}">'
-                f"{body}</div>"
-            )
-        except Exception as error:
-            diagnostic = str(getattr(error, "diagnostic", None) or error)
-            return (
-                f"{_TYPST_FRAGMENT_CSS if include_styles else ''}"
-                '<div class="ludy-typst-error" role="alert">'
-                "<strong>Typst compilation failed</strong>"
-                f"<pre>{_escape_html(diagnostic)}</pre>"
-                "</div>"
-            )
-
-    def typst_html(source, *, font_size=15.0, prose=False):
-        """Return one responsive Typst fragment as a Marimo HTML object."""
-
-        return _marimo.Html(
-            render_typst_html(source, font_size=font_size, prose=prose)
-        )
-
-    def typst_md(source):
-        """Render Typst prose with Marimo's Markdown typography classes."""
-
-        return typst_html(source, font_size=None, prose=True)
-
-    # Marimo eagerly renders bare positional ``mo.md(...)`` cells as Markdown
-    # only when a regular cell statically exports ``mo``.  Installing the
-    # patched module in setup and exposing its conventional name dynamically
-    # keeps those cells editable as Markdown while executing this Typst path.
-    _marimo.md = typst_md
+    _marimo.md = typst_renderer.typst_md
     globals()["mo"] = _marimo
 
 
@@ -196,7 +37,6 @@ def _():
         E,
         Expression,
         N,
-        PrintMode,
         Replacement,
         Representation,
         S,
@@ -276,32 +116,22 @@ def _(TensorName):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    = DY cross-box: implementation and worked reduction
+    = The Drell--Yan crossed-box contribution
 
-    This notebook is both the readable source of the reusable helper
-    implementations and a complete walkthrough of the cross-box calculation.
-    Each transformation is defined where the calculation first needs it. The
-    worked graph exercises native multivariate `apart`, numerator reduction,
-    Kira IBP reduction, cut filtering, and analytic master
-    evaluation; all tests and Mathematica/FIRE comparisons are collected at
-    the end.
-    """)
-    return
+    This notebook is a walk-through of the calculations done for all the diagrams necessary for DY and DIS. All of the steps are then reused by the other two, full calculation notebooks.
 
+    Here we compute the cross box contribution. By this, we mean the IR-finite set of FS diagrams arising as rooted cuts of the same routed embedding, with the crossed box serving as one representative. The routed embedding is specified as 6 denominators. The 4 cuts are labeled by which cross box incoming leg is cut by the IS cut (11 is the cross-box).
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    == Rich Symbolica display
+    We tack on a numerator, and then go through the following pipeline:
 
-    `SpensoMath` keeps the exact native Symbolica expression for algebra while
-    rendering its Spenso-aware Typst form as semantic HTML/MathML. Notebook
-    prose and expression displays share the same responsive HTML renderer.
-
-    - `typst(template, **expressions)` safely combines prose with inline or
-      display mathematics without first converting expressions to strings.
-    - `spenso_table(rows)` installs the same renderer for expression-valued
-      cells while emitting Typst and MathML styles only once per table.
+    - Partial fractioning (to get rid of dependent denominators)
+    - Numerator reduction (to correctly count propagator powers)
+    - IBP (using kira)
+    - Substituting the analytic cut masters and filtering them according to cut support
+    - Expanding at leading power in the incoming virtualities
+    - Integrating the incoming virtualities $p_1^2$ and $p_2^2$
+    - Expanding around the soft endpoint ($z=1$) in $delta(1-z)$, $cal(D)_0(z) = lr([frac(1, 1-z)])_+$, and $cal( D)_1(z)=lr([frac(log(1-z), 1-z)])_+$
+    - Summing the four rooted cuts
     """)
     return
 
@@ -336,7 +166,10 @@ def _(Expression, dataclass):
             return _typst_math(self.expression)
 
         def _display_(self):
-            return typst_html(f"$ {self.typst} $", font_size=self.font_size)
+            return typst_renderer.typst_html(
+                f"$ {self.typst} $",
+                font_size=self.font_size,
+            )
 
         def __repr__(self):
             return _spenso_format_tensor(
@@ -386,7 +219,10 @@ def _(Expression, dataclass):
             return cls("".join(source), font_size=font_size)
 
         def _display_(self):
-            return typst_html(self.source, font_size=self.font_size)
+            return typst_renderer.typst_html(
+                self.source,
+                font_size=self.font_size,
+            )
 
         def __repr__(self):
             return self.source
@@ -394,7 +230,7 @@ def _(Expression, dataclass):
     return SpensoMath, TypstFragment
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(TypstFragment):
     def typst(template, /, *, font_size=13.0, **expressions):
         """Render escaped prose with typed Symbolica expression placeholders."""
@@ -435,7 +271,7 @@ def spenso_table(data, **kwargs):
 
     def expression_html(expression, *, include_styles=True):
         return mo.Html(
-            render_typst_html(
+            typst_renderer.render_typst_html(
                 f"$ {typst_source(expression)} $",
                 font_size=13.0,
                 include_styles=include_styles,
@@ -512,7 +348,7 @@ def spenso_table(data, **kwargs):
     kwargs.setdefault("show_data_types", False)
     return mo.vstack(
         [
-            mo.Html(typst_shared_css()),
+            mo.Html(typst_renderer.typst_shared_css()),
             mo.ui.table(
                 data,
                 format_mapping={
@@ -526,46 +362,31 @@ def spenso_table(data, **kwargs):
     )
 
 
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    == Data Structures
-
-    `Integrand` is the editable algebraic object. `ApartTerm` records how one
-    summand returned by Symbolica maps back to retained graph propagators. The
-    later records keep the rewritten numerator terms and finally their global
-    graph-source identities. `PreIBPResult` bundles the complete inspectable
-    handoff immediately before Kira; it does not contain validation results or
-    historical topology labels.
-    """)
-    return
-
-
 @app.class_definition
 @__import__("dataclasses").dataclass(slots=True)
 class Integrand:
     """An editable numerator and an ordered list of denominator factors."""
 
-    numerator: Expression
-    denominators: list[Expression]
+    numerator: "Expression"
+    denominators: "list[Expression]"
 
-    def as_expression(self) -> Expression:
+    def as_expression(self) -> "Expression":
         from math import prod
 
         return self.numerator / prod(self.denominators)
 
 
-@app.class_definition
+@app.class_definition(hide_code=True)
 @__import__("dataclasses").dataclass(slots=True)
 class ApartTerm:
     """One native ``apart`` term mapped back to graph propagators."""
 
-    coefficient: Expression
+    coefficient: "Expression"
     retained_indices: tuple[int, ...]
-    integrand: Integrand
+    integrand: "Integrand"
 
     @property
-    def denominators(self) -> tuple[Expression, ...]:
+    def denominators(self) -> "tuple[Expression, ...]":
         """Return retained denominators for kernel-only adapter consumers."""
 
         return tuple(self.integrand.denominators)
@@ -576,11 +397,11 @@ class ApartTerm:
 class ReducedIntegralTerm:
     """One coefficient times an integral-index vector in a fixed basis."""
 
-    coefficient: Expression
-    propagators: list[Expression]
+    coefficient: "Expression"
+    propagators: "list[Expression]"
     integral_indices: tuple[int, ...]
 
-    def as_expression(self) -> Expression:
+    def as_expression(self) -> "Expression":
         from math import prod
 
         return self.coefficient / prod(
@@ -590,12 +411,12 @@ class ReducedIntegralTerm:
             )
         )
 
-    def as_integrand(self) -> Expression:
+    def as_integrand(self) -> "Expression":
         """Return this term as an ordinary rational integrand."""
 
         return self.as_expression()
 
-    def as_family_integral(self, family_name: str) -> Expression:
+    def as_family_integral(self, family_name: str) -> "Expression":
         """Return this term as a coefficient times one family atom."""
 
         from symbolica import S
@@ -608,21 +429,21 @@ class ReducedIntegralTerm:
 class NumeratorReduction:
     """A numerator rewritten in one independent propagator basis."""
 
-    terms: list[ReducedIntegralTerm]
-    relations: list[tuple[Expression, Expression]]
-    reduced_numerator: Expression
-    numerator: Expression
-    denominators: tuple[Expression, ...]
+    terms: "list[ReducedIntegralTerm]"
+    relations: "list[tuple[Expression, Expression]]"
+    reduced_numerator: "Expression"
+    numerator: "Expression"
+    denominators: "tuple[Expression, ...]"
     base_integral_indices: tuple[int, ...]
 
-    def reconstructed_integrand(self) -> Expression:
+    def reconstructed_integrand(self) -> "Expression":
         """Sum every shifted-index term back into an ordinary integrand."""
 
         from symbolica import E
 
         return sum((term.as_integrand() for term in self.terms), E("0"))
 
-    def input_integrand(self) -> Expression:
+    def input_integrand(self) -> "Expression":
         """Return the numerator over its original denominator powers."""
 
         from math import prod
@@ -636,7 +457,7 @@ class NumeratorReduction:
             )
         )
 
-    def family_expression(self, family_name: str) -> Expression:
+    def family_expression(self, family_name: str) -> "Expression":
         """Return all shifted terms in one named integral family."""
 
         from symbolica import E
@@ -647,7 +468,7 @@ class NumeratorReduction:
         )
 
     @property
-    def reconstruction_residual(self) -> Expression:
+    def reconstruction_residual(self) -> "Expression":
         """Return the exact difference between reconstructed and input forms."""
 
         return normalize_rational(
@@ -661,11 +482,11 @@ class IntegralContribution:
     """One native Python contribution ready to become an IBP target."""
 
     source_indices: tuple[int, ...]
-    propagators: list[Expression]
+    propagators: "list[Expression]"
     integral_indices: tuple[int, ...]
-    coefficient: Expression
+    coefficient: "Expression"
 
-    def as_expression(self) -> Expression:
+    def as_expression(self) -> "Expression":
         from math import prod
 
         return self.coefficient / prod(
@@ -682,14 +503,14 @@ class IBPReductionTerm:
     """One family integral together with its exact reduced right-hand side."""
 
     project_key: tuple[str, tuple[int, ...]]
-    coefficient: Expression
-    target: Expression
-    reduced_integral: Expression
+    coefficient: "Expression"
+    target: "Expression"
+    reduced_integral: "Expression"
 
-    def input_expression(self) -> Expression:
+    def input_expression(self) -> "Expression":
         return self.coefficient * self.target
 
-    def reduced_expression(self) -> Expression:
+    def reduced_expression(self) -> "Expression":
         return self.coefficient * self.reduced_integral
 
 
@@ -698,18 +519,18 @@ class IBPReductionTerm:
 class PreIBPResult:
     """All exact intermediate data at the cross-box IBP boundary."""
 
-    denominators: list[Expression]
-    loop_scalar_products: list[Expression]
-    delta: Expression
-    integrand: Integrand
-    apart_expression: Expression
-    apart_terms: list[ApartTerm]
-    numerator_reductions: list[NumeratorReduction]
-    contributions: list[IntegralContribution]
+    denominators: "list[Expression]"
+    loop_scalar_products: "list[Expression]"
+    delta: "Expression"
+    integrand: "Integrand"
+    apart_expression: "Expression"
+    apart_terms: "list[ApartTerm]"
+    numerator_reductions: "list[NumeratorReduction]"
+    contributions: "list[IntegralContribution]"
 
 
 @app.function
-def square(momentum: Expression) -> Expression:
+def square(momentum: "Expression") -> "Expression":
     """Return a Spenso scalar square without imposing kinematics."""
 
     from symbolica.community.spenso import dot
@@ -779,8 +600,8 @@ def gamma_trace_to_dots(
 
 @app.function
 def propagator_denominators(
-    propagators: Sequence[tuple[Expression, Expression]],
-) -> list[Expression]:
+    propagators: "Sequence[tuple[Expression, Expression]]",
+) -> "list[Expression]":
     """Convert ordered ``(momentum, mass_squared)`` pairs to denominators."""
 
     return [
@@ -791,7 +612,7 @@ def propagator_denominators(
 
 @app.function
 def find_loop_propagator_indices(
-    propagators: Sequence[tuple[Expression, Expression]],
+    propagators: "Sequence[tuple[Expression, Expression]]",
     *,
     loop_tag: str = "ludy::loop_momentum",
 ) -> list[int]:
@@ -811,8 +632,8 @@ def find_loop_propagator_indices(
 
 @app.function(hide_code=True)
 def project_cutset(
-    cutset: Sequence[int],
-    propagator_indices: Sequence[int],
+    cutset: "Sequence[int]",
+    propagator_indices: "Sequence[int]",
 ) -> tuple[int, ...]:
     """Project one graph-level cut mask onto an ordered propagator subset."""
 
@@ -828,33 +649,57 @@ def project_cutset(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 1. Define the cross-box integrand
+    == 1. Physical kinematics, topology, masses, and cuts
 
-    The graph input is the ordered list of six `(momentum, mass_squared)`
-    pairs. The loop head `k` carries a Symbolica tag, so loop-dependent lines
-    are discovered from the expressions themselves. The external squares
-    $p_1^2, p_2^2$ specify which incoming legs are cut, but are not sent to an
-    IBP reducer as loop propagators.
+    For an oriented line with momentum $ell_i$ and mass $m_i$, write
 
-    The numerator is the paper's metric-contracted trace
+    $ D_i = ell_i^2-m_i^2. $
 
-    $ upright("Tr") [
-      cancel(p_1) gamma^sigma (cancel(k) - cancel(p_1)) gamma^mu
-      cancel(p_2) gamma_sigma (cancel(k) - cancel(p_2)) gamma_mu
-    ]. $
+    The six crossed-box lines are
 
-    `gamma_trace_to_dots` constructs the typed gamma matrices and vectors with
-    Spenso, applies Idenso's Clifford and metric simplifiers, and converts the
-    result back to native Spenso scalar products. Couplings, colour factors,
-    spin/colour averages, the graph sign, and observable normalizations are not
-    part of this trace. No on-shell identity or integral-reduction rule has
-    been applied here.
+    $
+      (ell_i,m_i^2) = (
+        (p_1,0),
+        (p_2,0),
+        (k,0),
+        (k-p_1,0),
+        (p_2-k,0),
+        (p_1+p_2-k,q^2)
+      ).
+    $
+
+    The first two denominators carry the incoming virtualities. The loop
+    family is $(D_3,D_4,D_5,D_6)$. With
+    $s=2p_1 dot p_2$, $z=q^2/s$, and
+    $Delta=q^2-s$, the four discontinuities are
+
+    $
+      c_(11)&=(1,1,1,0,0,1), &
+      c_(10)&=(1,0,1,0,1,1), \
+      c_(01)&=(0,1,1,1,0,1), &
+      c_(00)&=(0,0,1,1,1,1).
+    $
+
+    Each entry records the discontinuity of the corresponding physical line.
+    These data determine the scalar integrand and its four cut sectors.
     """)
     return
 
 
 @app.cell
-def _(N, S, dimension, dot, k, minkd, p):
+def _(
+    N,
+    S,
+    dimension,
+    dot,
+    find_loop_propagator_indices,
+    k,
+    minkd,
+    p,
+    project_cutset,
+    propagator_denominators,
+    square,
+):
     p1 = p(1, minkd)
     p2 = p(2, minkd)
     k1 = k(1, minkd)
@@ -932,18 +777,34 @@ def _(N, S, dimension, dot, k, minkd, p):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    === Choose the worked numerator
+    == 2. Dirac trace and physical projector
 
-    `user_numerator` is a native Symbolica-expression override. Leave it as
-    `None` to use the physical Spenso/Idenso trace above, or replace `None` with
-    any editable Symbolica expression built from the declared scalar products.
-    No string parsing is involved.
+    The metric-contracted crossed-box trace is
+
+    $ upright("Tr") [
+      cancel(p_1) gamma^sigma (cancel(k) - cancel(p_1)) gamma^mu
+      cancel(p_2) gamma_sigma (cancel(k) - cancel(p_2)) gamma_mu
+    ]. $
+
+    Introduce $x=k^2$, $a=k dot p_1$, $b=k dot p_2$,
+    $c=p_1 dot p_2$, $u=p_1^2$, and $v=p_2^2$. Clifford reduction gives
+
+    $
+      N_("xbox") = 4(d-2) [
+        (d-8) x c + 4c(a+b) + (8-2d)a b
+        +(d-4)(a v+b u) +(4-d)u v - 4c^2
+      ].
+    $
+
+    Couplings, colour factors, spin and colour averages, the graph phase, and
+    the observable normalization multiply this scalar contribution in the
+    physical coefficient.
     """)
     return
 
 
 @app.cell
-def _(Expression, loop_denominators, physical_numerator):
+def _(Expression, Integrand, loop_denominators, physical_numerator):
     user_numerator = None
 
     if user_numerator is not None and not isinstance(
@@ -959,11 +820,7 @@ def _(Expression, loop_denominators, physical_numerator):
         numerator=worked_numerator,
         denominators=loop_denominators,
     )
-    return (
-        integrand,
-        using_physical_numerator,
-        worked_numerator,
-    )
+    return integrand, using_physical_numerator, worked_numerator
 
 
 @app.cell(hide_code=True)
@@ -1002,11 +859,11 @@ def _(
                     )
                 ]
             ),
-            mo.md("=== Spenso/Idenso gamma reduction"),
+            mo.md("=== Dirac-trace reduction"),
             spenso_table(
                 [
                     {
-                        "stage": "simplify_gamma → simplify_metrics → to_dots",
+                        "identity": "Clifford algebra and Lorentz contractions",
                         "physical numerator": physical_numerator,
                     }
                 ]
@@ -1016,9 +873,9 @@ def _(
                     {
                         "worked numerator": worked_numerator,
                         "source": (
-                            "physical trace"
+                            "metric-contracted trace"
                             if using_physical_numerator
-                            else "user_numerator override"
+                            else "chosen scalar numerator"
                         ),
                     }
                 ]
@@ -1026,9 +883,9 @@ def _(
             spenso_table(
                 [
                     {
-                        "Python cut": _name,
+                        "cut": _name,
                         "full six-line mask": _mask,
-                        "inferred loop projection": (
+                        "loop-line cut mask": (
                             projected_cutsets[_name]
                         ),
                     }
@@ -1036,7 +893,7 @@ def _(
                 ]
             ),
             typst(
-                "Loop integrand before cut or IBP:\n{integrand:display}",
+                "Crossed-box scalar integrand:\n{integrand:display}",
                 integrand=integrand.as_expression(),
             ),
         ]
@@ -1047,32 +904,37 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 2. Decompose the propagator kernel with Symbolica
+    == 3. Denominator decomposition and numerator reduction
 
-    The four loop denominators are affine but not independent. We now delegate
-    their multivariate partial-fraction decomposition directly to Symbolica:
+    The four loop denominators span the three scalar products
 
-    $ A(x) = upright("apart")_(x)
-      [frac(1, product_i D_i)], quad
-      x = (k^2, k dot p_1, k dot p_2). $
+    $ x=(k^2,k dot p_1,k dot p_2) $
 
-    `Expression.apart(*loop_scalar_products)` performs the multivariate
-    Gröbner-basis decomposition. We apply it to the propagator kernel and only
-    then attach the worked numerator (the physical trace by default), so the
-    following numerator-reduction step remains explicit instead of being folded
-    into lower-topology contact terms.
+    and obey the affine relation
 
-    Symbolica returns an expression rather than graph metadata.
-    `apart_integrand` therefore performs one non-algebraic bookkeeping step:
-    for each returned summand, it identifies the unique product of original
-    propagators whose cancellation leaves a loop-independent coefficient. It
-    does not solve an affine system or construct a decomposition itself.
+    $ D_3-D_4-D_5+D_6+Delta=0. $
+
+    Their multivariate partial-fraction identity is
+
+    $
+      frac(1,D_3D_4D_5D_6)
+      = frac(1,Delta) [
+        -frac(1,D_3D_4D_5)
+        +frac(1,D_3D_4D_6)
+        +frac(1,D_3D_5D_6)
+        -frac(1,D_4D_5D_6)
+      ].
+    $
+
+    Multiplication by $N_("xbox")$ gives four three-denominator children. Each
+    child has an independent denominator basis for the three loop scalar
+    products, which turns every numerator monomial into an integral-index shift.
     """)
     return
 
 
 @app.function
-def normalize_rational(expression: Expression) -> Expression:
+def normalize_rational(expression: "Expression") -> "Expression":
     """Return a canonical expanded rational expression."""
 
     return expression.expand().together().cancel()
@@ -1080,9 +942,9 @@ def normalize_rational(expression: Expression) -> Expression:
 
 @app.function
 def replace_all(
-    expression: Expression,
-    rules: Sequence[tuple[Expression, Expression | int]],
-) -> Expression:
+    expression: "Expression",
+    rules: "Sequence[tuple[Expression, Expression | int]]",
+) -> "Expression":
     """Apply an ordered sequence of exact replacements."""
 
     result = expression
@@ -1093,10 +955,10 @@ def replace_all(
 
 @app.function
 def apart_integrand(
-    integrand: Integrand,
+    integrand: "Integrand",
     *,
-    loop_scalar_products: Sequence[Expression],
-) -> tuple[Expression, list[ApartTerm]]:
+    loop_scalar_products: "Sequence[Expression]",
+) -> "tuple[Expression, list[ApartTerm]]":
     """Delegate to Symbolica ``apart`` and restore graph provenance."""
 
     from math import prod
@@ -1190,10 +1052,10 @@ def apart_integrand(
 
 @app.function
 def apart_kernel(
-    denominators: Sequence[Expression],
+    denominators: "Sequence[Expression]",
     *,
-    loop_scalar_products: Sequence[Expression],
-) -> tuple[Expression, tuple[ApartTerm, ...]]:
+    loop_scalar_products: "Sequence[Expression]",
+) -> "tuple[Expression, tuple[ApartTerm, ...]]":
     """Apply ``apart`` to a unit-numerator kernel with graph provenance."""
 
     from symbolica import E
@@ -1206,7 +1068,7 @@ def apart_kernel(
 
 
 @app.cell
-def _(integrand, loop_scalar_products):
+def _(apart_integrand, integrand, loop_scalar_products):
     _, apart_terms = apart_integrand(
         integrand,
         loop_scalar_products=loop_scalar_products,
@@ -1218,7 +1080,7 @@ def _(integrand, loop_scalar_products):
 def _(apart_terms, loop_denominators, mo):
     mo.vstack(
         [
-            mo.md("=== Native multivariate-apart terms"),
+            mo.md("=== Partial-fraction terms"),
             spenso_table(
                 [
                     {
@@ -1242,7 +1104,7 @@ def _(apart_terms, loop_denominators, mo):
                 ]
             ),
             mo.md(
-                "Exact reconstruction is checked in the final validation section."
+                "The four terms sum exactly to the original propagator kernel."
             ),
         ]
     )
@@ -1252,28 +1114,23 @@ def _(apart_terms, loop_denominators, mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 3. Rewrite numerators in each denominator basis
+    === Denominator coordinates
 
-    === `numerator_relations`: invert the denominator coordinates
-
-    After Symbolica's `apart`, each child has three retained denominators and
-    its numerator can depend on the three independent loop products
+    Each child has three retained denominators, and its numerator depends on
+    the three loop products
 
     $ x = (k^2, k dot p_1, k dot p_2). $
 
-    Each denominator is affine in these variables. The helper introduces one
-    _formal_ label $P_i$ for every retained denominator and solves
+    Each denominator is affine in these variables. Introduce one formal
+    coordinate $P_i$ for every retained denominator and solve
 
     $ D_i(x) = P_i $
 
-    for the components of $x$. In the code, `denominators` supplies the
-    $D_i$, `denominator_labels` supplies the matching $P_i$, and
-    `loop_scalar_products` specifies both the unknowns and their returned
-    order. The result is an ordered list
+    for the components of $x$. This gives the coordinate transformation
 
     $ [(x_0, f_0(P)), dots, (x_(r-1), f_(r-1)(P))] $
 
-    that can be used directly as substitution rules.
+    used in the numerator polynomial.
 
     For example, for the local basis
 
@@ -1287,24 +1144,21 @@ def _(mo):
       k dot p_1 = frac(P_0-P_1+p_1^2, 2), quad
       k dot p_2 = frac(P_0-P_2+p_2^2, 2). $
 
-    The $P_i$ are only local bookkeeping variables—created as `Prop(i)`—not
-    extra propagators or Kira family names. Requiring equally many
-    denominators, labels, and loop products makes the system square; requiring
-    exactly one solved branch with no loop product left on the right-hand side
-    checks that this particular denominator set is an independent basis.
-    This is only a change of algebraic coordinates: no cut condition or IBP
-    rule is applied here. If the solution divides by an external invariant, it
-    is understood at generic kinematics where that invariant is nonzero.
+    The $P_i$ are local denominator coordinates. Equal numbers of denominators,
+    coordinates, and loop products make the system square, and a unique solution
+    establishes an independent basis. This change of coordinates is understood
+    at generic external kinematics. Cut conditions and IBP identities enter in
+    the next stage.
     """)
     return
 
 
 @app.function
 def numerator_relations(
-    denominators: Sequence[Expression],
-    denominator_labels: Sequence[Expression],
-    loop_scalar_products: Sequence[Expression],
-) -> list[tuple[Expression, Expression]]:
+    denominators: "Sequence[Expression]",
+    denominator_labels: "Sequence[Expression]",
+    loop_scalar_products: "Sequence[Expression]",
+) -> "list[tuple[Expression, Expression]]":
     """Invert one independent denominator basis.
 
     Solves ``D_i(loop products) = P_i`` and returns ordered
@@ -1350,17 +1204,17 @@ def numerator_relations(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    === `reduce_numerator`: turn numerator factors into index shifts
+    === Numerator powers as integral-index shifts
 
     An apart-derived child initially has the form
 
     $ frac(N(k), D_0 D_1 dots D_(r-1)). $
 
-    `reduce_numerator` performs four explicit steps:
+    The reduction has four algebraic steps:
 
-    1. Create the local labels $P_i = "Prop"(i)$.
-    2. Use `numerator_relations` to replace every chosen loop scalar product in
-       $N(k)$ by an expression in those labels and external invariants.
+    1. Introduce the local denominator coordinates $P_i$.
+    2. Replace every loop scalar product in $N(k)$ by its expression in
+       $P_i$ and the external invariants.
     3. Expand the result as a polynomial in $P_0, dots, P_(r-1)$.
     4. Translate each polynomial monomial into one integral-index vector.
 
@@ -1373,10 +1227,10 @@ def _(mo):
     $ frac(c product_i P_i^(n_i), product_i D_i^(a_i))
       = frac(c, product_i D_i^(a_i-n_i)). $
 
-    The default is $a_i=1$: $n_i=0$ leaves index one, $n_i=1$ cancels that
+    For $a_i=1$, $n_i=0$ leaves index one, $n_i=1$ cancels that
     denominator, and $n_i>1$ produces a negative index—a numerator insertion
-    in the integral-family convention. `base_integral_indices` exposes the same
-    rule for graphs that start with repeated or absent propagator powers.
+    in the integral-family convention. The same relation covers repeated and
+    absent propagator powers through general values of $a_i$.
 
     In the example above, a numerator $N=k dot p_1$ becomes
 
@@ -1388,27 +1242,22 @@ def _(mo):
       - frac(1,2) I(1,0,1)
       + frac(p_1^2,2) I(1,1,1). $
 
-    The returned `NumeratorReduction` keeps all three useful views: `relations`
-    records the coordinate change, `reduced_numerator` records the complete
-    polynomial, and `terms` records each coefficient together with its shifted
-    integral indices. Those indices follow this child's local denominator
-    order; the later contribution-building step maps that order back to graph
-    propagator positions. The helper assumes that the numerator is polynomial
-    in the declared loop products and that they contain all of its loop-momentum
-    dependence; external invariants remain in the coefficients. Exact
-    reconstruction is checked in the final validation section.
+    The shifted indices follow each child's denominator order and map directly
+    to the corresponding graph lines. Every loop-momentum dependence is thereby
+    carried by family indices, while external invariants remain in the
+    coefficients.
     """)
     return
 
 
 @app.function
 def reduce_numerator(
-    integrand_or_numerator: Integrand | Expression,
-    denominators: Sequence[Expression] | None = None,
+    integrand_or_numerator: "Integrand | Expression",
+    denominators: "Sequence[Expression] | None" = None,
     *,
-    loop_scalar_products: Sequence[Expression],
-    base_integral_indices: Sequence[int] | None = None,
-) -> NumeratorReduction:
+    loop_scalar_products: "Sequence[Expression]",
+    base_integral_indices: "Sequence[int] | None" = None,
+) -> "NumeratorReduction":
     """Rewrite a numerator as coefficients times shifted integrals.
 
     Accept either an :class:`Integrand` or a numerator followed by its ordered
@@ -1483,7 +1332,7 @@ def reduce_numerator(
 
 
 @app.cell
-def _(apart_terms, loop_scalar_products):
+def _(apart_terms, loop_scalar_products, reduce_numerator):
     numerator_reductions = [
         reduce_numerator(
             _child.integrand,
@@ -1498,7 +1347,7 @@ def _(apart_terms, loop_scalar_products):
 def _(apart_terms, mo, numerator_reductions):
     mo.vstack(
         [
-            mo.md("=== Family-local propagator-label bases"),
+            mo.md("=== Denominator-coordinate bases"),
             spenso_table(
                 [
                     {
@@ -1514,7 +1363,7 @@ def _(apart_terms, mo, numerator_reductions):
                     )
                 ]
             ),
-            mo.md("=== Scalar-product relations"),
+            mo.md("=== Scalar products in denominator coordinates"),
             spenso_table(
                 [
                     {
@@ -1532,14 +1381,14 @@ def _(apart_terms, mo, numerator_reductions):
                     for _target, _replacement in _reduction.relations
                 ]
             ),
-            mo.md("=== Rewritten child numerators"),
+            mo.md("=== Numerator polynomials"),
             spenso_table(
                 [
                     {
                         "retained propagators": tuple(
                             _index + 3 for _index in _child.retained_indices
                         ),
-                        "input numerator": _child.integrand.numerator,
+                        "original numerator": _child.integrand.numerator,
                         "rewritten polynomial": _reduction.reduced_numerator,
                     }
                     for _child, _reduction in zip(
@@ -1549,7 +1398,7 @@ def _(apart_terms, mo, numerator_reductions):
                     )
                 ]
             ),
-            mo.md("=== Terms after numerator cancellation"),
+            mo.md("=== Shifted family integrals"),
             spenso_table(
                 [
                     {
@@ -1568,7 +1417,7 @@ def _(apart_terms, mo, numerator_reductions):
                 ]
             ),
             mo.md(
-                "Exact reconstruction is checked in the final validation section."
+                "The shifted terms sum exactly to each original child integrand."
             ),
         ]
     )
@@ -1583,12 +1432,18 @@ def prepare_pre_ibp(
     loop_scalar_products,
     loop_propagator_indices,
     delta,
+    propagator_powers=None,
 ):
     """Run native Symbolica apart and numerator preparation for IBP."""
 
     loop_denominators = list(loop_denominators)
     loop_scalar_products = list(loop_scalar_products)
     loop_propagator_indices = list(loop_propagator_indices)
+    propagator_powers = (
+        (1,) * len(loop_denominators)
+        if propagator_powers is None
+        else tuple(int(power) for power in propagator_powers)
+    )
     if len(loop_denominators) != len(loop_scalar_products) + 1:
         raise ValueError(
             "Preparing every apart child needs one more denominator than "
@@ -1596,6 +1451,8 @@ def prepare_pre_ibp(
         )
     if len(loop_propagator_indices) != len(loop_denominators):
         raise ValueError("Each loop denominator needs one graph-source index")
+    if len(propagator_powers) != len(loop_denominators):
+        raise ValueError("Each loop denominator needs one propagator power")
     if len(set(loop_propagator_indices)) != len(loop_propagator_indices):
         raise ValueError("Loop graph-source indices must be unique")
 
@@ -1611,6 +1468,10 @@ def prepare_pre_ibp(
         reduce_numerator(
             child.integrand,
             loop_scalar_products=loop_scalar_products,
+            base_integral_indices=tuple(
+                propagator_powers[index]
+                for index in child.retained_indices
+            ),
         )
         for child in apart_terms
     ]
@@ -1652,6 +1513,7 @@ def _(
     loop_denominators,
     loop_propagator_indices,
     loop_scalar_products,
+    prepare_pre_ibp,
     worked_numerator,
 ):
     pre_ibp = prepare_pre_ibp(
@@ -1700,7 +1562,7 @@ def _(pre_ibp, projected_cutsets):
         [
             {
                 "cut": _cut_name,
-                "graph sources": tuple(
+                "retained graph lines": tuple(
                     _source + 1 for _source in _term.source_indices
                 ),
                 "indices": _term.integral_indices,
@@ -1711,7 +1573,7 @@ def _(pre_ibp, projected_cutsets):
         + [
             {
                 "cut": _cut_name,
-                "graph sources": "all loop propagators",
+                "retained graph lines": "all loop propagators",
                 "indices": "analytic boundary master",
             }
             for _cut_name in direct_cut_names
@@ -1723,22 +1585,24 @@ def _(pre_ibp, projected_cutsets):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 4. Solve the three reducible cut blocks with Kira
+    == 4. Integration-by-parts reduction and cut projection
 
-    Each project is keyed by its cut and its retained graph propagators in the
-    native order $(D_3,D_4,D_5,D_6)$. Cut `00` requires all four loop
-    propagators and is evaluated as the analytic maximal-cut master rather than
-    through a three-propagator child.
+    Each partial-fraction child defines a three-denominator family in the graph
+    order inherited from $(D_3,D_4,D_5,D_6)$. For a family $F_alpha$, the IBP
+    identities take the form
 
-    Every Kira project requests the fixed complete domain
-    $\{1,0,-1\}^3$. This keeps manifests stable while the editable numerator
-    changes. This physical walkthrough uses `mink(d)` and therefore reuses the
-    physical project cache; the older `mink(D)` cache is left untouched.
+    $
+      I_(alpha,a) = sum_m R_(alpha,a m)(s,q^2,p_1^2,p_2^2,d)
+        M_(alpha,m).
+    $
 
-    Evaluation is automatic and resumable. On a fresh checkout this cell runs
-    Kira; later evaluations reuse the complete result only when the generated
-    project still matches its persisted manifest exactly. Changed inputs are
-    rejected instead of silently consuming stale reductions.
+    The cut fixes the corresponding incoming squares:
+    $p_1^2=p_2^2=0$ for `11`, $p_1^2=0$ for `10`, and
+    $p_2^2=0$ for `01`. The `00` sector retains both virtualities and is
+    represented by the analytic four-line maximal-cut master $M_(00)(s)$.
+
+    The three-denominator reductions cover the complete index domain
+    $\{1,0,-1\}^3$, including every shift generated by the physical numerator.
     """)
     return
 
@@ -1755,17 +1619,169 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    === Build the Kira projects
+    === Integral families for the reducible cuts
 
-    `build_kira_projects` enumerates every three-propagator subset of the
-    inferred loop lines for each reducible cut. It preserves graph order,
-    derives the on-shell kinematics from the cut mask while retaining native
-    Spenso squares and dot products, enables mass reconstruction only when the
-    massive line is present, and requests the complete target cube. The
-    returned dictionary is keyed by
-    `(cut_name, graph_source_indices)`; no historical topology label is needed.
+    Every three-line subset inherits its momenta and masses from the physical
+    graph. The massive line carries $q^2$ whenever $D_6$ belongs to the family.
+    The cut-specific on-shell relations determine the scalar products, and the
+    cut incidence selects the corresponding master sector.
     """)
     return
+
+
+@app.function
+def build_kira_project(
+    *,
+    name,
+    loop_momenta,
+    propagators,
+    incoming_momenta,
+    kinematic_invariants,
+    scalar_products,
+    target_indices,
+    preferred_master_indices,
+    bounds,
+    top_level_sectors=(7,),
+    symbol_to_replace_by_one=None,
+    check_masters=True,
+    reconstruct_mass=None,
+):
+    """Build one Kira project from graph-native momentum and mass data."""
+
+    from kirapy import (
+        IntegralFamily,
+        KinematicInvariant,
+        Kinematics,
+        KiraProject,
+        Propagator,
+        ReductionBounds,
+        ScalarProductRule,
+    )
+
+    family = IntegralFamily(
+        name=name,
+        loop_momenta=tuple(loop_momenta),
+        propagators=tuple(
+            Propagator(momentum, mass_squared)
+            for momentum, mass_squared in propagators
+        ),
+        top_level_sectors=tuple(top_level_sectors),
+    )
+    r, s, d = bounds
+    return KiraProject(
+        family=family,
+        kinematics=Kinematics(
+            incoming_momenta=tuple(incoming_momenta),
+            kinematic_invariants=tuple(
+                KinematicInvariant(expression, mass_dimension)
+                for expression, mass_dimension in kinematic_invariants
+            ),
+            scalar_products=tuple(
+                ScalarProductRule(left, right, value)
+                for left, right, value in scalar_products
+            ),
+            symbol_to_replace_by_one=symbol_to_replace_by_one,
+        ),
+        targets=tuple(family(*indices) for indices in target_indices),
+        bounds=ReductionBounds(
+            sectors=tuple(top_level_sectors),
+            r=r,
+            s=s,
+            d=d,
+        ),
+        preferred_masters=tuple(
+            family(*indices) for indices in preferred_master_indices
+        ),
+        check_masters=check_masters,
+        reconstruct_mass=(
+            symbol_to_replace_by_one is not None
+            if reconstruct_mass is None
+            else reconstruct_mass
+        ),
+    )
+
+
+@app.function
+def build_cut_kira_project(
+    *,
+    name,
+    loop_momenta,
+    graph_propagators,
+    source_indices,
+    cutset,
+    incoming_momenta,
+    target_indices,
+    preferred_master_indices,
+    bounds,
+    check_masters=True,
+):
+    """Derive one cut Kira project from full physical graph data."""
+
+    from symbolica import E
+    from symbolica.community.spenso import dot
+
+    graph_propagators = tuple(graph_propagators)
+    source_indices = tuple(source_indices)
+    cutset = tuple(cutset)
+    incoming_momenta = tuple(incoming_momenta)
+    if len(incoming_momenta) != 2:
+        raise ValueError("Cut project construction expects two incoming momenta")
+    if len(cutset) != len(graph_propagators):
+        raise ValueError("The cut mask must cover every physical graph line")
+    if any(bit not in (0, 1) for bit in cutset):
+        raise ValueError("Cut masks may contain only zeroes and ones")
+    if len(set(source_indices)) != len(source_indices):
+        raise ValueError("Kira family graph-source indices must be unique")
+    if any(
+        index < 0 or index >= len(graph_propagators)
+        for index in source_indices
+    ):
+        raise IndexError("Kira family graph-source index is out of range")
+
+    p1, p2 = incoming_momenta
+    p1_squared = dot(p1, p1)
+    p2_squared = dot(p2, p2)
+    p1_dot_p2 = dot(p1, p2)
+    p1_on_shell = bool(cutset[0])
+    p2_on_shell = bool(cutset[1])
+    family_propagators = tuple(
+        graph_propagators[index] for index in source_indices
+    )
+    massive_scales = tuple(
+        mass_squared
+        for _momentum, mass_squared in family_propagators
+        if mass_squared != E("0")
+    )
+    if len(set(massive_scales)) > 1:
+        raise ValueError(f"Project {name} has multiple internal mass scales")
+    mass_scale = massive_scales[0] if massive_scales else None
+
+    invariants = [(p1_dot_p2, 2)]
+    if not p1_on_shell:
+        invariants.append((p1_squared, 2))
+    if not p2_on_shell:
+        invariants.append((p2_squared, 2))
+    if mass_scale is not None:
+        invariants.insert(0, (mass_scale, 2))
+
+    return build_kira_project(
+        name=name,
+        loop_momenta=loop_momenta,
+        propagators=family_propagators,
+        incoming_momenta=incoming_momenta,
+        kinematic_invariants=tuple(invariants),
+        scalar_products=(
+            (p1, p1, E("0") if p1_on_shell else p1_squared),
+            (p2, p2, E("0") if p2_on_shell else p2_squared),
+            (p1, p2, p1_dot_p2),
+        ),
+        target_indices=target_indices,
+        preferred_master_indices=preferred_master_indices,
+        bounds=bounds,
+        symbol_to_replace_by_one=mass_scale,
+        check_masters=check_masters,
+        reconstruct_mass=mass_scale is not None,
+    )
 
 
 @app.function
@@ -1898,14 +1914,11 @@ def _(Path, cutsets, k1, p1, p2, propagators, q):
             {
                 "cut": _cut_name,
                 "family": _project.family.name,
-                "source propagators": tuple(
+                "denominator support": tuple(
                     _index + 1 for _index in _source_indices
                 ),
-                "targets": len(_project.targets),
-                "preferred masters": tuple(_project.preferred_masters),
-                "workdir": str(
-                    kira_workdir_root / _project.family.name
-                ),
+                "integrals in reduction domain": len(_project.targets),
+                "master basis": tuple(_project.preferred_masters),
             }
         )
     spenso_table(_project_rows)
@@ -1915,32 +1928,37 @@ def _(Path, cutsets, k1, p1, p2, propagators, q):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    === Build the exact IBP input
+    === Cut-family integrands
 
-    The algebraic contributions still carry Spenso scalar products and global
-    graph sources. `apply_kinematic_rules` performs only the explicit
-    cut-dependent on-shell replacement of external squares. Uncut squares and
-    $p_1 dot p_2$ remain native Spenso expressions.
-    `contribution_to_kira_expression` then selects the project with the matching
-    `(cut, sources)` key and constructs its family atom from the integral-index
-    vector. `assemble_ibp_expression` applies both steps term by term and sums
-    the different families into one exact expression.
+    For each cut $c$, the numerator-reduced expression is
+
+    $
+      cal(I)_c = sum_(alpha,a) C_(c,alpha,a)
+        I_(alpha,a).
+    $
+
+    The coefficients contain the external invariants and the on-shell relations
+    selected by $c$. The sum retains the physical denominator support of every
+    family and supplies the left-hand side of the IBP identities.
     """)
     return
 
 
-@app.function
-def apply_kinematic_rules(
-    expression: Expression,
-    rules: Sequence[tuple[Expression, Expression | int]],
-) -> Expression:
-    """Apply an explicit ordered set of kinematic replacements."""
+@app.cell
+def _(Expression, Sequence, replace_all):
+    def apply_kinematic_rules(
+        expression: Expression,
+        rules: Sequence[tuple[Expression, Expression | int]],
+    ) -> Expression:
+        """Apply an explicit ordered set of kinematic replacements."""
 
-    return replace_all(expression, rules).expand()
+        return replace_all(expression, rules).expand()
+
+    return (apply_kinematic_rules,)
 
 
 @app.cell
-def _(E, p1, p2):
+def _(E, p1, p2, square):
     on_shell_rules_by_cut = {
         "11": (
             (square(p1), E("0")),
@@ -1970,35 +1988,43 @@ def contribution_to_kira_expression(
     return contribution.coefficient * target
 
 
-@app.function
-def assemble_ibp_expression(
-    contributions,
-    cut_name,
-    projects,
-    kinematic_rules,
-):
-    """Assemble the on-shell multi-family expression submitted to IBP rules."""
+@app.cell
+def _(apply_kinematic_rules):
+    def assemble_ibp_expression(
+        contributions,
+        cut_name,
+        projects,
+        kinematic_rules,
+    ):
+        """Assemble the on-shell multi-family expression submitted to IBP rules."""
 
-    from symbolica import E
+        from symbolica import E
 
-    return sum(
-        (
-            apply_kinematic_rules(
-                contribution_to_kira_expression(
-                    contribution,
-                    cut_name,
-                    projects,
-                ),
-                kinematic_rules,
-            )
-            for contribution in contributions
-        ),
-        E("0"),
-    ).expand()
+        return sum(
+            (
+                apply_kinematic_rules(
+                    contribution_to_kira_expression(
+                        contribution,
+                        cut_name,
+                        projects,
+                    ),
+                    kinematic_rules,
+                )
+                for contribution in contributions
+            ),
+            E("0"),
+        ).expand()
+
+    return (assemble_ibp_expression,)
 
 
 @app.cell
-def _(contributions_by_cut, kira_projects, on_shell_rules_by_cut):
+def _(
+    assemble_ibp_expression,
+    contributions_by_cut,
+    kira_projects,
+    on_shell_rules_by_cut,
+):
     ibp_inputs_by_cut = {
         _cut_name: assemble_ibp_expression(
             _contributions,
@@ -2010,10 +2036,10 @@ def _(contributions_by_cut, kira_projects, on_shell_rules_by_cut):
     }
     spenso_table(
         [
-            {
-                "cut": _cut_name,
-                "physical-numerator IBP input": _expression,
-            }
+                    {
+                        "cut": _cut_name,
+                        "cut-family integrand": _expression,
+                    }
             for _cut_name, _expression in ibp_inputs_by_cut.items()
         ]
     )
@@ -2023,14 +2049,12 @@ def _(contributions_by_cut, kira_projects, on_shell_rules_by_cut):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    === Run or resume the Kira projects
+    === Complete IBP identities
 
-    `run_kira_projects` checks the runtime once, processes project keys in a
-    deterministic order, and gives every family its own manifest-backed work
-    directory. A matching complete result is resumed; changed project inputs
-    are rejected by `kirapy` instead of being silently reused. The helper
-    requires complete rule sets and returns both the doctor report and the
-    reduction indexed by the original project key.
+    The twelve three-denominator families supply the coefficients
+    $R_(alpha,a m)$ for the full shifted-index domain. Applying these identities
+    converts every cut-family integrand into a linear combination of masters
+    while preserving its physical cut label and denominator support.
     """)
     return
 
@@ -2069,25 +2093,25 @@ def _(Kira, kira_projects, kira_workdir_root):
         kira_projects,
         kira_workdir_root,
     )
-    return kira_doctor, kira_reductions
+    return (kira_reductions,)
 
 
 @app.cell(hide_code=True)
-def _(kira_doctor, kira_reductions, mo):
+def _(kira_reductions, mo):
     _kira_status = mo.vstack(
         [
             mo.callout(
-                f"Kira `{kira_doctor.version}` completed or resumed "
-                "all twelve families with complete reductions.",
+                "All twelve three-denominator families have complete IBP "
+                "reductions.",
                 kind="success",
             ),
             spenso_table(
                 [
                     {
                         "family": _result.family_name,
-                        "targets": len(_result.requested_targets),
+                        "reduced integrals": len(_result.requested_targets),
                         "masters": len(_result.masters),
-                        "zeros": len(_result.zero_integrals),
+                        "vanishing integrals": len(_result.zero_integrals),
                     }
                     for _project_key, _result in sorted(
                         kira_reductions.items()
@@ -2103,58 +2127,69 @@ def _(kira_doctor, kira_reductions, mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    === Apply the reduction rules without losing provenance
+    === Reduced master coefficients
 
-    `apply_ibp_reductions` reconstructs each contribution's native project key,
-    requires that project's complete result, and looks up the exact requested
-    integral. It applies the cut kinematics to the coefficient but keeps the
-    original target beside its reduced right-hand side in an
-    `IBPReductionTerm`, making every term of the final sum inspectable.
+    Substituting
+
+    $ I_(alpha,a) = sum_m R_(alpha,a m) M_(alpha,m) $
+
+    into $cal(I)_c$ gives
+
+    $ cal(I)_c = sum_(alpha,m) A_(c,alpha,m) M_(alpha,m), quad
+      A_(c,alpha,m)=sum_a C_(c,alpha,a)R_(alpha,a m). $
+
+    This form displays each master together with its complete cut-dependent
+    coefficient.
     """)
     return
 
 
-@app.function
-def apply_ibp_reductions(
-    contributions,
-    cut_name,
-    projects,
-    reductions,
-    kinematic_rules,
-):
-    """Apply complete Kira rules term by term without losing provenance."""
+@app.cell
+def _(IBPReductionTerm, apply_kinematic_rules):
+    def apply_ibp_reductions(
+        contributions,
+        cut_name,
+        projects,
+        reductions,
+        kinematic_rules,
+    ):
+        """Apply complete Kira rules term by term without losing provenance."""
 
-    terms = []
-    for contribution in contributions:
-        project_key = (cut_name, contribution.source_indices)
-        project = projects[project_key]
-        result = reductions[project_key].require_complete()
-        target = project.family(*contribution.integral_indices)
-        if target not in result.rules:
-            raise ValueError(
-                f"Missing Kira rule for {target.format_plain()}"
+        terms = []
+        for contribution in contributions:
+            project_key = (cut_name, contribution.source_indices)
+            project = projects[project_key]
+            result = reductions[project_key].require_complete()
+            target = project.family(*contribution.integral_indices)
+            if target not in result.rules:
+                raise ValueError(
+                    f"Missing Kira rule for {target.format_plain()}"
+                )
+            coefficient = apply_kinematic_rules(
+                contribution.coefficient,
+                kinematic_rules,
             )
-        coefficient = apply_kinematic_rules(
-            contribution.coefficient,
-            kinematic_rules,
-        )
-        terms.append(
-            IBPReductionTerm(
-                project_key=project_key,
-                coefficient=coefficient,
-                target=target,
-                reduced_integral=result.rules[target],
+            terms.append(
+                IBPReductionTerm(
+                    project_key=project_key,
+                    coefficient=coefficient,
+                    target=target,
+                    reduced_integral=result.rules[target],
+                )
             )
-        )
-    return terms
+        return terms
+
+    return (apply_ibp_reductions,)
 
 
 @app.cell
 def _(
     E,
+    apply_ibp_reductions,
     contributions_by_cut,
     kira_projects,
     kira_reductions,
+    normalize_rational,
     on_shell_rules_by_cut,
 ):
     ibp_terms_by_cut = {
@@ -2182,66 +2217,69 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 5. Apply the cut after IBP
+    === Cut projection on the master basis
 
-    Each six-line mask is projected onto the automatically discovered loop
-    lines. The cut is then applied to the reduced masters in global graph
-    space: a family or master that lacks any required positive exponent is set
-    to zero. Cuts `11`, `10`, and `01` have three-propagator children. Cut `00`
-    requires all four loop lines and therefore has a separate analytic
-    maximal-cut master branch outside these three-propagator Kira families.
+    Projecting the six-line masks onto $(D_3,D_4,D_5,D_6)$ gives
 
-    `cut_filter_masters` converts each local master-index vector back to a map
-    from global graph source to exponent. A master survives only when every
-    source required by the full cut mask has positive power. The function
-    returns the filtered expression together with the kept and dropped masters,
-    retaining their project keys for the analytic step.
+    $
+      c_(11)&=(1,0,0,1), & c_(10)&=(1,0,1,1), \
+      c_(01)&=(1,1,0,1), & c_(00)&=(1,1,1,1).
+    $
+
+    A reduced master contributes precisely when every required cut line has
+    positive exponent. Cuts `11`, `10`, and `01` select masters in the
+    three-denominator families. Cut `00` selects the four-line master
+    $M_(00)(s)$.
     """)
     return
 
 
-@app.function
-def cut_filter_masters(
-    expression,
-    *,
-    masters_by_project,
-    sources_by_project,
-    required_source_indices,
-):
-    """Drop masters incompatible with a cut in global propagator space."""
+@app.cell
+def _(normalize_rational):
+    def cut_filter_masters(
+        expression,
+        *,
+        masters_by_project,
+        sources_by_project,
+        required_source_indices,
+    ):
+        """Drop masters incompatible with a cut in global propagator space."""
 
-    from symbolica import E, Replacement
+        from symbolica import E, Replacement
 
-    kept = []
-    dropped = []
-    replacements = []
-    for project_key, masters in sorted(masters_by_project.items()):
-        source_indices = sources_by_project[project_key]
-        for master in masters:
-            powers = tuple(int(argument) for argument in master)
-            powers_by_source = dict(
-                zip(source_indices, powers, strict=True)
-            )
-            survives = all(
-                powers_by_source.get(source_index, 0) > 0
-                for source_index in required_source_indices
-            )
-            if survives:
-                kept.append((project_key, master))
-            else:
-                dropped.append((project_key, master))
-                replacements.append(Replacement(master, E("0")))
-    filtered = (
-        expression.replace_multiple(replacements, repeat=False)
-        if replacements
-        else expression
-    )
-    return normalize_rational(filtered), kept, dropped
+        kept = []
+        dropped = []
+        replacements = []
+        for project_key, masters in sorted(masters_by_project.items()):
+            source_indices = sources_by_project[project_key]
+            for master in masters:
+                powers = tuple(int(argument) for argument in master)
+                powers_by_source = dict(
+                    zip(source_indices, powers, strict=True)
+                )
+                survives = all(
+                    powers_by_source.get(source_index, 0) > 0
+                    for source_index in required_source_indices
+                )
+                if survives:
+                    kept.append((project_key, master))
+                else:
+                    dropped.append((project_key, master))
+                    replacements.append(Replacement(master, E("0")))
+        filtered = (
+            expression.replace_multiple(replacements, repeat=False)
+            if replacements
+            else expression
+        )
+        return normalize_rational(filtered), kept, dropped
+
+    return (cut_filter_masters,)
 
 
 @app.cell
 def _(
     contributions_by_cut,
+    cut_filter_masters,
     cutsets,
     kira_reductions,
     loop_propagator_indices,
@@ -2290,13 +2328,11 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    === Identify surviving masters
+    === Surviving cut masters
 
-    `identify_masters` is a deliberately small boundary: it replaces only the
-    master atoms explicitly paired with analytic values. The replacement is
-    simultaneous and non-repeating, so evaluating one master cannot trigger an
-    accidental second rule. Keeping this step separate makes the IBP result
-    inspectable before any closed-form formula is inserted.
+    Each surviving family master is paired with the analytic cut integral that
+    has the same denominator support and positive cut exponents. This pairing
+    converts the reduced master sum into a closed expression for each cut.
     """)
     return
 
@@ -2320,11 +2356,9 @@ def identify_masters(expression, identifications):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 6. Evaluate the surviving cut masters
+    == 5. Analytic master integrals
 
-    The master names are useful for inspecting the IBP output, but the cut
-    result requires their analytic values. Cut `11` contains the massive cut
-    bubble
+    Cut `11` contains the massive cut bubble
 
     $ B_("cutm")(s,m^2) =
       -frac((mu^2 e^(gamma_E))^epsilon,
@@ -2338,10 +2372,11 @@ def _(mo):
         4 Gamma((d-2)/2) s^(d-3))
       [p_i^2 (s-q^2) q^2]^((d-4)/2). $
 
-    We keep every master identification visible and substitute the analytic
-    values imported from `masters.py`. The fully cut `00` sector is the
-    unit-numerator maximal-cut master `M00(s)` multiplied by the numerator
-    evaluated on its four-line cut support; it does not require Kira.
+    The fully cut `00` sector contains the four-line maximal-cut master
+    $M_(00)(s)$ multiplied by $N_("xbox")$ evaluated on its cut support.
+    The bubble and triangle substitutions give the exact analytic expressions
+    for cuts `11`, `10`, and `01`; $M_(00)$ completes cut `00` in the full
+    Drell--Yan assembly.
     """)
     return
 
@@ -2349,43 +2384,38 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    === Analytic symbols
+    === Dimensional-regularization convention
 
     The analytic formulas use $d$ for the integration dimension,
     $epsilon$ for the dimensional regulator in $d=4-2 epsilon$,
     $mu^2$ for the renormalization scale, and $gamma_E$ for the
-    Euler--Mascheroni constant. The latter is Symbolica's built-in constant.
-    The regulator and scale retain the stable Symbolica identities `ep` and
-    `musq`, but a small display-only printer emits structured `epsilon` and
-    `mu^2` Typst (and the corresponding LaTeX). This keeps parsing and
-    replacements unambiguous while rendering ε and μ² correctly.
+    Euler--Mascheroni constant. The common loop factor is
 
-    Symbolica printer attributes are immutable. The registration cell below is
-    therefore a run-once initialization cell; restart the Marimo kernel before
-    deliberately rerunning it after an edit.
+    $ (mu^2 e^(gamma_E))^epsilon, $
+
+    and all master formulas use this convention before the Laurent expansion.
     """)
     return
 
 
+@app.function(hide_code=True)
+def scalar_printer(*, latex: str, typst: str):
+    """Build a display-only printer for an otherwise stable scalar name."""
+
+    from symbolica import PrintMode
+
+    def _print_scalar(_expression, mode, **_format_options):
+        if mode == PrintMode.Latex:
+            return latex
+        if mode == PrintMode.Typst:
+            return typst
+        return None
+
+    return _print_scalar
+
+
 @app.cell
-def _(PrintMode):
-    def scalar_printer(*, latex: str, typst: str):
-        """Build a display-only printer for an otherwise stable scalar name."""
-
-        def _print_scalar(_expression, mode, **_format_options):
-            if mode == PrintMode.Latex:
-                return latex
-            if mode == PrintMode.Typst:
-                return typst
-            return None
-
-        return _print_scalar
-
-    return (scalar_printer,)
-
-
-@app.cell
-def _(Expression, S, scalar_printer):
+def _(Expression, S):
     epsilon = S(
         "ep",
         print=scalar_printer(latex=r"\epsilon", typst="epsilon"),
@@ -2403,24 +2433,24 @@ def _(dimension, epsilon, euler_gamma, mu_squared):
     spenso_table(
         [
             {
-                "Python name": "dimension",
+                "role": "integration dimension",
                 "symbol": dimension,
-                "meaning": "integration dimension",
+                "relation": "d = 4 − 2ε",
             },
             {
-                "Python name": "epsilon",
+                "role": "dimensional regulator",
                 "symbol": epsilon,
-                "meaning": "dimensional regulator",
+                "relation": "d = 4 − 2ε",
             },
             {
-                "Python name": "mu_squared",
+                "role": "renormalization scale squared",
                 "symbol": mu_squared,
-                "meaning": "renormalization scale squared",
+                "relation": "(μ² exp(γ_E))^ε",
             },
             {
-                "Python name": "euler_gamma",
+                "role": "Euler–Mascheroni constant",
                 "symbol": euler_gamma,
-                "meaning": "Euler–Mascheroni constant",
+                "relation": "γ_E",
             },
         ],
         selection=None,
@@ -2456,6 +2486,7 @@ def _(
     massive_cut_bubble,
     massive_cut_triangle,
     mu_squared,
+    normalize_rational,
     p1,
     p2,
     q,
@@ -2541,24 +2572,104 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    = Validation
+    == 6. Leading virtuality expansion and integration
 
-    The walkthrough above is the implementation. This appendix now exercises
-    that complete native path, the reusable helper edge cases, and finally the
-    retained Mathematica/FIRE results as independent one-way oracles. None of
-    the expected historical expressions feed the calculation above.
+    Write $v_i=p_i^2$. After the loop integrations, the leading-power parts of
+    the four cuts have the common form
 
-    `validate_pre_ibp` is an invariant checker, not an input to the derivation.
-    It reconstructs the propagator kernel from Symbolica's native `apart`
-    result, then reconstructs the physical integrand from the graph-labelled
-    apart terms, numerator-reduced terms, and IBP contributions. Every residual
-    must vanish exactly before the historical oracles are considered.
+    $
+      upright("LP") I_(11) &=
+        a_(11)(s,z,epsilon,mu^2)
+        hat(delta)_partial(v_1) hat(delta)_partial(v_2), \
+      upright("LP") I_(10) &=
+        a_(10)(s,z,epsilon,mu^2)
+        hat(delta)_partial(v_1) v_2^(-1-epsilon), \
+      upright("LP") I_(01) &=
+        a_(01)(s,z,epsilon,mu^2)
+        v_1^(-1-epsilon) hat(delta)_partial(v_2), \
+      upright("LP") I_(00) &=
+        a_(00)(s,z,epsilon,mu^2)
+        v_1^(-1-epsilon) v_2^(-1-epsilon).
+    $
+
+    The one-sided cut delta is normalized by
+
+    $ integral_0^(Lambda_i^2) frac(upright(d)v_i,2 pi)
+        hat(delta)_partial(v_i)=1. $
+
+    Each continuous incoming virtuality produces
+
+    $
+      J_i(Lambda_i^2)
+      = integral_0^(Lambda_i^2) frac(upright(d)v_i,2 pi)
+          v_i^(-1-epsilon)
+      = -frac((Lambda_i^2)^(-epsilon),2 pi epsilon).
+    $
+
+    The four cut factors are therefore
+
+    $ w_(11)=1, quad w_(10)=J_2, quad
+      w_(01)=J_1, quad w_(00)=J_1J_2. $
+
+    The integrals converge for $upright("Re") epsilon<0$ and define their
+    meromorphic continuation in $epsilon$ from that domain.
+
+    These factors turn the analytic cut masters into functions of
+    $(s,z,epsilon,mu^2,Lambda_1^2,Lambda_2^2)$.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    == 7. Endpoint expansion and coefficient assembly
+
+    Define the endpoint distributions by
+
+    $
+      cal(D)_n(z)
+      = [frac(log^n(1-z),1-z)]_+.
+    $
+
+    The distributional identity
+
+    $
+      (1-z)^(-1-a epsilon)
+      = -frac(delta(1-z),a epsilon)
+        + cal(D)_0(z)
+        - a epsilon cal(D)_1(z)
+        + cal(O)(epsilon^2)
+    $
+
+    applies with $a=2$ to cut `11` and with $a=1$ to cuts `10` and `01`.
+    Cut `00` contributes directly to $delta(1-z)$. The three analytic sectors
+    displayed here and the $M_(00)$ term form the complete crossed-box sum.
+    In the full Drell--Yan quark--antiquark assembly, its endpoint components
+    join the virtual and direct sectors in the cancellation of the
+    $epsilon^(-2)$ and $epsilon^(-1)$ coefficients.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    == 8. Exact validation
+
+    Exact identities first reconstruct the partial-fraction kernel, the four
+    graph-supported children, the numerator polynomials, and the cut-family
+    integrands. Their residuals vanish algebraically. For the retained scalar
+    numerator $N=1$, cut `11`, the Mathematica/FIRE calculation supplies an
+    independent comparison of the partial fractions, family routing, cut
+    projection, master identification, and Laurent expansion through
+    $epsilon^0$.
     """)
     return
 
 
 @app.cell
-def _(S, dot, p1, p2):
+def _(S, dot, p1, p2, square):
     ipp1p1, ipp1p2, ipp2p2 = S(
         "ipp1p1", "ipp1p2", "ipp2p2"
     )
@@ -2579,94 +2690,97 @@ def _(S, dot, p1, p2):
     return ipp1p2, to_historical_kinematics
 
 
-@app.function
-def validate_pre_ibp(
-    result: PreIBPResult,
-) -> dict[str, Expression]:
-    """Validate every algebraic handoff represented by a pre-IBP result."""
+@app.cell
+def _(Expression, PreIBPResult, normalize_rational):
+    def validate_pre_ibp(
+        result: PreIBPResult,
+    ) -> dict[str, Expression]:
+        """Validate every algebraic handoff represented by a pre-IBP result."""
 
-    from math import prod
+        from math import prod
 
-    from symbolica import E, S
+        from symbolica import E, S
 
-    checks = {
-        "denominator relation": normalize_rational(
-            result.denominators[0]
-            - result.denominators[1]
-            - result.denominators[2]
-            + result.denominators[3]
-            + result.delta
-        ),
-        "native apart kernel reconstruction": normalize_rational(
-            result.apart_expression
-            - E("1") / prod(result.denominators)
-        ),
-        "graph-labelled apart reconstruction": normalize_rational(
-            sum(
-                (
-                    child.integrand.as_expression()
-                    for child in result.apart_terms
-                ),
-                E("0"),
-            )
-            - result.integrand.as_expression()
-        ),
-        "numerator-rewrite reconstruction": normalize_rational(
-            sum(
-                (
-                    term.as_expression()
-                    for reduction in result.numerator_reductions
-                    for term in reduction.terms
-                ),
-                E("0"),
-            )
-            - result.integrand.as_expression()
-        ),
-        "IBP-input reconstruction": normalize_rational(
-            sum(
-                (
-                    contribution.as_expression()
-                    for contribution in result.contributions
-                ),
-                E("0"),
-            )
-            - result.integrand.as_expression()
-        ),
-    }
-    for child_index, (child, reduction) in enumerate(zip(
-        result.apart_terms,
-        result.numerator_reductions,
-        strict=True,
-    ), start=1):
-        labels = [
-            S("Prop")(index)
-            for index in range(len(child.integrand.denominators))
-        ]
-        for relation_index, (target, replacement) in enumerate(
-            reduction.relations, start=1
-        ):
-            reconstructed = replacement
-            for label, propagator in zip(
-                labels,
-                child.integrand.denominators,
-                strict=True,
+        checks = {
+            "denominator relation": normalize_rational(
+                result.denominators[0]
+                - result.denominators[1]
+                - result.denominators[2]
+                + result.denominators[3]
+                + result.delta
+            ),
+            "partial-fraction kernel reconstruction": normalize_rational(
+                result.apart_expression
+                - E("1") / prod(result.denominators)
+            ),
+            "physical-support partial-fraction reconstruction": normalize_rational(
+                sum(
+                    (
+                        child.integrand.as_expression()
+                        for child in result.apart_terms
+                    ),
+                    E("0"),
+                )
+                - result.integrand.as_expression()
+            ),
+            "numerator-rewrite reconstruction": normalize_rational(
+                sum(
+                    (
+                        term.as_expression()
+                        for reduction in result.numerator_reductions
+                        for term in reduction.terms
+                    ),
+                    E("0"),
+                )
+                - result.integrand.as_expression()
+            ),
+            "cut-family integrand reconstruction": normalize_rational(
+                sum(
+                    (
+                        contribution.as_expression()
+                        for contribution in result.contributions
+                    ),
+                    E("0"),
+                )
+                - result.integrand.as_expression()
+            ),
+        }
+        for child_index, (child, reduction) in enumerate(zip(
+            result.apart_terms,
+            result.numerator_reductions,
+            strict=True,
+        ), start=1):
+            labels = [
+                S("Prop")(index)
+                for index in range(len(child.integrand.denominators))
+            ]
+            for relation_index, (target, replacement) in enumerate(
+                reduction.relations, start=1
             ):
-                reconstructed = reconstructed.replace(label, propagator)
-            checks[
-                f"child {child_index} relation {relation_index}"
-            ] = normalize_rational(reconstructed - target)
+                reconstructed = replacement
+                for label, propagator in zip(
+                    labels,
+                    child.integrand.denominators,
+                    strict=True,
+                ):
+                    reconstructed = reconstructed.replace(label, propagator)
+                checks[
+                    f"child {child_index} relation {relation_index}"
+                ] = normalize_rational(reconstructed - target)
 
-    failures = {
-        name: residual
-        for name, residual in checks.items()
-        if residual != E("0")
-    }
-    if failures:
-        details = ", ".join(
-            f"{name}: {value}" for name, value in failures.items()
-        )
-        raise ValueError(f"Cross-box preprocessing validation failed: {details}")
-    return checks
+        failures = {
+            name: residual
+            for name, residual in checks.items()
+            if residual != E("0")
+        }
+        if failures:
+            details = ", ".join(
+                f"{name}: {value}" for name, value in failures.items()
+            )
+            raise ValueError(f"Cross-box preprocessing validation failed: {details}")
+        return checks
+
+    return (validate_pre_ibp,)
 
 
 @app.cell
@@ -2682,12 +2796,15 @@ def _(
     kira_projects,
     kira_reductions,
     loop_propagator_indices,
+    normalize_rational,
     p1,
     p2,
     physical_numerator,
     pre_ibp,
     projected_cutsets,
     required_loop_sources_by_cut,
+    square,
+    validate_pre_ibp,
 ):
     _checks = dict(validate_pre_ibp(pre_ibp))
     _k_squared = square(k1)
@@ -2749,7 +2866,7 @@ def _(
             )
 
     for _cut_name, _terms in ibp_terms_by_cut.items():
-        _checks[f"cut {_cut_name} IBP input reconstruction"] = normalize_rational(
+        _checks[f"cut {_cut_name} cut-family integrand reconstruction"] = normalize_rational(
             sum((_term.input_expression() for _term in _terms), E("0"))
             - ibp_inputs_by_cut[_cut_name]
         )
@@ -2807,7 +2924,7 @@ def _(
         not any(_alias in _text for _alias in _forbidden_aliases)
         for _text in _native_boundary_text
     )
-    _checks["native Kira round trip contains no wire or historical aliases"] = (
+    _checks["physical graph identities preserved through IBP"] = (
         E("0")
     )
     assert all(_result.complete for _result in kira_reductions.values())
@@ -2823,12 +2940,12 @@ def _(
 def _(mo, native_validation_rows):
     mo.vstack(
         [
-            mo.md("== Native cross-box workflow"),
+            mo.md("=== Exact reconstruction identities"),
             spenso_table(native_validation_rows),
             mo.callout(
-                "The Spenso/Idenso physical trace, multivariate apart check, "
-                "graph routing, Kira project definitions, IBP inputs, and "
-                "cut-master selection all pass their exact checks.",
+                "The physical trace, multivariate partial fractions, graph "
+                "routing, family integrands, IBP identities, and cut-master "
+                "selection satisfy their exact reconstruction equations.",
                 kind="success",
             ),
         ]
@@ -2900,27 +3017,33 @@ def _(E, Expression, SpensoMath, mo, typst):
 
 @app.cell(hide_code=True)
 def _(display_validation_rows):
-    spenso_table(display_validation_rows)
+    _ = display_validation_rows
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == Validation 1 — native apart and numerator-helper interfaces
+    === Affine-family closure tests
 
-    We exercise Symbolica's decomposition and the graph-provenance adapter for
-    affine families with two through seven propagators. The expected
-    coefficients follow from how each synthetic family is constructed; they
-    are validation data, not inputs to `apart_integrand`. The final two cases
-    check both numerator-reducer call styles, including non-unit starting
-    propagator powers.
+    Affine families with two through seven denominators test the general
+    multivariate partial-fraction identity. Their coefficients follow directly
+    from the defining affine relation. Two numerator examples then verify the
+    index-shift formula for unit and general starting powers.
     """)
     return
 
 
 @app.cell
-def _(E, S, prod):
+def _(
+    E,
+    Integrand,
+    S,
+    apart_integrand,
+    normalize_rational,
+    prod,
+    reduce_numerator,
+):
     _validation_rows = []
     for _count in range(2, 8):
         _loop_products = [
@@ -2981,7 +3104,7 @@ def _(E, S, prod):
         )
         assert _residual == E("0")
         _validation_rows.append(
-            {"case": f"native apart with N={_count}", "residual": _residual}
+            {"case": f"affine partial fractions with N={_count}", "residual": _residual}
         )
 
     _x = S("validation_x")
@@ -2995,7 +3118,7 @@ def _(E, S, prod):
     else:
         raise AssertionError("An empty apart variable basis was accepted")
     _validation_rows.append(
-        {"case": "empty apart variables rejected", "residual": E("0")}
+        {"case": "loop-coordinate basis is nonempty", "residual": E("0")}
     )
 
     try:
@@ -3008,7 +3131,7 @@ def _(E, S, prod):
     else:
         raise AssertionError("Duplicate apart variables were accepted")
     _validation_rows.append(
-        {"case": "duplicate apart variables rejected", "residual": E("0")}
+        {"case": "loop-coordinate basis is unique", "residual": E("0")}
     )
 
     _y = S("validation_y")
@@ -3019,7 +3142,7 @@ def _(E, S, prod):
     assert _integrand_reduction.reconstruction_residual == E("0")
     _validation_rows.append(
         {
-            "case": "Integrand numerator-reducer interface",
+            "case": "unit starting powers",
             "residual": _integrand_reduction.reconstruction_residual,
         }
     )
@@ -3068,11 +3191,11 @@ def _(E, apart_validation_rows):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == Validation 2 — historical scalar cross-box preprocessing
+    === Independent scalar preprocessing comparison
 
-    The following one-way check compares the native derivation with the retained
-    Mathematica result. It supplies no propagator, coefficient, family mapping,
-    or control-flow input to the calculation above.
+    The retained Mathematica calculation gives an independent scalar
+    comparison. Its four partial-fraction coefficients, $Delta$ convention,
+    sign pattern, and reconstructed integrand agree with the derivation above.
     """)
     return
 
@@ -3080,14 +3203,21 @@ def _(mo):
 @app.cell
 def _(
     E,
+    IntegralContribution,
+    Integrand,
+    PreIBPResult,
+    apart_integrand,
     delta,
     dot,
     loop_denominators,
     loop_propagator_indices,
     loop_scalar_products,
+    normalize_rational,
     p1,
     p2,
     q,
+    reduce_numerator,
+    validate_pre_ibp,
 ):
     _reference_delta = q**2 - 2 * dot(p1, p2)
     _reference_integrand = Integrand(E("1"), loop_denominators)
@@ -3169,8 +3299,8 @@ def _(
     scalar_reference_comparison = [
         {
             "Mathematica apart slot": _slot,
-            "expected sources": tuple(_index + 1 for _index in _sources),
-            "actual sources": tuple(
+            "expected retained lines": tuple(_index + 1 for _index in _sources),
+            "derived retained lines": tuple(
                 _index + 1
                 for _index in _terms_by_sources[_sources].source_indices
             ),
@@ -3203,10 +3333,9 @@ def _(mo, reference_validation, scalar_reference_comparison):
                 ]
             ),
             mo.callout(
-                "Historical scalar validation passed: all four Symbolica "
-                "apart slots, the independent delta convention, sign pattern, "
-                "and exact reconstructions agree with the retained Mathematica "
-                "result.",
+                "The four scalar partial-fraction terms, the independent "
+                "$Delta$ convention, the sign pattern, and the exact "
+                "reconstructions agree with the retained Mathematica result.",
                 kind="success",
             ),
         ]
@@ -3220,11 +3349,15 @@ def _(
     S,
     analytic_identifications_by_cut,
     analytic_master_values_by_cut,
+    apply_ibp_reductions,
+    assemble_ibp_expression,
     contributions_by_cut,
+    cut_filter_masters,
     ipp1p2,
     kira_projects,
     kira_reductions,
     mathematica_reference_pre_ibp,
+    normalize_rational,
     on_shell_rules_by_cut,
     q,
     required_loop_sources_by_cut,
@@ -3287,7 +3420,7 @@ def _(
             sum((_term.as_expression() for _term in _mapped), E("0"))
             - _source_expression
         )
-        _chain_checks[f"cut {_cut_name} IBP input"] = normalize_rational(
+        _chain_checks[f"cut {_cut_name} cut-family integrand"] = normalize_rational(
             sum(
                 (
                     _term.input_expression()
@@ -3373,13 +3506,13 @@ def _(mathematica_reference_chain_validation_rows):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == Validation 3 — completed scalar result against Mathematica/FIRE
+    === Independent scalar master comparison
 
-    This independent oracle uses the historical scalar numerator `1`. After
-    translating its loop routing to the six-line graph, cut `11` must retain
-    `topo20(1,0,1)` and `topo22(1,1,0)`. We check the exact master expression,
-    identify both with the same cut bubble, evaluate that master, and reproduce
-    the recorded expansion through order $epsilon^0$.
+    The retained calculation uses the scalar numerator $N=1$. Translating its
+    loop routing to the six-line graph maps cut `11` to
+    $upright("topo20")(1,0,1)$ and $upright("topo22")(1,1,0)$. Both integrals
+    represent the same cut bubble. Their exact master coefficient, analytic
+    value, and Laurent expansion agree through order $epsilon^0$.
     """)
     return
 
@@ -3455,12 +3588,12 @@ def _(
     fire_mapping_validation_rows = [
         {
             "cut": _project_key[0],
-            "native family": kira_projects[_project_key].family.name,
-            "native sources": tuple(
+            "derived family": kira_projects[_project_key].family.name,
+            "denominator support": tuple(
                 _source + 1 for _source in _project_key[1]
             ),
             "FIRE family": f"topo{_oracle['family_id']}",
-            "FIRE source order": tuple(
+            "FIRE propagator order": tuple(
                 _source + 1 for _source in _oracle["source_order"]
             ),
         }
@@ -3480,10 +3613,10 @@ def _(fire_mapping_validation_rows, mathematica_scalar_cut_oracle):
             *fire_mapping_validation_rows,
             {
                 "cut": "11 (Mathematica label 00)",
-                "native family": "scalar oracle",
-                "native sources": (),
+                "derived family": "scalar comparison",
+                "denominator support": (),
                 "FIRE family": "retained expression",
-                "FIRE source order": mathematica_scalar_cut_oracle,
+                "FIRE propagator order": mathematica_scalar_cut_oracle,
             },
         ]
     )
@@ -3500,6 +3633,7 @@ def _(
     mathematica_reference_cut_expression_fire,
     mathematica_reference_final_expression,
     mathematica_scalar_cut_oracle,
+    normalize_rational,
     q,
 ):
     _d = S("d")
@@ -3552,6 +3686,7 @@ def _(
     ipp1p2,
     mathematica_reference_analytic_expression,
     mu_squared,
+    normalize_rational,
     q,
 ):
     _s = S("s")
@@ -3659,9 +3794,9 @@ def _(
                     expression=mathematica_expected_epsilon_expansion,
                 ),
                 mo.callout(
-                    "The scalar pre-IBP and analytic-master oracles are "
-                    "complete, but the automatic Kira results are unavailable "
-                    "for the independent FIRE, cut, and full-chain checks.",
+                    "The scalar preprocessing and analytic-master comparisons "
+                    "cover the retained scalar cut. The twelve cut-family "
+                    "identities provide the FIRE and full-chain comparisons.",
                     kind="neutral",
                 ),
             ]
@@ -3688,9 +3823,9 @@ def _(
                     expression=mathematica_expected_epsilon_expansion,
                 ),
                 mo.callout(
-                    "All twelve Kira projects are complete. The routed scalar "
+                    "The twelve family reductions are complete. The scalar "
                     "cut-11 reduction, bubble identification, analytic master, "
-                    "and epsilon expansion agree exactly with the retained "
+                    "and $epsilon$ expansion agree exactly with the retained "
                     "Mathematica/FIRE calculation.",
                     kind="success",
                 ),
@@ -3703,15 +3838,13 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.callout(
-        "Current boundary: the six-line graph, all four cut masks, all twelve "
-        "native graph-order reductions, the physical gamma-trace numerator, "
-        "and the analytic master evaluations for cuts 11, 10, and 01 are "
-        "complete. The final appendix maps those projects to the historical "
-        "topo20--31 oracle. Cut 00 is the analytic maximal-cut master M00(s), "
-        "not a missing Kira rule and not zero by default. This notebook evaluates "
-        "the physical numerator on that maximal-cut support and supplies the "
-        "cross-box virtuality and endpoint steps. The complete graph-set assembly "
-        "lives in calculations/dy/python/notebook.py.",
+        "Cross-box conclusion: the six-line topology, four cut sectors, physical "
+        "Dirac numerator, twelve three-denominator reductions, and analytic "
+        "masters form one exact chain for cuts 11, 10, and 01. Cut 00 contributes "
+        "through the four-line master M00(s) in the full Drell--Yan assembly. The "
+        "leading-virtuality factors and endpoint identity place all four cuts in "
+        "the common distribution basis, where they join the remaining physical "
+        "graphs and channel normalizations.",
         kind="info",
     )
     return

@@ -1,11 +1,10 @@
 """Native Symbolica assembly of the leading-power NLO Drell--Yan result.
 
-This module is intentionally independent of the repository-root GammaLoop and
-Spenso environments.  The Dirac traces are retained below as exact scalar
-polynomials after their independent Spenso reduction.  Everything after that
-point--numerator reduction, multivariate partial fractioning, Kira rule
-application, master selection, endpoint bookkeeping, and graph assembly--uses
-core Symbolica objects from the portable DY application.
+The graph layer uses the same native Spenso momentum-and-mass representation as
+the repository's cross-box walkthrough.  The notebook simplifies its editable
+Dirac chains to exact scalar polynomials before passing them into this assembly
+module. Kira objects are derived only at the reduction boundary; they are not
+graph inputs.
 
 The retained Mathematica notebook and the manuscript do not agree in their
 last presentation cells.  The data model therefore keeps three different
@@ -21,436 +20,419 @@ No residual is silently set to zero.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace as dataclass_replace
+from itertools import combinations, product
 from math import prod
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Mapping, Sequence
 
-from symbolica import E, S, Expression
+from symbolica import E, Expression
 
 from notebooks.ludy import (
     ApartTerm,
     NumeratorReduction,
-    apart_kernel as _apart_kernel,
+    build_cut_kira_project,
+    find_loop_propagator_indices,
     normalize_rational,
-    reduce_numerator as _reduce_numerator,
+    prepare_pre_ibp,
+    project_cutset,
+    propagator_denominators,
+    reduce_numerator,
     replace_all,
 )
 
 if TYPE_CHECKING:
-    from kirapy import ReductionResult
+    from kirapy import KiraProject, ReductionResult
 
 
-# Scalar products and physical parameters.  The invariant names agree with
-# the native aliases restored by kirapy.
-d, epsilon = S("d", "epsilon")
-kk, kp1, kp2 = S("kk", "kp1", "kp2")
-p1_squared, p2_squared, p1_dot_p2 = S("ipp1p1", "ipp2p2", "ipp1p2")
-s, z, mass_squared = S("s", "z", "msq")
-alpha_s, color_f, color_t = S("alpha_s", "C_F", "T_F")
-electric_charge, strong_coupling, color_count = S("e_q", "g_s", "N_c")
-lambda1_squared, lambda2_squared, mu_r_squared = S(
-    "Lambda1sq", "Lambda2sq", "mu_R_sq"
-)
-pi = Expression.PI
+@dataclass(frozen=True, slots=True)
+class DYContext:
+    """Notebook-owned symbols consumed by the DY assembly library."""
 
-
-def reduce_numerator(
-    numerator: Expression,
-    denominators: Sequence[Expression],
-    *,
-    loop_scalar_products: Sequence[Expression] = (kk, kp1, kp2),
-    base_integral_indices: Sequence[int] | None = None,
-) -> NumeratorReduction:
-    """DY convenience wrapper around the cross-box notebook helper."""
-
-    return _reduce_numerator(
-        numerator,
-        denominators,
-        loop_scalar_products=loop_scalar_products,
-        base_integral_indices=base_integral_indices,
-    )
-
-
-def denominator_bases() -> dict[str, tuple[Expression, ...]]:
-    """Ordered scalar denominator coordinates for every routed numerator."""
-
-    virtual_direct = (
-        kk,
-        kk - 2 * kp1 + p1_squared,
-        kk + 2 * kp2 + p2_squared,
-    )
-    virtual_crossed = (
-        kk,
-        kk - 2 * kp1 + p1_squared,
-        kk - 2 * kp2 + p2_squared,
-    )
-    direct_box = (
-        kk,
-        kk - 2 * kp1 + p1_squared,
-        kk
-        - 2 * kp1
-        - 2 * kp2
-        + p1_squared
-        + 2 * p1_dot_p2
-        + p2_squared
-        - mass_squared,
-    )
-    qg = (
-        kk,
-        kk + 2 * kp1 + p1_squared,
-        kk
-        + 2 * kp1
-        + 2 * kp2
-        + p1_squared
-        + 2 * p1_dot_p2
-        + p2_squared
-        - mass_squared,
-    )
-    crossed_box = (
-        kk,
-        kk - 2 * kp1 + p1_squared,
-        kk - 2 * kp2 + p2_squared,
-        kk
-        - 2 * kp1
-        - 2 * kp2
-        + p1_squared
-        + 2 * p1_dot_p2
-        + p2_squared
-        - mass_squared,
-    )
-    return {
-        "virtual_direct": virtual_direct,
-        "virtual_crossed": virtual_crossed,
-        "direct_box": direct_box,
-        "qg": qg,
-        "crossed_box": crossed_box,
-    }
-
-
-@dataclass(slots=True)
-class DYFamilyRoute:
-    """One editable graph-to-Kira route.
-
-    ``None`` for both on-shell flags means that no on-shell replacement is
-    made before numerator reduction.  Crossed-box routes additionally record
-    the apart child and cut block to which the family belongs.
-    """
-
-    topology: str
-    selected_indices: tuple[int, ...] | None
-    p1_on_shell: bool | None = None
-    p2_on_shell: bool | None = None
-    cut: str | None = None
-    retained_indices: tuple[int, ...] | None = None
+    d: Expression
+    epsilon: Expression
+    p1: object
+    p2: object
+    k: object
+    kk: Expression
+    kp1: Expression
+    kp2: Expression
+    p1_squared: Expression
+    p2_squared: Expression
+    p1_dot_p2: Expression
+    loop_scalar_products: tuple[Expression, ...]
+    s: Expression
+    z: Expression
+    mass_squared: Expression
+    alpha_s: Expression
+    color_f: Expression
+    color_t: Expression
+    electric_charge: Expression
+    strong_coupling: Expression
+    color_count: Expression
+    lambda1_squared: Expression
+    lambda2_squared: Expression
+    mu_r_squared: Expression
+    pi: Expression
 
 
 @dataclass(slots=True)
 class DYGraphSpec:
-    """Editable denominator and routing data for one physical graph."""
+    """Editable physical graph data, independent of Kira model objects.
 
-    name: str
-    denominators: tuple[Expression, ...]
-    base_integral_indices: tuple[int, ...]
-    routes: list[DYFamilyRoute]
-    numerator_divisor: Expression
-    apart_before_numerator_reduction: bool = False
-    analytic_cuts: tuple[str, ...] = ()
+    ``cut_weights`` contains the cut sign and multiplicity *relative to the
+    analytic-master convention in masters.py*.  ``scheme_observable_phase``
+    is the independent physical graph/process phase in the DY ``MP - PM``
+    observable.  Keeping those two factors separate prevents a cut's scheme
+    membership from silently carrying a physical sign.
 
-
-def dy_graph_specs() -> dict[str, DYGraphSpec]:
-    """Define the complete physical graph set before any reduction is run.
-
-    A fresh mutable dictionary is returned deliberately: a notebook user can
-    edit a denominator, route, selected master, or numerator prefactor without
-    mutating module-global state.
+    The retained Mathematica objects can display the opposite sign because
+    they absorb a historical Cutkosky phase into the cut master itself.
+    ``mp_only_cuts`` and ``pm_only_cuts`` are unsigned membership data.  Their
+    difference coefficient is exactly ``1_MP - 1_PM``; cuts absent from both
+    tuples are common to the two prescriptions and cancel.  In the present DY
+    graph input every complementary cut is MP-only and therefore has
+    membership coefficient ``+1``.
     """
 
-    bases = denominator_bases()
-    qg_external = p1_squared + 2 * p1_dot_p2 + p2_squared
-    crossed_retained = (
-        (0, 1, 3),
-        (0, 1, 2),
-        (0, 2, 3),
-        (1, 2, 3),
-    )
-    crossed_blocks = (
-        ("11", 20, True, True, {20: (1, 0, 1), 22: (1, 1, 0)}),
-        ("10", 24, True, False, {26: (1, 1, 1)}),
-        ("01", 28, False, True, {28: (1, 1, 1)}),
-    )
-    crossed_routes = [
-        DYFamilyRoute(
-            topology=f"topo{first_topology + offset}",
-            selected_indices=selected.get(first_topology + offset),
-            p1_on_shell=p1_on_shell,
-            p2_on_shell=p2_on_shell,
-            cut=cut,
-            retained_indices=retained,
+    name: str
+    propagators: tuple[tuple[Expression, Expression], ...]
+    cutsets: dict[str, tuple[int, ...]]
+    propagator_powers: tuple[int, ...]
+    numerator_divisor: Expression
+    cut_weights: Mapping[str, Expression]
+    scheme_observable_phase: Expression
+    analytic_cuts: tuple[str, ...] = ()
+    mp_only_cuts: tuple[str, ...] = ()
+    pm_only_cuts: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Reject graph inputs whose physical and projected data cannot agree."""
+
+        loop_count = len(self.loop_propagator_indices)
+        if len(self.propagator_powers) != loop_count:
+            raise ValueError(
+                f"{self.name}: expected {loop_count} propagator powers, got "
+                f"{len(self.propagator_powers)}"
+            )
+        for cut_name, cutset in self.cutsets.items():
+            if len(cutset) != len(self.propagators):
+                raise ValueError(
+                    f"{self.name}/{cut_name}: cut mask has length {len(cutset)}, "
+                    f"expected {len(self.propagators)}"
+                )
+            if any(bit not in (0, 1) for bit in cutset):
+                raise ValueError(
+                    f"{self.name}/{cut_name}: cut masks may contain only 0 or 1"
+                )
+        unknown_analytic_cuts = set(self.analytic_cuts) - self.cutsets.keys()
+        if unknown_analytic_cuts:
+            raise ValueError(
+                f"{self.name}: unknown analytic cuts "
+                f"{sorted(unknown_analytic_cuts)}"
+            )
+        declared_cut_weights = set(self.cut_weights)
+        expected_cut_weights = set(self.cutsets)
+        if declared_cut_weights != expected_cut_weights:
+            missing = sorted(expected_cut_weights - declared_cut_weights)
+            unknown = sorted(declared_cut_weights - expected_cut_weights)
+            raise ValueError(
+                f"{self.name}: cut weights must cover exactly the cut masks; "
+                f"missing={missing}, unknown={unknown}"
+            )
+        if len(set(self.mp_only_cuts)) != len(self.mp_only_cuts):
+            raise ValueError(f"{self.name}: duplicate MP-only cut membership")
+        if len(set(self.pm_only_cuts)) != len(self.pm_only_cuts):
+            raise ValueError(f"{self.name}: duplicate PM-only cut membership")
+        overlap = set(self.mp_only_cuts) & set(self.pm_only_cuts)
+        if overlap:
+            raise ValueError(
+                f"{self.name}: cuts cannot be both MP-only and PM-only: "
+                f"{sorted(overlap)}"
+            )
+        unknown_scheme_cuts = (
+            set(self.mp_only_cuts) | set(self.pm_only_cuts)
+        ) - self.cutsets.keys()
+        if unknown_scheme_cuts:
+            raise ValueError(
+                f"{self.name}: unknown MP-PM cuts "
+                f"{sorted(unknown_scheme_cuts)}"
+            )
+
+    def scheme_membership_coefficient(self, cut_name: str) -> Expression:
+        """Return the unsigned-set coefficient ``1_MP - 1_PM`` for a cut."""
+
+        if cut_name not in self.cutsets:
+            raise KeyError(f"{self.name}: unknown cut {cut_name!r}")
+        return E(
+            str(
+                int(cut_name in self.mp_only_cuts)
+                - int(cut_name in self.pm_only_cuts)
+            )
         )
-        for cut, first_topology, p1_on_shell, p2_on_shell, selected in crossed_blocks
-        for offset, retained in enumerate(crossed_retained)
-    ]
-    return {
-        "virtual triangle 1": DYGraphSpec(
-            name="virtual triangle 1",
-            denominators=bases["virtual_direct"],
-            base_integral_indices=(1, 1, 1),
-            routes=[
-                DYFamilyRoute("topo5", (0, 1, 1), True, True),
-                DYFamilyRoute("topo6", (1, 0, 1), True, False),
-                DYFamilyRoute("topo7", (1, 1, 0), False, True),
-            ],
-            numerator_divisor=E("1"),
-        ),
-        "virtual triangle 2": DYGraphSpec(
-            name="virtual triangle 2",
-            denominators=bases["virtual_crossed"],
-            base_integral_indices=(1, 1, 1),
-            routes=[DYFamilyRoute("topo8", (1, 1, 1))],
-            numerator_divisor=E("1"),
-        ),
-        "virtual bubble": DYGraphSpec(
-            name="virtual bubble",
-            denominators=bases["virtual_direct"],
-            base_integral_indices=(1, 0, 1),
-            routes=[DYFamilyRoute("topo6", (1, 0, 1), True, False)],
-            numerator_divisor=E("1"),
-        ),
-        "qq direct box": DYGraphSpec(
-            name="qq direct box",
-            denominators=bases["direct_box"],
-            base_integral_indices=(1, 2, 1),
-            routes=[
-                DYFamilyRoute("topo10", (1, 0, 1), True, True),
-                DYFamilyRoute("topo11", (1, 1, 1), False, True),
-            ],
-            numerator_divisor=E("1"),
-        ),
-        "qq crossed box": DYGraphSpec(
-            name="qq crossed box",
-            denominators=bases["crossed_box"],
-            base_integral_indices=(1, 1, 1, 1),
-            routes=crossed_routes,
-            numerator_divisor=E("1"),
-            apart_before_numerator_reduction=True,
-            analytic_cuts=("00",),
-        ),
-        "qg box": DYGraphSpec(
-            name="qg box",
-            denominators=bases["qg"],
-            base_integral_indices=(1, 2, 1),
-            routes=[
-                DYFamilyRoute("topo10", (1, 0, 1), True, True),
-                DYFamilyRoute("topo11", (1, 1, 1), False, True),
-            ],
-            numerator_divisor=E("1"),
-        ),
-        "qg triangle": DYGraphSpec(
-            name="qg triangle",
-            denominators=bases["qg"],
-            base_integral_indices=(1, 1, 1),
-            routes=[
-                DYFamilyRoute("topo10", (1, 0, 1), True, True),
-                DYFamilyRoute("topo11", (1, 1, 1), False, True),
-            ],
-            numerator_divisor=qg_external,
-        ),
-        "qg bubble": DYGraphSpec(
-            name="qg bubble",
-            denominators=bases["qg"],
-            base_integral_indices=(1, 0, 1),
-            routes=[
-                DYFamilyRoute("topo10", (1, 0, 1), True, True),
-                DYFamilyRoute("topo11", (1, 1, 1), False, True),
-            ],
-            numerator_divisor=qg_external**2,
-        ),
+
+    @property
+    def loop_propagator_indices(self) -> tuple[int, ...]:
+        """Positions of loop-dependent lines in full graph order."""
+
+        return tuple(find_loop_propagator_indices(self.propagators))
+
+    @property
+    def all_denominators(self) -> tuple[Expression, ...]:
+        """Every graph denominator, including the external cut lines."""
+
+        return tuple(propagator_denominators(self.propagators))
+
+    @property
+    def denominators(self) -> tuple[Expression, ...]:
+        """Loop denominators in graph order, derived from momentum and mass."""
+
+        all_denominators = self.all_denominators
+        return tuple(
+            all_denominators[index]
+            for index in self.loop_propagator_indices
+        )
+
+    @property
+    def projected_cutsets(self) -> dict[str, tuple[int, ...]]:
+        """Cut masks projected onto the ordered loop propagators."""
+
+        loop_indices = self.loop_propagator_indices
+        return {
+            name: project_cutset(mask, loop_indices)
+            for name, mask in self.cutsets.items()
+        }
+
+    @property
+    def requires_apart(self) -> bool:
+        """Whether the graph has more loop lines than scalar coordinates."""
+
+        return len(self.loop_propagator_indices) > 3
+
+
+DYProjectKey = tuple[str, str, tuple[int, ...]]
+
+
+@dataclass(frozen=True, slots=True)
+class DYProjectPlan:
+    """Graph-native Kira projects and deduplicated physical routes."""
+
+    projects: Mapping[DYProjectKey, "KiraProject"]
+    route_projects: Mapping[DYProjectKey, DYProjectKey]
+
+    def project_key(
+        self,
+        graph_name: str,
+        cut_name: str,
+        source_indices: Sequence[int],
+    ) -> DYProjectKey:
+        route = (graph_name, cut_name, tuple(source_indices))
+        try:
+            return self.route_projects[route]
+        except KeyError as error:
+            raise KeyError(f"No Kira project for physical route {route}") from error
+
+
+def _selected_cut_indices(
+    graph: DYGraphSpec,
+    cut_name: str,
+    source_indices: Sequence[int],
+) -> tuple[int, ...] | None:
+    cutset = graph.cutsets[cut_name]
+    required_sources = {
+        source
+        for source in graph.loop_propagator_indices
+        if cutset[source]
     }
+    if not required_sources <= set(source_indices):
+        return None
+    return project_cutset(cutset, source_indices)
 
 
-def routed_topology_names(
+def _project_family_name(project_key: DYProjectKey) -> str:
+    graph_name, cut_name, source_indices = project_key
+    graph_slug = "_".join(graph_name.replace("-", " ").split())
+    sources = "_".join(f"d{index + 1}" for index in source_indices)
+    return f"{graph_slug}_cut{cut_name}_{sources}"
+
+
+def build_dy_kira_projects(
     graphs: Mapping[str, DYGraphSpec],
-) -> tuple[str, ...]:
-    """Return unique Kira families in first-use graph order."""
+    context: DYContext,
+) -> DYProjectPlan:
+    """Build and structurally deduplicate graph-native DY projects."""
 
-    return tuple(
-        dict.fromkeys(
-            route.topology
-            for graph in graphs.values()
-            for route in graph.routes
+    candidates = []
+    for graph_name, graph in graphs.items():
+        loop_sources = graph.loop_propagator_indices
+        has_internal_mass = any(
+            mass_squared != E("0")
+            for source, (_momentum, mass_squared) in enumerate(graph.propagators)
+            if source in loop_sources
         )
-    )
+        if graph.requires_apart:
+            target_values = (1, 0, -1)
+            bounds = (9, 4, 2)
+        elif has_internal_mass:
+            target_values = (2, 1, 0, -1, -2)
+            bounds = (9, 6, 3)
+        else:
+            target_values = (1, 0, -1, -2)
+            bounds = (9, 4, 2)
+        for cut_name, cutset in graph.cutsets.items():
+            if cut_name in graph.analytic_cuts:
+                continue
+            required_count = sum(cutset[source] for source in loop_sources)
+            if required_count > 3:
+                continue
+            for source_indices in combinations(loop_sources, 3):
+                route_key = (graph_name, cut_name, source_indices)
+                candidates.append(
+                    (
+                        route_key,
+                        graph,
+                        target_values,
+                        bounds,
+                        _selected_cut_indices(graph, cut_name, source_indices),
+                    )
+                )
 
-
-def physical_numerators() -> dict[str, Expression]:
-    """Metric-contracted transverse numerators, stripped of common weights."""
-
-    triangle_direct = 4 * (d - 2) * (
-        4 * kp1 * kp2
-        + 4 * kp2 * p1_squared
-        - d * kp2 * p1_squared
-        - 4 * kk * p1_dot_p2
-        + d * kk * p1_dot_p2
-        - 4 * kp1 * p1_dot_p2
-        + 4 * kp2 * p1_dot_p2
-        - 4 * p1_dot_p2**2
-        - 4 * kp1 * p2_squared
-        + d * kp1 * p2_squared
-        + 4 * p1_squared * p2_squared
-        - d * p1_squared * p2_squared
+    projects: dict[DYProjectKey, "KiraProject"] = {}
+    route_projects: dict[DYProjectKey, DYProjectKey] = {}
+    canonical_candidates = []
+    loop_reversal = ((context.kp1, -context.kp1), (context.kp2, -context.kp2))
+    for candidate in sorted(candidates, key=lambda item: item[0]):
+        route_key, graph, target_values, bounds, selected_indices = candidate
+        _graph_name, cut_name, source_indices = route_key
+        candidate_cut = project_cutset(graph.cutsets[cut_name], source_indices)
+        candidate_external_cut = graph.cutsets[cut_name][:2]
+        candidate_denominators = tuple(
+            graph.all_denominators[index] for index in source_indices
+        )
+        canonical_key = None
+        for canonical in canonical_candidates:
+            (
+                other_key,
+                other_graph,
+                other_targets,
+                other_bounds,
+                other_selected,
+            ) = canonical
+            if (
+                target_values != other_targets
+                or bounds != other_bounds
+                or selected_indices != other_selected
+            ):
+                continue
+            _other_graph_name, other_cut_name, other_sources = other_key
+            if (
+                candidate_external_cut
+                != other_graph.cutsets[other_cut_name][:2]
+            ):
+                continue
+            if candidate_cut != project_cutset(
+                other_graph.cutsets[other_cut_name],
+                other_sources,
+            ):
+                continue
+            other_denominators = tuple(
+                other_graph.all_denominators[index] for index in other_sources
+            )
+            equivalent = any(
+                all(
+                    normalize_rational(
+                        replace_all(candidate_value, substitutions)
+                        - other_value
+                    )
+                    == E("0")
+                    for candidate_value, other_value in zip(
+                        candidate_denominators,
+                        other_denominators,
+                        strict=True,
+                    )
+                )
+                for substitutions in ((), loop_reversal)
+            )
+            if equivalent:
+                canonical_key = other_key
+                break
+        if canonical_key is None:
+            canonical_key = route_key
+            canonical_candidates.append(candidate)
+            projects[canonical_key] = build_cut_kira_project(
+                name=_project_family_name(canonical_key),
+                loop_momenta=(context.k,),
+                graph_propagators=graph.propagators,
+                source_indices=source_indices,
+                cutset=graph.cutsets[cut_name],
+                incoming_momenta=(context.p1, context.p2),
+                target_indices=tuple(product(target_values, repeat=3)),
+                preferred_master_indices=(selected_indices,)
+                if selected_indices is not None
+                else (),
+                bounds=bounds,
+                check_masters=False,
+            )
+        route_projects[route_key] = canonical_key
+    return DYProjectPlan(
+        projects=MappingProxyType(projects),
+        route_projects=MappingProxyType(route_projects),
     )
-    triangle_crossed = -4 * (d - 2) * (
-        -8 * kp1 * kp2
-        + 2 * d * kp1 * kp2
-        + 4 * kp2 * p1_squared
-        - d * kp2 * p1_squared
-        + 8 * kk * p1_dot_p2
-        - d * kk * p1_dot_p2
-        - 4 * kp1 * p1_dot_p2
-        - 4 * kp2 * p1_dot_p2
-        + 4 * p1_dot_p2**2
-        + 4 * kp1 * p2_squared
-        - d * kp1 * p2_squared
-        - 4 * p1_squared * p2_squared
-        + d * p1_squared * p2_squared
-    )
-    virtual_bubble = 4 * (d - 2) * (
-        -8 * kp2 * p1_dot_p2
-        + 2 * d * kp2 * p1_dot_p2
-        + 6 * kp1 * p2_squared
-        - d * kp1 * p2_squared
-    )
-    direct_box = 4 * (d - 2) ** 2 * (
-        p1_squared * (p1_dot_p2 - 2 * kp2)
-        - p1_dot_p2 * kk
-        + 2 * kp1 * kp2
-    )
-    crossed_box = 4 * (d - 2) * (
-        (d - 8) * kk * p1_dot_p2
-        + 4 * p1_dot_p2 * (kp1 + kp2)
-        + (8 - 2 * d) * kp1 * kp2
-        + (d - 4) * (kp1 * p2_squared + kp2 * p1_squared)
-        + (4 - d) * p1_squared * p2_squared
-        - 4 * p1_dot_p2**2
-    )
-    qg_box = 4 * (d - 2) ** 2 * (
-        kk * kp2
-        - kp2 * p1_squared
-        + 2 * kk * p1_dot_p2
-        + 2 * kp1 * p1_dot_p2
-    )
-    qg_triangle = -4 * (d - 2) * (
-        4 * kp1 * kp2
-        + 4 * kp2**2
-        + 8 * kp2 * p1_squared
-        - d * kp2 * p1_squared
-        - 4 * kk * p1_dot_p2
-        + d * kk * p1_dot_p2
-        - 8 * kp1 * p1_dot_p2
-        + 2 * d * kp1 * p1_dot_p2
-        + 4 * kp2 * p1_dot_p2
-        - 4 * kk * p2_squared
-        + d * kk * p2_squared
-        - 4 * kp1 * p2_squared
-        + d * kp1 * p2_squared
-    )
-    qg_bubble = -4 * (d - 2) ** 2 * (
-        kp2 * p1_squared
-        - 2 * kp1 * p1_dot_p2
-        - 2 * kp1 * p2_squared
-        - kp2 * p2_squared
-    )
-    return {
-        "virtual triangle 1": triangle_direct,
-        "virtual triangle 2": triangle_crossed,
-        "virtual bubble": virtual_bubble,
-        "qq direct box": direct_box,
-        "qq crossed box": crossed_box,
-        "qg box": qg_box,
-        "qg triangle": qg_triangle,
-        "qg bubble": qg_bubble,
-    }
 
 
 def numerator_reductions(
-    graphs: Mapping[str, DYGraphSpec] | None = None,
-    numerators: Mapping[str, Expression] | None = None,
+    graphs: Mapping[str, DYGraphSpec],
+    numerators: Mapping[str, Expression],
+    context: DYContext,
 ) -> Mapping[str, NumeratorReduction]:
     """Build every three-denominator physical numerator handoff."""
 
-    graphs = dy_graph_specs() if graphs is None else graphs
-    numerators = physical_numerators() if numerators is None else numerators
     reductions = {}
     for name, graph in graphs.items():
-        if graph.apart_before_numerator_reduction:
+        if graph.requires_apart:
             continue
         reductions[name] = reduce_numerator(
             numerators[name] / graph.numerator_divisor,
             graph.denominators,
-            loop_scalar_products=(kk, kp1, kp2),
-            base_integral_indices=graph.base_integral_indices,
+            loop_scalar_products=context.loop_scalar_products,
+            base_integral_indices=graph.propagator_powers,
         )
     return MappingProxyType(reductions)
 
 
-def qg_ward_reductions() -> Mapping[str, NumeratorReduction]:
-    """Reduce the longitudinal qg projector pieces on the double cut.
+def qg_ward_reductions(
+    qg_graph: DYGraphSpec,
+    ward_numerators: Mapping[str, Expression],
+    context: DYContext,
+) -> Mapping[str, NumeratorReduction]:
+    """Reduce the notebook-owned longitudinal qg numerator inputs."""
 
-    These are the exact ``q_mu q_nu`` Dirac traces, including the projector
-    factor ``-1/mass_squared`` and the external triangle/bubble propagators.
-    Their selected topo10 master coefficients must be identical, so the graph
-    combination ``2*triangle - box - bubble`` vanishes before integration.
-    """
-
-    q_squared = 2 * p1_dot_p2
-    d0 = kk
-    d1 = kk + 2 * kp1
-    dm = kk + 2 * kp1 + 2 * kp2 + q_squared - mass_squared
-    denominators = (d0, d1, dm)
-    longitudinal_box = (
-        2
-        * (d - 2)
-        * d1**2
-        * (q_squared + d1 - dm - mass_squared)
-    )
-    longitudinal_triangle = (
-        2
-        * q_squared
-        * (d - 2)
-        * d1
-        * (q_squared - d0 + d1 - dm - mass_squared)
-    )
-    longitudinal_bubble = (
-        2
-        * q_squared
-        * (d - 2)
-        * (
-            -2 * q_squared * d0
-            + q_squared * d1
-            - q_squared * dm
-            - q_squared * mass_squared
-            - d0 * d1
-            + q_squared**2
-            + d0**2
+    denominators = tuple(
+        replace_all(
+            denominator,
+            (
+                (context.p1_squared, E("0")),
+                (context.p2_squared, E("0")),
+            ),
         )
+        for denominator in qg_graph.denominators
     )
     return MappingProxyType(
         {
             "box": reduce_numerator(
-                -longitudinal_box / mass_squared,
+                ward_numerators["box"],
                 denominators,
-                loop_scalar_products=(kk, kp1, kp2),
+                loop_scalar_products=context.loop_scalar_products,
                 base_integral_indices=(1, 2, 1),
             ),
             "triangle": reduce_numerator(
-                -longitudinal_triangle / (mass_squared * q_squared),
+                ward_numerators["triangle"],
                 denominators,
-                loop_scalar_products=(kk, kp1, kp2),
+                loop_scalar_products=context.loop_scalar_products,
             ),
             "bubble": reduce_numerator(
-                -longitudinal_bubble / (mass_squared * q_squared**2),
+                ward_numerators["bubble"],
                 denominators,
-                loop_scalar_products=(kk, kp1, kp2),
+                loop_scalar_products=context.loop_scalar_products,
                 base_integral_indices=(1, 0, 1),
             ),
         }
@@ -458,33 +440,28 @@ def qg_ward_reductions() -> Mapping[str, NumeratorReduction]:
 
 
 def crossed_box_reductions(
-    graphs: Mapping[str, DYGraphSpec] | None = None,
-    numerators: Mapping[str, Expression] | None = None,
+    graphs: Mapping[str, DYGraphSpec],
+    numerators: Mapping[str, Expression],
+    context: DYContext,
 ) -> tuple[
     Expression,
     tuple[tuple[ApartTerm, NumeratorReduction], ...],
 ]:
     """Partial-fraction and numerator-reduce the physical crossed box."""
 
-    graphs = dy_graph_specs() if graphs is None else graphs
-    numerators = physical_numerators() if numerators is None else numerators
     graph = graphs["qq crossed box"]
     denominators = graph.denominators
     numerator = numerators["qq crossed box"]
-    apart_expression, apart_terms = _apart_kernel(
-        denominators,
-        loop_scalar_products=(kk, kp1, kp2),
+    pre_ibp = prepare_pre_ibp(
+        numerator=numerator,
+        loop_denominators=denominators,
+        loop_scalar_products=context.loop_scalar_products,
+        loop_propagator_indices=graph.loop_propagator_indices,
+        delta=context.mass_squared - 2 * context.p1_dot_p2,
+        propagator_powers=graph.propagator_powers,
     )
     reductions = tuple(
-        (
-            term,
-            reduce_numerator(
-                normalize_rational(numerator * term.coefficient),
-                term.denominators,
-                loop_scalar_products=(kk, kp1, kp2),
-            ),
-        )
-        for term in apart_terms
+        zip(pre_ibp.apart_terms, pre_ibp.numerator_reductions, strict=True)
     )
     residual = normalize_rational(
         sum(
@@ -495,7 +472,7 @@ def crossed_box_reductions(
     )
     if residual != E("0"):
         raise ValueError("Crossed-box apart children did not reconstruct the graph")
-    return apart_expression, reductions
+    return pre_ibp.apart_expression, reductions
 
 
 def _coefficient_of_selected_masters(
@@ -518,34 +495,43 @@ def _coefficient_of_selected_masters(
     return normalize_rational(reduced)
 
 
-def _kinematic_rules(*, p1_on_shell: bool, p2_on_shell: bool):
+def _kinematic_rules(
+    graph: DYGraphSpec,
+    cut_name: str,
+    context: DYContext,
+):
+    cutset = graph.cutsets[cut_name]
     rules: list[tuple[Expression, Expression | int]] = []
-    if p1_on_shell:
-        rules.append((p1_squared, E("0")))
-    if p2_on_shell:
-        rules.append((p2_squared, E("0")))
+    if cutset[0]:
+        rules.append((context.p1_squared, E("0")))
+    if cutset[1]:
+        rules.append((context.p2_squared, E("0")))
     return tuple(rules)
 
 
-def _route_kinematic_rules(
-    route: DYFamilyRoute,
-) -> tuple[tuple[Expression, Expression | int], ...]:
-    if route.p1_on_shell is None and route.p2_on_shell is None:
-        return ()
-    if route.p1_on_shell is None or route.p2_on_shell is None:
-        raise ValueError(f"Route {route.topology} has only one on-shell flag")
-    return _kinematic_rules(
-        p1_on_shell=route.p1_on_shell,
-        p2_on_shell=route.p2_on_shell,
+def _project_route(
+    plan: DYProjectPlan,
+    graph_name: str,
+    graph: DYGraphSpec,
+    cut_name: str,
+    source_indices: Sequence[int],
+):
+    project_key = plan.project_key(graph_name, cut_name, source_indices)
+    project = plan.projects[project_key]
+    selected_indices = _selected_cut_indices(
+        graph,
+        cut_name,
+        source_indices,
     )
+    return project_key, project, selected_indices
 
 
 @dataclass(frozen=True, slots=True)
 class ReductionAudit:
     """Exact evidence connecting physical numerators to Kira master coefficients."""
 
-    required_topologies: tuple[str, ...]
-    complete_topologies: tuple[str, ...]
+    required_projects: tuple[DYProjectKey, ...]
+    complete_projects: tuple[DYProjectKey, ...]
     numerator_reconstruction_residuals: Mapping[str, Expression]
     crossed_box_reconstruction_residual: Expression
     virtual_coefficients: Mapping[str, Expression]
@@ -561,48 +547,96 @@ class ReductionAudit:
     crossed_box_expected_residuals: Mapping[str, Expression]
 
     @property
-    def exact(self) -> bool:
-        residuals = (
+    def native_complete(self) -> bool:
+        """Whether graph reconstruction and intrinsic identities are exact.
+
+        This property deliberately excludes every ``*_expected_residuals``
+        mapping: those are regression comparisons with historical closed
+        coefficients, not inputs or prerequisites of the native result.
+        """
+
+        intrinsic_residuals = (
             *self.numerator_reconstruction_residuals.values(),
             self.crossed_box_reconstruction_residual,
+            self.qg_ward_cancellation_residual,
+            normalize_rational(
+                self.virtual_coefficients["virtual triangle 1/10"]
+                - self.virtual_coefficients["virtual triangle 1/01"]
+            ),
+            normalize_rational(
+                self.crossed_box_coefficients["10"]
+                - self.crossed_box_coefficients["01"]
+            ),
+        )
+        return self.complete_projects == self.required_projects and all(
+            residual == E("0") for residual in intrinsic_residuals
+        )
+
+    @property
+    def reference_targets_exact(self) -> bool:
+        """Whether all downstream historical coefficient regressions match."""
+
+        residuals = (
             *self.virtual_expected_residuals.values(),
             *self.direct_box_expected_residuals.values(),
             *self.qg_expected_residuals.values(),
             *self.qg_ward_expected_residuals.values(),
-            self.qg_ward_cancellation_residual,
             *self.crossed_box_expected_residuals.values(),
         )
-        return self.complete_topologies == self.required_topologies and all(
-            residual == E("0") for residual in residuals
-        )
+        return all(residual == E("0") for residual in residuals)
+
+    @property
+    def exact(self) -> bool:
+        """Backward-compatible conjunction of native and regression checks."""
+
+        return self.native_complete and self.reference_targets_exact
 
 
 def audit_physical_reductions(
-    reductions: Mapping[str, ReductionResult],
+    reductions: Mapping[DYProjectKey, ReductionResult],
     *,
-    graphs: Mapping[str, DYGraphSpec] | None = None,
-    numerators: Mapping[str, Expression] | None = None,
+    plan: DYProjectPlan,
+    context: DYContext,
+    graphs: Mapping[str, DYGraphSpec],
+    numerators: Mapping[str, Expression],
+    ward_numerators: Mapping[str, Expression],
 ) -> ReductionAudit:
     """Rebuild key physical IBP coefficients from native Kira rules."""
 
-    graphs = dy_graph_specs() if graphs is None else graphs
-    numerators = physical_numerators() if numerators is None else numerators
-    topology_names = routed_topology_names(graphs)
-    missing = [name for name in topology_names if name not in reductions]
+    d = context.d
+    epsilon = context.epsilon
+    kk = context.kk
+    kp1 = context.kp1
+    kp2 = context.kp2
+    p1_squared = context.p1_squared
+    p2_squared = context.p2_squared
+    p1_dot_p2 = context.p1_dot_p2
+    s = context.s
+    z = context.z
+    mass_squared = context.mass_squared
+
+    project_keys = tuple(plan.projects)
+    missing = [key for key in project_keys if key not in reductions]
     if missing:
-        raise ValueError("Missing physical Kira reductions: " + ", ".join(missing))
+        raise ValueError(
+            "Missing physical Kira reductions: "
+            + ", ".join(map(str, missing))
+        )
     incomplete = [
-        name for name in topology_names if not reductions[name].complete
+        key for key in project_keys if not reductions[key].complete
     ]
     if incomplete:
-        raise ValueError("Incomplete physical Kira reductions: " + ", ".join(incomplete))
+        raise ValueError(
+            "Incomplete physical Kira reductions: "
+            + ", ".join(map(str, incomplete))
+        )
 
-    three_line = numerator_reductions(graphs, numerators)
+    three_line = numerator_reductions(graphs, numerators, context)
     numerator_residuals = {
         name: reduction.reconstruction_residual
         for name, reduction in three_line.items()
     }
-    _, crossed_children = crossed_box_reductions(graphs, numerators)
+    _, crossed_children = crossed_box_reductions(graphs, numerators, context)
     crossed_reconstruction = normalize_rational(
         sum(
             (child.reconstructed_integrand() for _, child in crossed_children),
@@ -612,27 +646,37 @@ def audit_physical_reductions(
         / prod(graphs["qq crossed box"].denominators)
     )
 
-    virtual_configs = {
-        route.topology: (graph.name, route)
-        for graph_name in ("virtual triangle 1", "virtual triangle 2")
-        for graph in (graphs[graph_name],)
-        for route in graph.routes
-    }
+    virtual_configs = (
+        ("virtual triangle 1", "11"),
+        ("virtual triangle 1", "10"),
+        ("virtual triangle 1", "01"),
+        ("virtual triangle 2", "00"),
+    )
     virtual_coefficients: dict[str, Expression] = {}
-    for name, (numerator_name, route) in virtual_configs.items():
-        rules = _route_kinematic_rules(route)
-        if route.selected_indices is None:
-            raise ValueError(f"Virtual route {name} has no selected master")
-        source = three_line[numerator_name]
+    for graph_name, cut_name in virtual_configs:
+        label = f"{graph_name}/{cut_name}"
+        graph = graphs[graph_name]
+        project_key, project, selected_indices = _project_route(
+            plan,
+            graph_name,
+            graph,
+            cut_name,
+            graph.loop_propagator_indices,
+        )
+        if selected_indices is None:
+            raise ValueError(f"Virtual route {label} has no selected master")
+        rules = _kinematic_rules(graph, cut_name, context)
+        source = three_line[graph_name]
         local = reduce_numerator(
             replace_all(source.numerator, rules),
             tuple(replace_all(value, rules) for value in source.denominators),
+            loop_scalar_products=context.loop_scalar_products,
             base_integral_indices=source.base_integral_indices,
         )
-        virtual_coefficients[name] = _coefficient_of_selected_masters(
-            reductions[name],
-            local.family_expression(name),
-            (S(name)(*route.selected_indices),),
+        virtual_coefficients[label] = _coefficient_of_selected_masters(
+            reductions[project_key],
+            local.family_expression(project.family.name),
+            (project.family(*selected_indices),),
             substitutions=(
                 (p1_dot_p2, s / 2),
                 (p1_squared, E("0")),
@@ -640,30 +684,58 @@ def audit_physical_reductions(
             ),
         )
     bubble_source = three_line["virtual bubble"]
-    bubble_route = graphs["virtual bubble"].routes[0]
-    bubble_rules = _route_kinematic_rules(bubble_route)
+    bubble_graph = graphs["virtual bubble"]
+    bubble_project_key, bubble_project, bubble_selected = _project_route(
+        plan,
+        "virtual bubble",
+        bubble_graph,
+        "10",
+        bubble_graph.loop_propagator_indices,
+    )
+    bubble_rules = _kinematic_rules(bubble_graph, "10", context)
+    if bubble_selected is None:
+        raise ValueError("Virtual-bubble cut has no selected master")
     bubble_local = reduce_numerator(
         replace_all(bubble_source.numerator, bubble_rules),
         tuple(
             replace_all(value, bubble_rules)
             for value in bubble_source.denominators
         ),
+        loop_scalar_products=context.loop_scalar_products,
         base_integral_indices=bubble_source.base_integral_indices,
     )
     bubble_with_virtuality = _coefficient_of_selected_masters(
-        reductions[bubble_route.topology],
-        bubble_local.family_expression(bubble_route.topology),
-        (S(bubble_route.topology)(*bubble_route.selected_indices),),
+        reductions[bubble_project_key],
+        bubble_local.family_expression(bubble_project.family.name),
+        (bubble_project.family(*bubble_selected),),
         substitutions=((p1_dot_p2, s / 2),),
     )
+    # Scalarize the tagged Spenso contraction before taking its leading-power
+    # coefficient.  Symbolica's rational-polynomial normalizer deliberately
+    # rejects a tensor contraction in a denominator, even though this audited
+    # expression is exactly proportional to p2_squared.
+    virtuality_placeholder = E("dy_external_virtuality_placeholder")
+    scalar_bubble = bubble_with_virtuality.replace(
+        p2_squared,
+        virtuality_placeholder,
+    )
+    if normalize_rational(
+        scalar_bubble.replace(virtuality_placeholder, 0)
+    ) != E("0"):
+        raise ValueError("External-bubble coefficient has a nonzero constant term")
     virtual_coefficients["external bubble"] = normalize_rational(
-        bubble_with_virtuality / p2_squared
-    ).replace(p2_squared, 0)
+        normalize_rational(scalar_bubble / virtuality_placeholder).replace(
+            virtuality_placeholder,
+            0,
+        )
+    )
     virtual_expected = {
-        "topo5": 2 * s * (d - 2) * (d**2 - 7 * d + 16) / (d - 4),
-        "topo6": -4 * s * (d - 2) ** 2 / (d - 4),
-        "topo7": -4 * s * (d - 2) ** 2 / (d - 4),
-        "topo8": -4 * s**2 * (d - 2),
+        "virtual triangle 1/11": (
+            2 * s * (d - 2) * (d**2 - 7 * d + 16) / (d - 4)
+        ),
+        "virtual triangle 1/10": -4 * s * (d - 2) ** 2 / (d - 4),
+        "virtual triangle 1/01": -4 * s * (d - 2) ** 2 / (d - 4),
+        "virtual triangle 2/00": -4 * s**2 * (d - 2),
         "external bubble": -s * (d - 2) ** 2,
     }
     virtual_residuals = {
@@ -674,24 +746,34 @@ def audit_physical_reductions(
     # Direct box: only the cut-compatible analytic master is retained in each
     # sector.  The other preferred Kira masters are not silently evaluated.
     direct = three_line["qq direct box"]
+    direct_graph = graphs["qq direct box"]
     direct_coefficients: dict[str, Expression] = {}
-    for route in graphs["qq direct box"].routes:
-        name = route.topology
-        if route.selected_indices is None:
-            raise ValueError(f"Direct-box route {name} has no selected master")
-        result = reductions[name]
-        rules = _route_kinematic_rules(route)
+    for cut_name in ("11", "01"):
+        project_key, project, selected_indices = _project_route(
+            plan,
+            "qq direct box",
+            direct_graph,
+            cut_name,
+            direct_graph.loop_propagator_indices,
+        )
+        if selected_indices is None:
+            raise ValueError(
+                f"Direct-box route qq direct box/{cut_name} has no master"
+            )
+        result = reductions[project_key]
+        rules = _kinematic_rules(direct_graph, cut_name, context)
         numerator = replace_all(direct.numerator, rules)
         denominators = tuple(replace_all(value, rules) for value in direct.denominators)
         local = reduce_numerator(
             numerator,
             denominators,
+            loop_scalar_products=context.loop_scalar_products,
             base_integral_indices=(1, 2, 1),
         )
-        keep = S(name)(*route.selected_indices)
+        keep = project.family(*selected_indices)
         coefficient = _coefficient_of_selected_masters(
             result,
-            local.family_expression(name),
+            local.family_expression(project.family.name),
             (keep,),
             substitutions=(
                 (p1_dot_p2, s / 2),
@@ -700,10 +782,10 @@ def audit_physical_reductions(
                 (d, 4 - 2 * epsilon),
             ),
         )
-        direct_coefficients[name] = coefficient
+        direct_coefficients[cut_name] = coefficient
     direct_expected = {
-        "topo10": -8 * (1 - epsilon) ** 3 / epsilon,
-        "topo11": 8 * s * (1 - epsilon) ** 2 * (z - 1 + epsilon),
+        "11": -8 * (1 - epsilon) ** 3 / epsilon,
+        "01": 8 * s * (1 - epsilon) ** 2 * (z - 1 + epsilon),
     }
     direct_residuals = {
         name: normalize_rational(direct_coefficients[name] - expected)
@@ -712,55 +794,66 @@ def audit_physical_reductions(
 
     qg_coefficients: dict[str, Expression] = {}
     for graph_name in ("qg box", "qg triangle", "qg bubble"):
-        for route in graphs[graph_name].routes:
-            topology_name = route.topology
-            if route.selected_indices is None:
+        graph = graphs[graph_name]
+        for cut_name in ("11", "01"):
+            project_key, project, selected_indices = _project_route(
+                plan,
+                graph_name,
+                graph,
+                cut_name,
+                graph.loop_propagator_indices,
+            )
+            if selected_indices is None:
                 raise ValueError(
-                    f"qg route {topology_name} for {graph_name} has no master"
+                    f"qg route {graph_name}/{cut_name} has no master"
                 )
-            rules = _route_kinematic_rules(route)
+            rules = _kinematic_rules(graph, cut_name, context)
             source = three_line[graph_name]
             local = reduce_numerator(
                 replace_all(source.numerator, rules),
                 tuple(replace_all(value, rules) for value in source.denominators),
+                loop_scalar_products=context.loop_scalar_products,
                 base_integral_indices=source.base_integral_indices,
             )
-            keep = S(topology_name)(*route.selected_indices)
+            keep = project.family(*selected_indices)
             coefficient = _coefficient_of_selected_masters(
-                reductions[topology_name],
-                local.family_expression(topology_name),
+                reductions[project_key],
+                local.family_expression(project.family.name),
                 (keep,),
                 substitutions=(
                     (p1_dot_p2, s / 2),
                     (mass_squared, z * s),
-                    (d, 4 - 2 * epsilon),
                 ),
             )
-            if topology_name == "topo11":
+            if cut_name == "01":
                 coefficient = normalize_rational(coefficient).series(
                     p1_squared,
                     0,
                     0,
                 ).to_expression()
-            key = f"{topology_name} {graph_name.removeprefix('qg ')}"
+            coefficient = replace_all(
+                coefficient,
+                ((d, 4 - 2 * epsilon),),
+            )
+            key = f"{cut_name} {graph_name.removeprefix('qg ')}"
             qg_coefficients[key] = normalize_rational(coefficient)
     qg_expected = {
-        "topo10 box": 8
+        "11 box": 8
         * (1 - 2 * epsilon)
         * (1 - epsilon) ** 2
         / (epsilon * (1 - z)),
-        "topo10 triangle": 8
+        "11 triangle": 8
         * (1 - epsilon)
         * (epsilon**2 + z * (1 - epsilon))
         / epsilon,
-        "topo10 bubble": -4 * (1 - epsilon) ** 2 * (1 - z),
-        "topo11 box": 8 * s * (1 - epsilon) ** 3,
-        "topo11 triangle": 8
+        "11 bubble": -4 * (1 - epsilon) ** 2 * (1 - z),
+        "01 box": 8 * s * (1 - epsilon) ** 3,
+        "01 triangle": 8
         * s
         * z
         * (1 - epsilon)
         * (1 - z),
-        "topo11 bubble": E("0"),
+        "01 bubble": E("0"),
     }
     qg_residuals = {
         name: normalize_rational(qg_coefficients[name] - expected)
@@ -768,11 +861,25 @@ def audit_physical_reductions(
     }
 
     ward_coefficients: dict[str, Expression] = {}
-    for graph_name, ward_reduction in qg_ward_reductions().items():
+    ward_graph = graphs["qg box"]
+    ward_project_key, ward_project, ward_selected = _project_route(
+        plan,
+        "qg box",
+        ward_graph,
+        "11",
+        ward_graph.loop_propagator_indices,
+    )
+    if ward_selected is None:
+        raise ValueError("qg Ward route qg box/11 has no selected master")
+    for graph_name, ward_reduction in qg_ward_reductions(
+        ward_graph,
+        ward_numerators,
+        context,
+    ).items():
         ward_coefficients[graph_name] = _coefficient_of_selected_masters(
-            reductions["topo10"],
-            ward_reduction.family_expression("topo10"),
-            (S("topo10")(1, 0, 1),),
+            reductions[ward_project_key],
+            ward_reduction.family_expression(ward_project.family.name),
+            (ward_project.family(*ward_selected),),
         )
     ward_expected = (
         (d - 2)
@@ -789,54 +896,42 @@ def audit_physical_reductions(
         - ward_coefficients["bubble"]
     )
 
-    # Crossed box: consume the declarative cut/family routes above.  Families
-    # whose apart child retains (D0,D2,D3) or (D1,D2,D3) order their last two
-    # propagators oppositely to the native sorted child.
-    crossed_routes = graphs["qq crossed box"].routes
-    crossed_by_retained = {
-        apart_term.retained_indices: (apart_term, child)
-        for apart_term, child in crossed_children
-    }
+    # Crossed box: every apart child stays in native graph source order.
+    crossed_graph = graphs["qq crossed box"]
     crossed_coefficients: dict[str, Expression] = {}
     for cut_name in ("11", "10", "01"):
         sector_sum = E("0")
-        for route in (
-            candidate for candidate in crossed_routes if candidate.cut == cut_name
-        ):
-            if route.retained_indices is None:
-                raise ValueError(f"Crossed route {route.topology} has no apart child")
-            _, child = crossed_by_retained[route.retained_indices]
-            name = route.topology
-            result = reductions[name]
-            rules = _route_kinematic_rules(route)
+        for apart_term, child in crossed_children:
+            source_indices = tuple(
+                crossed_graph.loop_propagator_indices[index]
+                for index in apart_term.retained_indices
+            )
+            project_key, project, selected_indices = _project_route(
+                plan,
+                "qq crossed box",
+                crossed_graph,
+                cut_name,
+                source_indices,
+            )
+            result = reductions[project_key]
+            rules = _kinematic_rules(crossed_graph, cut_name, context)
             numerator = replace_all(child.numerator, rules)
             denominators = tuple(
                 replace_all(value, rules) for value in child.denominators
             )
-            local = reduce_numerator(numerator, denominators)
-            local_expression = local.family_expression(name)
-            if route.retained_indices in {(0, 2, 3), (1, 2, 3)}:
-                # Reorder I(a0,a2,a3) -> I(a0,a3,a2), or its D1 analogue.
-                local_expression = sum(
-                    (
-                        term.coefficient
-                        * S(name)(
-                            term.integral_indices[0],
-                            term.integral_indices[2],
-                            term.integral_indices[1],
-                        )
-                        for term in local.terms
-                    ),
-                    E("0"),
-                )
+            local = reduce_numerator(
+                numerator,
+                denominators,
+                loop_scalar_products=context.loop_scalar_products,
+            )
             selected = (
-                (S(name)(*route.selected_indices),)
-                if route.selected_indices is not None
+                (project.family(*selected_indices),)
+                if selected_indices is not None
                 else ()
             )
             sector_sum += _coefficient_of_selected_masters(
                 result,
-                local_expression,
+                local.family_expression(project.family.name),
                 selected,
                 substitutions=(
                     (p1_dot_p2, s / 2),
@@ -878,9 +973,9 @@ def audit_physical_reductions(
         for name, expected in crossed_expected.items()
     }
     return ReductionAudit(
-        required_topologies=topology_names,
-        complete_topologies=tuple(
-            name for name in topology_names if reductions[name].complete
+        required_projects=project_keys,
+        complete_projects=tuple(
+            key for key in project_keys if reductions[key].complete
         ),
         numerator_reconstruction_residuals=MappingProxyType(numerator_residuals),
         crossed_box_reconstruction_residual=crossed_reconstruction,
@@ -936,7 +1031,34 @@ class EndpointCoefficient:
             regular=(factor * self.regular).expand(),
         )
 
-    def canonical(self, variable: Expression = z) -> "EndpointCoefficient":
+    def multiply_smooth(
+        self,
+        factor: Expression | int,
+        variable: Expression,
+    ) -> "EndpointCoefficient":
+        r"""Multiply the distribution by a function smooth at ``variable=1``.
+
+        The endpoint value multiplies ``delta(1-variable)``.  The plus
+        prefactors retain the smooth function until :meth:`canonical` moves
+        their non-endpoint parts into the ordinary remainder.  Keeping this
+        operation explicit prevents the invalid global ``z -> 1`` replacement
+        used by the historical DY scheme-change cell.
+        """
+
+        factor_expression = (
+            factor if isinstance(factor, Expression) else E(str(factor))
+        )
+        endpoint_factor = factor_expression.replace(variable, 1)
+        if endpoint_factor.contains(variable):
+            raise ValueError("Could not evaluate smooth factor at the endpoint")
+        return EndpointCoefficient(
+            delta=(endpoint_factor * self.delta).expand(),
+            d0_prefactor=(factor_expression * self.d0_prefactor).expand(),
+            d1_prefactor=(factor_expression * self.d1_prefactor).expand(),
+            regular=(factor_expression * self.regular).expand(),
+        ).canonical(variable)
+
+    def canonical(self, variable: Expression) -> "EndpointCoefficient":
         d0_endpoint = self.d0_prefactor.replace(variable, 1)
         d1_endpoint = self.d1_prefactor.replace(variable, 1)
         remainder = (
@@ -964,9 +1086,10 @@ class EndpointCoefficient:
             )
         )
 
-    @property
-    def is_zero(self) -> bool:
-        canonical = self.canonical()
+    def is_zero_for(self, variable: Expression) -> bool:
+        """Test distributional equality in the supplied endpoint variable."""
+
+        canonical = self.canonical(variable)
         return all(value == E("0") for value in canonical.residuals())
 
 
@@ -982,9 +1105,11 @@ class ChannelAssembly:
 class MasterInsertion:
     """One audited IBP coefficient inserted into one analytic master."""
 
+    graph_name: str
+    cut_name: str
     channel: str
     sector: str
-    topologies: tuple[str, ...]
+    projects: tuple[str, ...]
     ibp_coefficient: Expression
     analytic_master: Expression
     virtuality_factor: Expression = E("1")
@@ -1003,11 +1128,118 @@ class MasterInsertion:
 
 
 @dataclass(frozen=True, slots=True)
+class NativeDYSchemeChange:
+    """DY ``MP - PM`` difference assembled only from native graph sectors.
+
+    The common parton-model cuts are absent by construction.  The retained
+    insertion names identify the complementary initial-state and all-cut
+    sectors whose analytic masters form the difference.  The physical quark
+    result uses the AEM/convolution normalization.  A separate field retains
+    the exact smooth multiplication by ``z`` used only to compare with the
+    historical scheme-cell normalization.
+    """
+
+    insertions: Mapping[str, MasterInsertion]
+    insertion_names: Mapping[str, tuple[str, ...]]
+    cut_membership_coefficients: Mapping[str, Expression]
+    observable_phases: Mapping[str, Expression]
+    qg_pieces: Mapping[str, Expression]
+    qg_mp_minus_pm: Expression
+    qg_double_pole_coefficient: Expression
+    qg_single_pole_coefficient: Expression
+    qq_virtual_triangle: EndpointCoefficient
+    qq_external_bubbles: EndpointCoefficient
+    qq_direct: EndpointCoefficient
+    qq_crossed: EndpointCoefficient
+    qq_mp_minus_pm: EndpointCoefficient
+    qq_historical_z_normalization: EndpointCoefficient
+    qq_double_pole_coefficient: EndpointCoefficient
+    qq_single_pole_coefficient: EndpointCoefficient
+
+    def internally_consistent(self, variable: Expression) -> bool:
+        qg_sum = normalize_rational(
+            sum(self.qg_pieces.values(), E("0")) - self.qg_mp_minus_pm
+        )
+        qq_sum = (
+            self.qq_virtual_triangle
+            + self.qq_external_bubbles
+            + self.qq_direct
+            + self.qq_crossed
+            - self.qq_mp_minus_pm
+        )
+        historical_normalization_residual = (
+            self.qq_mp_minus_pm.multiply_smooth(variable, variable)
+            - self.qq_historical_z_normalization
+        )
+        return (
+            qg_sum == E("0")
+            and qq_sum.is_zero_for(variable)
+            and historical_normalization_residual.is_zero_for(variable)
+            and self.qg_double_pole_coefficient == E("0")
+            and self.qq_double_pole_coefficient.is_zero_for(variable)
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class NativeDYOneLegSchemeKernel:
+    """Colour-stripped one-leg output contract of the native DY assembly.
+
+    This object is downstream of :func:`build_native_dy_scheme_change`; it is
+    never an input to that graph/master assembly.  The DY notebook proves that
+    the sum of two such records reconstructs the native two-leg result exactly,
+    allowing another process to compare against a small public interface
+    without importing a private Kira cache.
+    """
+
+    qq: EndpointCoefficient
+    qg: Expression
+
+
+def native_dy_one_leg_scheme_kernel(
+    variable: Expression,
+    regulator: Expression,
+    hard_scale_squared: Expression,
+    cutoff_squared: Expression,
+) -> NativeDYOneLegSchemeKernel:
+    """Return the canonical one-leg form certified by the native DY notebook."""
+
+    pi = Expression.PI
+    scale_log = hard_scale_squared.log() - cutoff_squared.log()
+    pqq = EndpointCoefficient(
+        delta=E("3/2"),
+        d0_prefactor=E("2"),
+        regular=-(1 + variable),
+    )
+    qq = (
+        pqq.scaled(1 / regulator + scale_log)
+        + EndpointCoefficient(
+            delta=E("7/2") - pi**2 / 3,
+            d1_prefactor=E("-2"),
+            regular=(
+                variable
+                - 2
+                - (1 + variable**2) * variable.log() / (1 - variable)
+                + (1 + variable) * (1 - variable).log()
+            ),
+        )
+    ).canonical(variable)
+    pqg = variable**2 + (1 - variable) ** 2
+    qg = normalize_rational(
+        pqg * (1 / regulator + scale_log)
+        - 2
+        - pqg * (variable.log() + (1 - variable).log())
+    )
+    return NativeDYOneLegSchemeKernel(qq=qq, qg=qg)
+
+
+@dataclass(frozen=True, slots=True)
 class AnalyticMasterHandoff:
     """Explicit Kira-to-master ledger used by the physical assembly.
 
     The direct qqbar and qg channels are independently Laurent-expanded from
-    these expressions and checked against their finite graph ledgers.  The
+    these expressions and checked against their finite graph ledgers.  The two
+    external-bubble insertions are also summed through finite order and checked
+    against the MP/PM endpoint correction.  The
     distribution-valued crossed box is expanded cut by cut, including its
     analytic ``00`` master; both pole cancellation and its complete finite
     delta/plus coefficient are checked exactly.
@@ -1021,21 +1253,34 @@ class AnalyticMasterHandoff:
     qg_normalized_raw: Expression
     qg_finite: Expression
     qg_finite_residual: Expression
+    external_bubble_through_finite: EndpointCoefficient
+    external_bubble_expected_residual: EndpointCoefficient
     crossed_cut_endpoint: Mapping[str, EndpointCoefficient]
     crossed_pole_residuals: Mapping[int, EndpointCoefficient]
     crossed_finite: EndpointCoefficient
     crossed_finite_residual: EndpointCoefficient
+    scheme_change: NativeDYSchemeChange
 
-    @property
-    def finite_checks_exact(self) -> bool:
+    def native_checks_exact(self, variable: Expression) -> bool:
+        """Check only master identities that do not use a closed target."""
+
         return (
-            bool(self.direct_finite_residual == E("0"))
-            and bool(self.qg_finite_residual == E("0"))
+            self.scheme_change.internally_consistent(variable)
             and all(
-                residual.is_zero
+                residual.is_zero_for(variable)
                 for residual in self.crossed_pole_residuals.values()
             )
-            and self.crossed_finite_residual.is_zero
+        )
+
+    def finite_checks_exact(self, variable: Expression) -> bool:
+        """Check native identities and downstream closed-form regressions."""
+
+        return (
+            self.native_checks_exact(variable)
+            and bool(self.direct_finite_residual == E("0"))
+            and bool(self.qg_finite_residual == E("0"))
+            and self.external_bubble_expected_residual.is_zero_for(variable)
+            and self.crossed_finite_residual.is_zero_for(variable)
         )
 
 
@@ -1058,9 +1303,17 @@ class FullDYCoefficient:
     master_handoff: AnalyticMasterHandoff | None = None
 
 
-def _positive_branch_log_rules() -> tuple[tuple[Expression, Expression], ...]:
+def _positive_branch_log_rules(
+    context: DYContext,
+) -> tuple[tuple[Expression, Expression], ...]:
     """Logarithm identities for the stated positive DY kinematic region."""
 
+    mu_r_squared = context.mu_r_squared
+    s = context.s
+    z = context.z
+    lambda1_squared = context.lambda1_squared
+    lambda2_squared = context.lambda2_squared
+    pi = context.pi
     gamma_e = Expression.EULER_GAMMA
     log_two = E("log(2)")
     return (
@@ -1083,6 +1336,14 @@ def _positive_branch_log_rules() -> tuple[tuple[Expression, Expression], ...]:
         (
             (s.sqrt() / 2 - s.sqrt() * z / 2).log(),
             -log_two + s.log() / 2 + (1 - z).log(),
+        ),
+        (
+            (s**2).sqrt(),
+            s,
+        ),
+        (
+            (s**2).log(),
+            2 * s.log(),
         ),
         (
             (
@@ -1121,35 +1382,72 @@ def _positive_branch_log_rules() -> tuple[tuple[Expression, Expression], ...]:
             E("symbolica::polygamma(1,2)"),
             pi**2 / 6 - 1,
         ),
+        (
+            E("symbolica::polygamma(1,3/2)"),
+            pi**2 / 2 - 4,
+        ),
     )
 
 
-def _expand_positive_branch_logs(expression: Expression) -> Expression:
+def _expand_positive_branch_logs(
+    expression: Expression,
+    context: DYContext,
+) -> Expression:
     """Apply positive-region log identities to a stable rational fixed point."""
 
     result = expression
     for _ in range(3):
-        result = replace_all(result, _positive_branch_log_rules())
+        result = replace_all(result, _positive_branch_log_rules(context))
         result = normalize_rational(result)
     return result
 
 
-def _finite_laurent_coefficient(expression: Expression) -> Expression:
+def _positive_branch_before_series(
+    expression: Expression,
+    context: DYContext,
+) -> Expression:
+    """Expose integer powers of positive ``s`` before a Laurent expansion."""
+
+    s = context.s
+    epsilon = context.epsilon
+    return replace_all(
+        expression,
+        (
+            (s ** (1 + epsilon), s * s**epsilon),
+            (s ** (-1 + epsilon), s**epsilon / s),
+            (s ** (-2 + epsilon), s**epsilon / s**2),
+        ),
+    )
+
+
+def _finite_laurent_coefficient(
+    expression: Expression,
+    context: DYContext,
+) -> Expression:
     """Extract the exact epsilon^0 coefficient and expand its DY logarithms."""
 
-    finite = expression.series(epsilon, 0, 0).get_coefficient(0)
-    return _expand_positive_branch_logs(finite)
+    finite = _positive_branch_before_series(expression, context).series(
+        context.epsilon,
+        0,
+        0,
+    ).get_coefficient(0)
+    return _expand_positive_branch_logs(finite, context)
 
 
 def _endpoint_laurent_coefficient(
     coefficient: EndpointCoefficient,
     power: int,
+    context: DYContext,
 ) -> EndpointCoefficient:
     """Extract one Laurent power from every endpoint-basis component."""
 
     def extract(expression: Expression) -> Expression:
-        value = expression.series(epsilon, 0, 0).get_coefficient(power)
-        return _expand_positive_branch_logs(value)
+        value = _positive_branch_before_series(expression, context).series(
+            context.epsilon,
+            0,
+            0,
+        ).get_coefficient(power)
+        return _expand_positive_branch_logs(value, context)
 
     return EndpointCoefficient(
         delta=extract(coefficient.delta),
@@ -1159,13 +1457,668 @@ def _endpoint_laurent_coefficient(
     )
 
 
+def _endpoint_through_finite(
+    coefficient: EndpointCoefficient,
+    context: DYContext,
+) -> EndpointCoefficient:
+    """Laurent-expand every endpoint component through ``epsilon^0``."""
+
+    def expand(expression: Expression) -> Expression:
+        value = _positive_branch_before_series(expression, context).series(
+            context.epsilon,
+            0,
+            0,
+        ).to_expression()
+        return _expand_positive_branch_logs(value, context)
+
+    return EndpointCoefficient(
+        delta=expand(coefficient.delta),
+        d0_prefactor=expand(coefficient.d0_prefactor),
+        d1_prefactor=expand(coefficient.d1_prefactor),
+        regular=expand(coefficient.regular),
+    ).canonical(context.z)
+
+
+def derive_external_bubble_scheme_correction(
+    context: DYContext,
+    *,
+    bubble_coefficient: Expression,
+) -> EndpointCoefficient:
+    """Derive the two incoming external-bubble terms through finite order.
+
+    The historical scheme-change cell set both half-weighted ``valv5`` terms
+    to zero.  This reconstruction starts instead from the audited bubble IBP
+    coefficient, the analytic massless cut-bubble master, the two explicit
+    virtuality integrals, and the source Born normalization.  It is therefore
+    an independent master-level derivation of the endpoint correction needed
+    by the MP/PM universality check.
+    """
+
+    from calculations.dy.python.masters import (
+        massless_cut_bubble,
+        virtuality_integral_factor,
+    )
+
+    epsilon = context.epsilon
+    s = context.s
+    alpha_s = context.alpha_s
+    color_f = context.color_f
+    color_t = context.color_t
+    electric_charge = context.electric_charge
+    strong_coupling = context.strong_coupling
+    color_count = context.color_count
+    lambda1_squared = context.lambda1_squared
+    lambda2_squared = context.lambda2_squared
+    mu_r_squared = context.mu_r_squared
+    pi = context.pi
+    dimension = 4 - 2 * epsilon
+    stripped_master = massless_cut_bubble(
+        E("1"),
+        dimension=dimension,
+        epsilon=epsilon,
+        mu_squared=mu_r_squared,
+        euler_gamma=Expression.EULER_GAMMA,
+    )
+    selected_bubble_coefficient = replace_all(
+        bubble_coefficient,
+        ((context.d, dimension),),
+    )
+    bubble_insertions = sum(
+        (
+            -E("1/2")
+            * selected_bubble_coefficient
+            * stripped_master
+            * virtuality_integral_factor(cutoff, epsilon)
+            for cutoff in (lambda1_squared, lambda2_squared)
+        ),
+        E("0"),
+    )
+    common_graph_factor = (
+        electric_charge**2
+        * strong_coupling**2
+        * color_t
+        * (color_count**2 - 1)
+    )
+    born_normalization = 1 / (
+        4
+        * color_count
+        * s
+        * electric_charge**2
+        * (1 - epsilon)
+    )
+    normalized = replace_all(
+        born_normalization * common_graph_factor * bubble_insertions,
+        (
+            (strong_coupling**2, 4 * pi * alpha_s),
+            (color_t, E("1")),
+            (color_count**2 - 1, 2 * color_count * color_f),
+        ),
+    )
+    through_finite = normalized.series(epsilon, 0, 0).to_expression()
+    return EndpointCoefficient(
+        delta=_expand_positive_branch_logs(through_finite, context)
+    )
+
+
+def _native_scheme_master_insertions(
+    audit: ReductionAudit,
+    context: DYContext,
+    graphs: Mapping[str, DYGraphSpec],
+) -> Mapping[str, MasterInsertion]:
+    """Build only the analytic-master insertions needed by ``MP - PM``.
+
+    Every coefficient comes from ``audit``.  Master functions are imported
+    from the application-local analytic-master notebook.  The master-
+    convention cut weight and the physical observable phase are independent
+    notebook-owned graph inputs.
+    """
+
+    from calculations.dy.python.masters import (
+        massive_cut_triangle,
+        massless_cut_bubble,
+        massless_cut_triangle,
+        maximal_cross_box_cut_master,
+        virtuality_integral_factor,
+    )
+
+    epsilon = context.epsilon
+    s = context.s
+    z = context.z
+    dimension = 4 - 2 * epsilon
+    master_arguments = {
+        "dimension": dimension,
+        "epsilon": epsilon,
+        "mu_squared": context.mu_r_squared,
+        "euler_gamma": Expression.EULER_GAMMA,
+    }
+    massive_triangle_raw = massive_cut_triangle(
+        E("1"),
+        s,
+        z * s,
+        **master_arguments,
+    )
+    massive_gram = s**2 * z * (1 - z)
+    # Resolve the supported 0<z<1, s>0 branch before endpoint algebra so the
+    # (1-z)^(-epsilon) factor is explicit rather than hidden in a composite
+    # fractional power.
+    massive_triangle = normalize_rational(
+        massive_triangle_raw
+        * massive_gram**epsilon
+        / (s ** (2 * epsilon) * z**epsilon * (1 - z) ** epsilon)
+    )
+    massless_bubble = massless_cut_bubble(E("1"), **master_arguments)
+    massless_triangle_raw = massless_cut_triangle(
+        E("1"),
+        E("1"),
+        -s,
+        **master_arguments,
+    )
+    # Choose the declared positive-s branch before any Laurent expansion.
+    massless_triangle = normalize_rational(
+        massless_triangle_raw
+        * (s**2) ** (E("1/2") - epsilon)
+        / s ** (1 - 2 * epsilon)
+    )
+    maximal_crossed_raw = maximal_cross_box_cut_master(
+        s,
+        **master_arguments,
+    )
+    maximal_crossed = normalize_rational(
+        maximal_crossed_raw
+        * (s**2) ** (E("1/2") - epsilon)
+        / s ** (1 - 2 * epsilon)
+    )
+    j1 = virtuality_integral_factor(context.lambda1_squared, epsilon)
+    j2 = virtuality_integral_factor(context.lambda2_squared, epsilon)
+
+    def weight(
+        graph_name: str,
+        cut_name: str,
+        *,
+        mirror_count: int = 1,
+    ) -> Expression:
+        graph = graphs[graph_name]
+        return (
+            graph.scheme_observable_phase
+            * graph.cut_weights[cut_name]
+            / mirror_count
+        )
+
+    def make(
+        graph_name: str,
+        cut_name: str,
+        channel: str,
+        sector: str,
+        projects: tuple[str, ...],
+        coefficient: Expression,
+        master: Expression,
+        *,
+        virtuality_factor: Expression = E("1"),
+        mirror_count: int = 1,
+    ) -> MasterInsertion:
+        return MasterInsertion(
+            graph_name=graph_name,
+            cut_name=cut_name,
+            channel=channel,
+            sector=sector,
+            projects=projects,
+            ibp_coefficient=coefficient,
+            analytic_master=master,
+            virtuality_factor=virtuality_factor,
+            relative_weight=weight(
+                graph_name,
+                cut_name,
+                mirror_count=mirror_count,
+            ),
+        )
+
+    dimension_rule = ((context.d, dimension),)
+    return MappingProxyType(
+        {
+            "virtual p2-cut": make(
+                "virtual triangle 1",
+                "10",
+                "virtual",
+                "p2-cut triangle",
+                ("virtual triangle 1/10",),
+                replace_all(
+                    audit.virtual_coefficients["virtual triangle 1/10"],
+                    dimension_rule,
+                ),
+                massless_bubble,
+                virtuality_factor=j2,
+            ),
+            "virtual p1-cut": make(
+                "virtual triangle 1",
+                "01",
+                "virtual",
+                "p1-cut triangle",
+                ("virtual triangle 1/01",),
+                replace_all(
+                    audit.virtual_coefficients["virtual triangle 1/01"],
+                    dimension_rule,
+                ),
+                massless_bubble,
+                virtuality_factor=j1,
+            ),
+            "virtual double-cut": make(
+                "virtual triangle 2",
+                "00",
+                "virtual",
+                "double-cut triangle",
+                ("virtual triangle 2/00",),
+                replace_all(
+                    audit.virtual_coefficients["virtual triangle 2/00"],
+                    dimension_rule,
+                ),
+                massless_triangle,
+                virtuality_factor=j1 * j2,
+            ),
+            "external bubble p1": make(
+                "virtual bubble",
+                "10",
+                "virtual",
+                "external bubble p1",
+                ("virtual bubble/10",),
+                replace_all(
+                    audit.virtual_coefficients["external bubble"],
+                    dimension_rule,
+                ),
+                massless_bubble,
+                virtuality_factor=j1,
+                mirror_count=2,
+            ),
+            "external bubble p2": make(
+                "virtual bubble",
+                "10",
+                "virtual",
+                "external bubble p2",
+                ("virtual bubble/10",),
+                replace_all(
+                    audit.virtual_coefficients["external bubble"],
+                    dimension_rule,
+                ),
+                massless_bubble,
+                virtuality_factor=j2,
+                mirror_count=2,
+            ),
+            "direct p1-cut": make(
+                "qq direct box",
+                "01",
+                "direct qqbar",
+                "p1-cut mirror",
+                ("qq direct box/01",),
+                audit.direct_box_coefficients["01"],
+                massive_triangle,
+                virtuality_factor=j1,
+                mirror_count=2,
+            ),
+            "direct p2-cut": make(
+                "qq direct box",
+                "01",
+                "direct qqbar",
+                "p2-cut mirror",
+                ("qq direct box/01",),
+                audit.direct_box_coefficients["01"],
+                massive_triangle,
+                virtuality_factor=j2,
+                mirror_count=2,
+            ),
+            "crossed 10": make(
+                "qq crossed box",
+                "10",
+                "crossed qqbar",
+                "10",
+                ("qq crossed box/10 (four apart children)",),
+                audit.crossed_box_coefficients["10"],
+                massive_triangle,
+                virtuality_factor=j2,
+            ),
+            "crossed 01": make(
+                "qq crossed box",
+                "01",
+                "crossed qqbar",
+                "01",
+                ("qq crossed box/01 (four apart children)",),
+                audit.crossed_box_coefficients["01"],
+                massive_triangle,
+                virtuality_factor=j1,
+            ),
+            "crossed 00": make(
+                "qq crossed box",
+                "00",
+                "crossed qqbar",
+                "00",
+                (),
+                audit.crossed_box_coefficients["00"],
+                maximal_crossed,
+                virtuality_factor=j1 * j2,
+            ),
+            "qg box p1-cut": make(
+                "qg box",
+                "01",
+                "qg",
+                "box p1-cut mirror",
+                ("qg box/01",),
+                audit.qg_coefficients["01 box"],
+                massive_triangle,
+                virtuality_factor=j1,
+                mirror_count=2,
+            ),
+            "qg box p2-cut": make(
+                "qg box",
+                "01",
+                "qg",
+                "box p2-cut mirror",
+                ("qg box/01",),
+                audit.qg_coefficients["01 box"],
+                massive_triangle,
+                virtuality_factor=j2,
+                mirror_count=2,
+            ),
+            "qg triangle p1-cut": make(
+                "qg triangle",
+                "01",
+                "qg",
+                "triangle p1-cut mirror",
+                ("qg triangle/01",),
+                audit.qg_coefficients["01 triangle"],
+                massive_triangle,
+                virtuality_factor=j1,
+                mirror_count=2,
+            ),
+            "qg triangle p2-cut": make(
+                "qg triangle",
+                "01",
+                "qg",
+                "triangle p2-cut mirror",
+                ("qg triangle/01",),
+                audit.qg_coefficients["01 triangle"],
+                massive_triangle,
+                virtuality_factor=j2,
+                mirror_count=2,
+            ),
+        }
+    )
+
+
+def build_native_dy_scheme_change(
+    audit: ReductionAudit,
+    context: DYContext,
+    graphs: Mapping[str, DYGraphSpec],
+) -> NativeDYSchemeChange:
+    """Derive the DY ``MP - PM`` kernel from native cuts and masters only.
+
+    This public boundary deliberately has no ``FullDYCoefficient``,
+    Mathematica, LaTeX, or paper argument.  It consumes the graph-derived Kira
+    audit, notebook-declared unsigned cut membership, master-convention cut
+    weights, observable phases, and analytic master functions.  Reference
+    formulas can therefore only be compared downstream.
+    """
+
+    if not audit.native_complete:
+        raise ValueError(
+            "Native DY MP-PM assembly requires complete graph reductions "
+            "and exact intrinsic reconstruction identities"
+        )
+
+    from calculations.dy.python.masters import (
+        apply_endpoint_expansion,
+        endpoint_distribution_expansion,
+    )
+
+    epsilon = context.epsilon
+    z = context.z
+    pi = context.pi
+    alpha_s = context.alpha_s
+    color_f = context.color_f
+    insertions = _native_scheme_master_insertions(audit, context, graphs)
+    insertion_names = MappingProxyType(
+        {
+            graph_name: tuple(
+                name
+                for name, item in insertions.items()
+                if item.graph_name == graph_name
+                and graph.scheme_membership_coefficient(item.cut_name)
+                != E("0")
+            )
+            for graph_name, graph in graphs.items()
+            if graph.mp_only_cuts or graph.pm_only_cuts
+        }
+    )
+    cut_membership_coefficients = MappingProxyType(
+        {
+            f"{graph_name}/{cut_name}": graph.scheme_membership_coefficient(
+                cut_name
+            )
+            for graph_name, graph in graphs.items()
+            for cut_name in graph.mp_only_cuts + graph.pm_only_cuts
+        }
+    )
+    observable_phases = MappingProxyType(
+        {
+            graph_name: graph.scheme_observable_phase
+            for graph_name, graph in graphs.items()
+            if graph.mp_only_cuts or graph.pm_only_cuts
+        }
+    )
+
+    def selected_value(name: str) -> Expression:
+        item = insertions[name]
+        return (
+            graphs[item.graph_name].scheme_membership_coefficient(item.cut_name)
+            * item.value
+        )
+
+    def scalar_through_finite(value: Expression) -> Expression:
+        expanded = _positive_branch_before_series(value, context).series(
+            epsilon,
+            0,
+            0,
+        ).to_expression()
+        return _expand_positive_branch_logs(expanded, context)
+
+    qg_common = (
+        context.electric_charge**2
+        * context.strong_coupling**2
+        * context.color_t
+    )
+    qg_normalization = 1 / (
+        8 * pi * (1 - epsilon) * context.electric_charge**2
+    )
+    qg_pieces: dict[str, Expression] = {}
+    for graph_name in ("qg box", "qg triangle"):
+        raw = qg_common * sum(
+            (selected_value(name) for name in insertion_names[graph_name]),
+            E("0"),
+        )
+        normalized = replace_all(
+            qg_normalization * raw,
+            ((context.strong_coupling**2, 4 * pi * alpha_s),),
+        )
+        qg_pieces[graph_name] = scalar_through_finite(normalized)
+    qg_total = normalize_rational(sum(qg_pieces.values(), E("0")))
+
+    def scalar_laurent_coefficient(
+        value: Expression,
+        power: int,
+    ) -> Expression:
+        coefficient = _positive_branch_before_series(value, context).series(
+            epsilon,
+            0,
+            0,
+        ).get_coefficient(power)
+        return _expand_positive_branch_logs(coefficient, context)
+
+    qg_double_pole = scalar_laurent_coefficient(qg_total, -2)
+    qg_single_pole = scalar_laurent_coefficient(qg_total, -1)
+
+    qq_common = (
+        context.electric_charge**2
+        * context.strong_coupling**2
+        * context.color_t
+        * (context.color_count**2 - 1)
+    )
+    virtual_normalization = 1 / (
+        4
+        * context.color_count
+        * context.s
+        * context.electric_charge**2
+        * (1 - epsilon)
+    )
+    virtual_replacements = (
+        (context.strong_coupling**2, 4 * pi * alpha_s),
+        (context.color_t, E("1")),
+        (
+            context.color_count**2 - 1,
+            2 * context.color_count * color_f,
+        ),
+    )
+
+    def virtual_endpoint(names: tuple[str, ...]) -> EndpointCoefficient:
+        raw = qq_common * sum(
+            (selected_value(name) for name in names),
+            E("0"),
+        )
+        normalized = replace_all(
+            virtual_normalization * raw,
+            virtual_replacements,
+        )
+        return _endpoint_through_finite(
+            EndpointCoefficient(delta=normalized),
+            context,
+        )
+
+    qq_virtual_triangle = virtual_endpoint(
+        insertion_names["virtual triangle 1"]
+        + insertion_names["virtual triangle 2"]
+    )
+    qq_external_bubbles = virtual_endpoint(
+        insertion_names["virtual bubble"]
+    )
+
+    qq_normalization = 1 / (
+        4
+        * context.color_count
+        * pi
+        * context.electric_charge**2
+        * (1 - epsilon)
+    )
+    direct_raw = qq_common * sum(
+        (
+            selected_value(name)
+            for name in insertion_names["qq direct box"]
+        ),
+        E("0"),
+    )
+    direct_normalized = replace_all(
+        qq_normalization * direct_raw,
+        (
+            (context.strong_coupling**2, 4 * pi * alpha_s),
+            (context.color_t, E("1/2")),
+            (
+                context.color_count**2 - 1,
+                2 * context.color_count * color_f,
+            ),
+        ),
+    )
+    qq_direct = _endpoint_through_finite(
+        EndpointCoefficient(regular=direct_normalized),
+        context,
+    )
+
+    def endpoint_from_raw_master(
+        name: str,
+        exponent_multiple: int,
+    ) -> EndpointCoefficient:
+        # The endpoint expansion helper represents
+        # (1-z)^(-1-exponent_multiple*epsilon); strip exactly that factor
+        # from the graph-weighted analytic master to obtain its smooth part.
+        normalized_raw = (
+            alpha_s
+            * color_f
+            / (1 - epsilon)
+            * selected_value(name)
+        )
+        smooth = normalize_rational(
+            normalized_raw
+            * (1 - z) ** (1 + exponent_multiple * epsilon)
+        )
+        distribution = apply_endpoint_expansion(
+            endpoint_distribution_expansion(
+                exponent_multiple,
+                epsilon,
+                order=1,
+            ),
+            smooth,
+            z,
+        )
+        return EndpointCoefficient(
+            delta=distribution.delta_coefficient,
+            d0_prefactor=distribution.plus_coefficients[0],
+            d1_prefactor=distribution.plus_coefficients[1],
+            regular=distribution.regular_part,
+        )
+
+    qq_crossed_raw = (
+        endpoint_from_raw_master("crossed 10", 1)
+        + endpoint_from_raw_master("crossed 01", 1)
+        + EndpointCoefficient(
+            delta=(
+                alpha_s
+                * color_f
+                / (1 - epsilon)
+                * selected_value("crossed 00")
+            )
+        )
+    )
+    qq_crossed = _endpoint_through_finite(qq_crossed_raw, context)
+    qq_total = (
+        qq_virtual_triangle
+        + qq_external_bubbles
+        + qq_direct
+        + qq_crossed
+    ).canonical(z)
+    # The graph/master sum is already in the physical AEM/convolution
+    # normalization.  Multiplication by z belongs only to the historical
+    # DY-to-DIS comparison convention and must not redefine the native kernel.
+    qq_historical_z_normalization = qq_total.multiply_smooth(z, z)
+    qq_double_pole = _endpoint_laurent_coefficient(qq_total, -2, context)
+    qq_single_pole = _endpoint_laurent_coefficient(qq_total, -1, context)
+    result = NativeDYSchemeChange(
+        insertions=insertions,
+        insertion_names=insertion_names,
+        cut_membership_coefficients=cut_membership_coefficients,
+        observable_phases=observable_phases,
+        qg_pieces=MappingProxyType(qg_pieces),
+        qg_mp_minus_pm=qg_total,
+        qg_double_pole_coefficient=qg_double_pole,
+        qg_single_pole_coefficient=qg_single_pole,
+        qq_virtual_triangle=qq_virtual_triangle,
+        qq_external_bubbles=qq_external_bubbles,
+        qq_direct=qq_direct,
+        qq_crossed=qq_crossed,
+        qq_mp_minus_pm=qq_total,
+        qq_historical_z_normalization=qq_historical_z_normalization,
+        qq_double_pole_coefficient=qq_double_pole,
+        qq_single_pole_coefficient=qq_single_pole,
+    )
+    if not result.internally_consistent(z):
+        raise ValueError("Native DY MP-PM graph assembly is internally inconsistent")
+    return result
+
+
 def build_analytic_master_handoff(
     audit: ReductionAudit,
     coefficient: FullDYCoefficient,
+    context: DYContext,
+    graphs: Mapping[str, DYGraphSpec],
+    *,
+    scheme_change: NativeDYSchemeChange,
 ) -> AnalyticMasterHandoff:
     """Insert the audited coefficients into the application-local masters."""
 
-    from masters import (
+    from calculations.dy.python.masters import (
         apply_endpoint_expansion,
         endpoint_distribution_expansion,
         massive_cut_bubble,
@@ -1177,6 +2130,19 @@ def build_analytic_master_handoff(
         virtuality_integral_factor,
     )
 
+    epsilon = context.epsilon
+    s = context.s
+    z = context.z
+    alpha_s = context.alpha_s
+    color_f = context.color_f
+    color_t = context.color_t
+    electric_charge = context.electric_charge
+    strong_coupling = context.strong_coupling
+    color_count = context.color_count
+    lambda1_squared = context.lambda1_squared
+    lambda2_squared = context.lambda2_squared
+    mu_r_squared = context.mu_r_squared
+    pi = context.pi
     dimension = 4 - 2 * epsilon
     gamma_e = Expression.EULER_GAMMA
     master_arguments = {
@@ -1203,11 +2169,20 @@ def build_analytic_master_handoff(
         E("1"),
         **master_arguments,
     )
-    massless_triangle_stripped = massless_cut_triangle(
+    massless_triangle_stripped_raw = massless_cut_triangle(
         E("1"),
         E("1"),
         -s,
         **master_arguments,
+    )
+    # In the declared physical region s>0, the triangle Gram factor obeys
+    # (s^2)^(1/2-epsilon)=s^(1-2 epsilon).  Make that branch choice before the
+    # Laurent expansion; an exact atom replacement cannot see a fractional
+    # power after Symbolica has moved it into a rational denominator.
+    massless_triangle_stripped = normalize_rational(
+        massless_triangle_stripped_raw
+        * (s**2) ** (E("1/2") - epsilon)
+        / s ** (1 - 2 * epsilon)
     )
     ordinary_bubble = uncut_bubble(s, **master_arguments)
     maximal_crossed = maximal_cross_box_cut_master(
@@ -1218,9 +2193,11 @@ def build_analytic_master_handoff(
     j2 = virtuality_integral_factor(lambda2_squared, epsilon)
 
     def insertion(
+        graph_name: str,
+        cut_name: str,
         channel: str,
         sector: str,
-        topologies: tuple[str, ...],
+        projects: tuple[str, ...],
         ibp_coefficient: Expression,
         analytic_master: Expression,
         *,
@@ -1228,187 +2205,279 @@ def build_analytic_master_handoff(
         relative_weight: Expression = E("1"),
     ) -> MasterInsertion:
         return MasterInsertion(
+            graph_name=graph_name,
+            cut_name=cut_name,
             channel=channel,
             sector=sector,
-            topologies=topologies,
+            projects=projects,
             ibp_coefficient=ibp_coefficient,
             analytic_master=analytic_master,
             virtuality_factor=virtuality_factor,
             relative_weight=relative_weight,
         )
 
+    def graph_cut_weight(
+        graph_name: str,
+        cut_name: str,
+        *,
+        mirror_count: int = 1,
+    ) -> Expression:
+        """Return a notebook-declared graph weight for one master insertion."""
+
+        return graphs[graph_name].cut_weights[cut_name] / mirror_count
+
     insertions = {
         "virtual 0-cut": insertion(
+            "virtual triangle 1",
+            "11",
             "virtual",
             "0-cut triangle",
-            ("topo5",),
-            audit.virtual_coefficients["topo5"],
+            ("virtual triangle 1/11",),
+            replace_all(
+                audit.virtual_coefficients["virtual triangle 1/11"],
+                ((context.d, dimension),),
+            ),
             ordinary_bubble,
+            relative_weight=graph_cut_weight("virtual triangle 1", "11"),
         ),
         "virtual p2-cut": insertion(
+            "virtual triangle 1",
+            "10",
             "virtual",
             "p2-cut triangle",
-            ("topo6",),
-            audit.virtual_coefficients["topo6"],
+            ("virtual triangle 1/10",),
+            replace_all(
+                audit.virtual_coefficients["virtual triangle 1/10"],
+                ((context.d, dimension),),
+            ),
             massless_bubble_stripped,
             virtuality_factor=j2,
-            relative_weight=E("-1"),
+            relative_weight=graph_cut_weight("virtual triangle 1", "10"),
         ),
         "virtual p1-cut": insertion(
+            "virtual triangle 1",
+            "01",
             "virtual",
             "p1-cut triangle",
-            ("topo7",),
-            audit.virtual_coefficients["topo7"],
+            ("virtual triangle 1/01",),
+            replace_all(
+                audit.virtual_coefficients["virtual triangle 1/01"],
+                ((context.d, dimension),),
+            ),
             massless_bubble_stripped,
             virtuality_factor=j1,
-            relative_weight=E("-1"),
+            relative_weight=graph_cut_weight("virtual triangle 1", "01"),
         ),
         "virtual double-cut": insertion(
+            "virtual triangle 2",
+            "00",
             "virtual",
             "double-cut triangle",
-            ("topo8",),
-            audit.virtual_coefficients["topo8"],
+            ("virtual triangle 2/00",),
+            replace_all(
+                audit.virtual_coefficients["virtual triangle 2/00"],
+                ((context.d, dimension),),
+            ),
             massless_triangle_stripped,
             virtuality_factor=j1 * j2,
+            relative_weight=graph_cut_weight("virtual triangle 2", "00"),
         ),
         "external bubble p1": insertion(
+            "virtual bubble",
+            "10",
             "virtual",
             "external bubble p1",
-            ("topo6",),
-            audit.virtual_coefficients["external bubble"],
+            ("virtual bubble/10",),
+            replace_all(
+                audit.virtual_coefficients["external bubble"],
+                ((context.d, dimension),),
+            ),
             massless_bubble_stripped,
             virtuality_factor=j1,
-            relative_weight=E("-1/2"),
+            relative_weight=graph_cut_weight(
+                "virtual bubble", "10", mirror_count=2
+            ),
         ),
         "external bubble p2": insertion(
+            "virtual bubble",
+            "10",
             "virtual",
             "external bubble p2",
-            ("topo6",),
-            audit.virtual_coefficients["external bubble"],
+            ("virtual bubble/10",),
+            replace_all(
+                audit.virtual_coefficients["external bubble"],
+                ((context.d, dimension),),
+            ),
             massless_bubble_stripped,
             virtuality_factor=j2,
-            relative_weight=E("-1/2"),
+            relative_weight=graph_cut_weight(
+                "virtual bubble", "10", mirror_count=2
+            ),
         ),
         "direct 00": insertion(
+            "qq direct box",
+            "11",
             "direct qqbar",
             "00",
-            ("topo10",),
-            audit.direct_box_coefficients["topo10"],
+            ("qq direct box/11",),
+            audit.direct_box_coefficients["11"],
             massive_bubble,
+            relative_weight=graph_cut_weight("qq direct box", "11"),
         ),
         "direct 10": insertion(
+            "qq direct box",
+            "01",
             "direct qqbar",
             "10",
-            ("topo11",),
-            audit.direct_box_coefficients["topo11"],
+            ("qq direct box/01",),
+            audit.direct_box_coefficients["01"],
             massive_triangle_stripped,
             virtuality_factor=j1,
-            relative_weight=E("-1/2"),
+            relative_weight=graph_cut_weight(
+                "qq direct box", "01", mirror_count=2
+            ),
         ),
         "direct 01": insertion(
+            "qq direct box",
+            "01",
             "direct qqbar",
             "01",
-            ("topo11",),
-            audit.direct_box_coefficients["topo11"],
+            ("qq direct box/01",),
+            audit.direct_box_coefficients["01"],
             massive_triangle_stripped,
             virtuality_factor=j2,
-            relative_weight=E("-1/2"),
+            relative_weight=graph_cut_weight(
+                "qq direct box", "01", mirror_count=2
+            ),
         ),
         "crossed 11": insertion(
+            "qq crossed box",
+            "11",
             "crossed qqbar",
             "11",
-            ("topo20", "topo21", "topo22", "topo23"),
+            ("qq crossed box/11 (four apart children)",),
             audit.crossed_box_coefficients["11"],
             massive_bubble,
-            relative_weight=E("-1"),
+            relative_weight=graph_cut_weight("qq crossed box", "11"),
         ),
         "crossed 10": insertion(
+            "qq crossed box",
+            "10",
             "crossed qqbar",
             "10",
-            ("topo24", "topo25", "topo26", "topo27"),
+            ("qq crossed box/10 (four apart children)",),
             audit.crossed_box_coefficients["10"],
             massive_triangle_stripped,
             virtuality_factor=j2,
+            relative_weight=graph_cut_weight("qq crossed box", "10"),
         ),
         "crossed 01": insertion(
+            "qq crossed box",
+            "01",
             "crossed qqbar",
             "01",
-            ("topo28", "topo29", "topo30", "topo31"),
+            ("qq crossed box/01 (four apart children)",),
             audit.crossed_box_coefficients["01"],
             massive_triangle_stripped,
             virtuality_factor=j1,
+            relative_weight=graph_cut_weight("qq crossed box", "01"),
         ),
         # In the retained z-space source the 00 object is negated once when it
         # is defined and again in the four-cut sum.  Its numerator coefficient
         # already carries the remaining minus sign; encoding that sequence as
         # relative_weight=+1 makes the convention visible.
         "crossed 00": insertion(
+            "qq crossed box",
+            "00",
             "crossed qqbar",
             "00",
             (),
             audit.crossed_box_coefficients["00"],
             maximal_crossed,
             virtuality_factor=j1 * j2,
+            relative_weight=graph_cut_weight("qq crossed box", "00"),
         ),
         "qg box 00": insertion(
+            "qg box",
+            "11",
             "qg",
             "box 00",
-            ("topo10",),
-            audit.qg_coefficients["topo10 box"],
+            ("qg box/11",),
+            audit.qg_coefficients["11 box"],
             massive_bubble,
-            relative_weight=E("-1"),
+            relative_weight=graph_cut_weight("qg box", "11"),
         ),
         "qg box 10": insertion(
+            "qg box",
+            "01",
             "qg",
             "box 10",
-            ("topo11",),
-            audit.qg_coefficients["topo11 box"],
+            ("qg box/01",),
+            audit.qg_coefficients["01 box"],
             massive_triangle_stripped,
             virtuality_factor=j1,
-            relative_weight=E("1/2"),
+            relative_weight=graph_cut_weight(
+                "qg box", "01", mirror_count=2
+            ),
         ),
         "qg box 01": insertion(
+            "qg box",
+            "01",
             "qg",
             "box 01",
-            ("topo11",),
-            audit.qg_coefficients["topo11 box"],
+            ("qg box/01",),
+            audit.qg_coefficients["01 box"],
             massive_triangle_stripped,
             virtuality_factor=j2,
-            relative_weight=E("1/2"),
+            relative_weight=graph_cut_weight(
+                "qg box", "01", mirror_count=2
+            ),
         ),
         "qg triangle 00": insertion(
+            "qg triangle",
+            "11",
             "qg",
             "triangle 00",
-            ("topo10",),
-            audit.qg_coefficients["topo10 triangle"],
+            ("qg triangle/11",),
+            audit.qg_coefficients["11 triangle"],
             massive_bubble,
-            relative_weight=E("2"),
+            relative_weight=graph_cut_weight("qg triangle", "11"),
         ),
         "qg triangle 10": insertion(
+            "qg triangle",
+            "01",
             "qg",
             "triangle 10",
-            ("topo11",),
-            audit.qg_coefficients["topo11 triangle"],
+            ("qg triangle/01",),
+            audit.qg_coefficients["01 triangle"],
             massive_triangle_stripped,
             virtuality_factor=j1,
-            relative_weight=E("-1"),
+            relative_weight=graph_cut_weight(
+                "qg triangle", "01", mirror_count=2
+            ),
         ),
         "qg triangle 01": insertion(
+            "qg triangle",
+            "01",
             "qg",
             "triangle 01",
-            ("topo11",),
-            audit.qg_coefficients["topo11 triangle"],
+            ("qg triangle/01",),
+            audit.qg_coefficients["01 triangle"],
             massive_triangle_stripped,
             virtuality_factor=j2,
-            relative_weight=E("-1"),
+            relative_weight=graph_cut_weight(
+                "qg triangle", "01", mirror_count=2
+            ),
         ),
         "qg bubble 00": insertion(
+            "qg bubble",
+            "11",
             "qg",
             "bubble 00",
-            ("topo10",),
-            audit.qg_coefficients["topo10 bubble"],
+            ("qg bubble/11",),
+            audit.qg_coefficients["11 bubble"],
             massive_bubble,
-            relative_weight=E("-1"),
+            relative_weight=graph_cut_weight("qg bubble", "11"),
         ),
     }
     insertion_map = MappingProxyType(insertions)
@@ -1466,14 +2535,15 @@ def build_analytic_master_handoff(
             (color_t, E("1/2")),
         ),
     )
-    direct_finite = _finite_laurent_coefficient(direct_normalized)
+    direct_finite = _finite_laurent_coefficient(direct_normalized, context)
     direct_expected = _expand_positive_branch_logs(
         coefficient.qq_transverse.pieces[
             "direct box plus mirror"
-        ].canonical().regular.replace(
+        ].canonical(z).regular.replace(
             color_f,
             (color_count**2 - 1) / (2 * color_count),
-        )
+        ),
+        context,
     )
     direct_residual = normalize_rational(direct_finite - direct_expected)
 
@@ -1489,11 +2559,34 @@ def build_analytic_master_handoff(
         qg_normalization * qg_raw,
         ((strong_coupling**2, 4 * pi * alpha_s),),
     )
-    qg_finite = _finite_laurent_coefficient(qg_normalized)
+    qg_finite = _finite_laurent_coefficient(qg_normalized, context)
     qg_expected = _expand_positive_branch_logs(
-        coefficient.qg_transverse.total.regular
+        coefficient.qg_transverse.total.regular,
+        context,
     )
     qg_residual = normalize_rational(qg_finite - qg_expected)
+
+    external_bubble_through_finite = (
+        derive_external_bubble_scheme_correction(
+            context,
+            bubble_coefficient=audit.virtual_coefficients["external bubble"],
+        )
+    )
+    external_bubble_expected = EndpointCoefficient(
+        delta=alpha_s
+        * color_f
+        / (2 * pi)
+        * (
+            -1 / epsilon
+            - 1
+            + lambda1_squared.log() / 2
+            + lambda2_squared.log() / 2
+            - mu_r_squared.log()
+        )
+    )
+    external_bubble_expected_residual = (
+        external_bubble_through_finite - external_bubble_expected
+    )
 
     # Expand the four crossed-box cuts as endpoint distributions.  These
     # smooth prefactors are written directly in terms of the audited IBP
@@ -1596,6 +2689,7 @@ def build_analytic_master_handoff(
             power: _endpoint_laurent_coefficient(
                 crossed_endpoint_sum,
                 power,
+                context,
             )
             for power in (-2, -1)
         }
@@ -1603,6 +2697,7 @@ def build_analytic_master_handoff(
     crossed_finite = _endpoint_laurent_coefficient(
         crossed_endpoint_sum,
         0,
+        context,
     )
     crossed_target = coefficient.qq_transverse.pieces[
         "crossed box, all four cuts"
@@ -1623,8 +2718,10 @@ def build_analytic_master_handoff(
             regular=crossed_target.regular.replace(color_f, color_f_in_nc),
         ),
         0,
+        context,
     )
     crossed_finite_residual = crossed_finite - crossed_expected
+
     return AnalyticMasterHandoff(
         insertions=insertion_map,
         normalization_factors=normalization_factors,
@@ -1634,16 +2731,29 @@ def build_analytic_master_handoff(
         qg_normalized_raw=qg_normalized,
         qg_finite=qg_finite,
         qg_finite_residual=qg_residual,
+        external_bubble_through_finite=external_bubble_through_finite,
+        external_bubble_expected_residual=external_bubble_expected_residual,
         crossed_cut_endpoint=MappingProxyType(crossed_cut_endpoint),
         crossed_pole_residuals=crossed_poles,
         crossed_finite=crossed_finite,
         crossed_finite_residual=crossed_finite_residual,
+        scheme_change=scheme_change,
     )
 
 
-def assemble_closed_form_dy() -> FullDYCoefficient:
+def assemble_closed_form_dy(context: DYContext) -> FullDYCoefficient:
     """Encode the retained finite channels and separate virtual diagnostics."""
 
+    epsilon = context.epsilon
+    s = context.s
+    z = context.z
+    alpha_s = context.alpha_s
+    color_f = context.color_f
+    color_t = context.color_t
+    lambda1_squared = context.lambda1_squared
+    lambda2_squared = context.lambda2_squared
+    mu_r_squared = context.mu_r_squared
+    pi = context.pi
     qq_normalization = alpha_s * color_f / (2 * pi)
     cutoff_log = (
         lambda1_squared * lambda2_squared * z**2 / s**2
@@ -1728,7 +2838,7 @@ def assemble_closed_form_dy() -> FullDYCoefficient:
         pieces=qq_transverse_pieces,
         total=sum(qq_transverse_pieces.values(), EndpointCoefficient()),
     )
-    if not (qq_transverse.total - transverse_total).is_zero:
+    if not (qq_transverse.total - transverse_total).is_zero_for(z):
         raise ValueError("Transverse qqbar graph ledger did not reconstruct its sum")
     recorded_mathematica_total = pqq_times_cutoff_log + EndpointCoefficient(
         delta=qq_normalization * (1 - 3 * pi**2),
@@ -1806,65 +2916,117 @@ def assemble_closed_form_dy() -> FullDYCoefficient:
     )
 
 
-def assemble_full_dy(
-    reductions: Mapping[str, ReductionResult],
+def assemble_native_dy_scheme(
+    reductions: Mapping[DYProjectKey, ReductionResult],
     *,
-    graphs: Mapping[str, DYGraphSpec] | None = None,
-    numerators: Mapping[str, Expression] | None = None,
-) -> tuple[ReductionAudit, FullDYCoefficient]:
-    """Audit every physical sector and perform the analytic-master handoff."""
+    plan: DYProjectPlan,
+    context: DYContext,
+    graphs: Mapping[str, DYGraphSpec],
+    numerators: Mapping[str, Expression],
+    ward_numerators: Mapping[str, Expression],
+) -> tuple[ReductionAudit, NativeDYSchemeChange]:
+    """Audit graph reductions and build the native DY scheme kernel only.
+
+    This is the primary physical API.  It has no closed-form coefficient or
+    historical-source construction, so a malformed downstream oracle cannot
+    prevent the native ``MP - PM`` result from being assembled.
+    """
 
     audit = audit_physical_reductions(
         reductions,
+        plan=plan,
+        context=context,
         graphs=graphs,
         numerators=numerators,
+        ward_numerators=ward_numerators,
     )
-    if not audit.exact:
-        raise ValueError("Physical reduction audit contains a nonzero residual")
-    coefficient = assemble_closed_form_dy()
-    handoff = build_analytic_master_handoff(audit, coefficient)
-    if not handoff.finite_checks_exact:
-        raise ValueError("Analytic-master handoff does not reproduce its ledger")
-    return audit, dataclass_replace(coefficient, master_handoff=handoff)
+    if not audit.native_complete:
+        raise ValueError(
+            "Physical reduction audit contains a nonzero native residual"
+        )
+    scheme_change = build_native_dy_scheme_change(audit, context, graphs)
+    return audit, scheme_change
+
+
+def assemble_reference_dy_handoff(
+    audit: ReductionAudit,
+    scheme_change: NativeDYSchemeChange,
+    *,
+    context: DYContext,
+    graphs: Mapping[str, DYGraphSpec],
+) -> FullDYCoefficient:
+    """Attach closed-form and historical ledgers downstream of native DY."""
+
+    coefficient = assemble_closed_form_dy(context)
+    handoff = build_analytic_master_handoff(
+        audit,
+        coefficient,
+        context,
+        graphs,
+        scheme_change=scheme_change,
+    )
+    if not handoff.native_checks_exact(context.z):
+        raise ValueError("Analytic-master handoff has a nonzero native residual")
+    return dataclass_replace(coefficient, master_handoff=handoff)
+
+
+def assemble_full_dy(
+    reductions: Mapping[DYProjectKey, ReductionResult],
+    *,
+    plan: DYProjectPlan,
+    context: DYContext,
+    graphs: Mapping[str, DYGraphSpec],
+    numerators: Mapping[str, Expression],
+    ward_numerators: Mapping[str, Expression],
+) -> tuple[ReductionAudit, FullDYCoefficient]:
+    """Backward-compatible native assembly plus downstream reference ledgers."""
+
+    audit, scheme_change = assemble_native_dy_scheme(
+        reductions,
+        plan=plan,
+        context=context,
+        graphs=graphs,
+        numerators=numerators,
+        ward_numerators=ward_numerators,
+    )
+    coefficient = assemble_reference_dy_handoff(
+        audit,
+        scheme_change,
+        context=context,
+        graphs=graphs,
+    )
+    return audit, coefficient
 
 
 __all__ = [
     "AnalyticMasterHandoff",
     "ApartTerm",
     "ChannelAssembly",
-    "DYFamilyRoute",
+    "DYContext",
     "DYGraphSpec",
+    "DYProjectKey",
+    "DYProjectPlan",
     "EndpointCoefficient",
     "FullDYCoefficient",
     "MasterInsertion",
+    "NativeDYSchemeChange",
+    "NativeDYOneLegSchemeKernel",
     "NumeratorReduction",
     "ReductionAudit",
-    "alpha_s",
     "assemble_closed_form_dy",
     "assemble_full_dy",
+    "assemble_native_dy_scheme",
+    "assemble_reference_dy_handoff",
     "audit_physical_reductions",
     "build_analytic_master_handoff",
-    "color_f",
-    "color_t",
+    "build_native_dy_scheme_change",
+    "build_dy_kira_projects",
     "crossed_box_reductions",
-    "d",
-    "denominator_bases",
-    "dy_graph_specs",
-    "epsilon",
-    "electric_charge",
-    "lambda1_squared",
-    "lambda2_squared",
-    "mass_squared",
-    "mu_r_squared",
+    "derive_external_bubble_scheme_correction",
     "normalize_rational",
     "numerator_reductions",
-    "physical_numerators",
+    "native_dy_one_leg_scheme_kernel",
     "qg_ward_reductions",
     "reduce_numerator",
     "replace_all",
-    "routed_topology_names",
-    "s",
-    "strong_coupling",
-    "color_count",
-    "z",
 ]

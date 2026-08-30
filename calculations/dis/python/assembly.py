@@ -10,11 +10,10 @@ before either external invariant is put on shell.
 This module builds precisely those two side-effect-free Kira projects and
 provides typed boundaries for loading their reductions.  It inserts the
 analytic ``B``, ``Bcut``, or ``Tcut`` expression in all 28 cut-specialized and
-four finite-virtuality records.  It deliberately does not choose the raised-cut
-sign convention, apply the derivative distribution at a regulated one-sided
-endpoint, choose oriented cut support, or attach graph weights: those inputs
-are not fixed by the current source ledger.  Attempting to cross that boundary
-raises :class:`UnresolvedPhysicalInputError`.
+four finite-virtuality records.  The topology compiler owns graph phases,
+multiplicities, and channel factors; the cut ledger owns oriented sector phases
+and support.  Complete physical assembly is implemented downstream in
+``native_scheme.py``.
 
 Importing this module never starts Kira.  :func:`self_check` only derives the
 existing exact numerator handoffs and serializes the two projects in memory.
@@ -44,6 +43,7 @@ from calculations.dis.python.physical import (
     DIS_KINEMATICS,
     HISTORICAL_ALL_CUT_SOURCE,
     DISCutSpec,
+    DISGraphSpec,
     DISKinematics,
     DISKiraNumeratorHandoff,
     DISKiraProjectInput,
@@ -162,9 +162,9 @@ class RaisedExternalMasterBoundary:
     """Unweighted analytic master term before applying delta-prime.
 
     ``unweighted_term`` is mathematically fixed by the Kira coefficient and
-    the phase-stripped analytic master.  It is not yet a graph contribution:
-    the raised-cut sign, regulated derivative action, and graph weight remain
-    explicit blockers.
+    the phase-stripped analytic master.  It is not yet a graph contribution;
+    the known topology weight and complete finite-virtuality endpoint action
+    are deliberately applied downstream by ``native_scheme.py``.
     """
 
     audit: RaisedExternalReductionAudit
@@ -195,10 +195,9 @@ class OrdinaryMasterIdentity:
 class ExternalLineState:
     """The explicit D5 or D6 factor left outside the loop reduction.
 
-    ``paper_cut_normalization`` records the historical positive
-    ``2*pi*i/n!`` convention only.  It is not yet reconciled with the
-    alternating reverse-unitarity sign required by algebraic ``1/D**a``
-    cancellation.
+    ``paper_cut_normalization`` records the historical positive ``2*pi*i/n!``
+    expression.  :attr:`native_cut_normalization` applies the first-principles
+    ``(-1)^n`` factor required by the same source's discontinuity definition.
     """
 
     line: Literal[5, 6]
@@ -210,6 +209,13 @@ class ExternalLineState:
     @property
     def is_cut(self) -> bool:
         return self.cut_order is not None
+
+    @property
+    def native_cut_normalization(self) -> Expression | None:
+        if self.paper_cut_normalization is None or self.cut_order is None:
+            return None
+        sign = -1 if self.cut_order % 2 else 1
+        return sign * self.paper_cut_normalization
 
 
 @dataclass(frozen=True, slots=True)
@@ -468,7 +474,8 @@ def build_raised_external_kira_projects(
             targets_explicit=True,
             limitation=(
                 "Finite-virtuality IBP input only. The external delta-prime "
-                "endpoint rule and physical graph weight remain unresolved."
+                "endpoint action and known topology weight are applied by the "
+                "native assembler."
             ),
         )
         derivative = ExternalDerivativeCut(
@@ -611,8 +618,8 @@ def _analytic_master_value(
     kinematics: DISKinematics,
 ) -> Expression:
     arguments = {
-        "dimension": 4 - 2 * epsilon,
-        "epsilon": epsilon,
+        "dimension": 4 - 2 * kinematics.regulator,
+        "epsilon": kinematics.regulator,
         "mu_squared": kinematics.renormalization_scale,
         "euler_gamma": Expression.EULER_GAMMA,
     }
@@ -627,10 +634,11 @@ def _external_line_states(
     project: DISKiraProjectInput,
     *,
     kinematics: DISKinematics,
+    graphs: Mapping[str, DISGraphSpec] = DIS_GRAPH_SPECS,
 ) -> tuple[ExternalLineState, ExternalLineState]:
     if project.cut is None:
         raise ValueError(f"Physical master boundary {project.key} has no cut")
-    graph = DIS_GRAPH_SPECS[project.graph_name]
+    graph = graphs[project.graph_name]
     cut_lines = set(project.cut.initial_cut_lines + project.cut.final_cut_lines)
     cut_orders = dict(project.cut.cut_orders)
     d5_order = cut_orders[5] if 5 in cut_lines else None
@@ -664,49 +672,22 @@ def _external_line_states(
 def _ordinary_blockers(
     project: DISKiraProjectInput,
     identity: OrdinaryMasterIdentity,
+    *,
+    graphs: Mapping[str, DISGraphSpec] = DIS_GRAPH_SPECS,
 ) -> tuple[AssemblyBlocker, ...]:
     cut = project.cut
     if cut is None:
         raise ValueError(f"Physical master boundary {project.key} has no cut")
-    blockers = [
+    graph = graphs[project.graph_name]
+    if graph.relative_weight is not None:
+        return ()
+    return (
         AssemblyBlocker(
             key=f"{project.key}:graph-weight",
-            description=(
-                "The universal all-cut plus sign and unit embedding symmetry "
-                "do not determine this active graph's full color/graph weight."
-            ),
-            source=DIS_GRAPH_SPECS[project.graph_name].source,
-        )
-    ]
-    raised_lines = tuple(
-        line for line, order in cut.cut_orders if order > 0
+            description="The rooted topology has no graph phase/multiplicity.",
+            source=graph.source,
+        ),
     )
-    if raised_lines:
-        blockers.append(
-            AssemblyBlocker(
-                key=f"{project.key}:raised-cut-sign",
-                description=(
-                    "The historical positive delta-derivative normalization "
-                    "has not been reconciled with the alternating "
-                    "reverse-unitarity sign for a raised cut denominator "
-                    f"on {tuple(f'D{line}' for line in raised_lines)}."
-                ),
-                source=HISTORICAL_ALL_CUT_SOURCE,
-            )
-        )
-    support = MASTER_SUPPORT[identity.support_key]
-    if support.theta_factors:
-        blockers.append(
-            AssemblyBlocker(
-                key=f"{project.key}:cut-orientation",
-                description=(
-                    "The analytic cut master is inserted, but selecting its "
-                    "theta-function support requires the missing oriented-cut ledger."
-                ),
-                source=HISTORICAL_ALL_CUT_SOURCE,
-            )
-        )
-    return tuple(blockers)
 
 
 def build_ordinary_master_boundaries(
@@ -714,6 +695,7 @@ def build_ordinary_master_boundaries(
     *,
     projects: Mapping[str, DISKiraProjectInput] | None = None,
     kinematics: DISKinematics = DIS_KINEMATICS,
+    graphs: Mapping[str, DISGraphSpec] = DIS_GRAPH_SPECS,
 ) -> tuple[OrdinaryMasterBoundary, ...]:
     """Insert the analytic scalar master in all 28 non-raised records."""
 
@@ -745,8 +727,16 @@ def build_ordinary_master_boundaries(
                 analytic_master=analytic_master,
                 unweighted_loop_term=canonical(audit.coefficient * analytic_master),
                 cut=project.cut,
-                external_lines=_external_line_states(project, kinematics=kinematics),
-                blockers=_ordinary_blockers(project, identity),
+                external_lines=_external_line_states(
+                    project,
+                    kinematics=kinematics,
+                    graphs=graphs,
+                ),
+                blockers=_ordinary_blockers(
+                    project,
+                    identity,
+                    graphs=graphs,
+                ),
             )
         )
     if len(boundaries) != 28:
@@ -758,39 +748,17 @@ def build_ordinary_master_boundaries(
 
 def _boundary_blockers(
     project: RaisedExternalKiraProject,
+    *,
+    graphs: Mapping[str, DISGraphSpec] = DIS_GRAPH_SPECS,
 ) -> tuple[AssemblyBlocker, ...]:
-    endpoint = (
-        "The regulated one-sided lower-bound action of delta-prime(p^2), "
-        "including cancellation against the bubble, is not fixed."
-        if project.derivative.line == 5
-        else (
-            "The regulated action of delta-prime((p+q)^2), including "
-            "cancellation against the bubble and the change of variable to "
-            "1-x, is not fixed."
-        )
-    )
+    graph = graphs[project.project_input.graph_name]
+    if graph.relative_weight is not None:
+        return ()
     return (
         AssemblyBlocker(
-            key=f"{project.key}:raised-cut-sign",
-            description=(
-                "The historical positive delta-derivative normalization has "
-                "not been reconciled with the alternating reverse-unitarity "
-                f"sign for D{project.derivative.line}^2."
-            ),
-            source=HISTORICAL_ALL_CUT_SOURCE,
-        ),
-        AssemblyBlocker(
-            key=f"{project.key}:delta-prime-endpoint",
-            description=endpoint,
-            source=HISTORICAL_ALL_CUT_SOURCE,
-        ),
-        AssemblyBlocker(
             key=f"{project.key}:graph-weight",
-            description=(
-                "The universal all-cut plus sign and unit embedding symmetry "
-                "do not determine this active graph's full color/graph weight."
-            ),
-            source=DIS_GRAPH_SPECS[project.project_input.graph_name].source,
+            description="The rooted topology has no graph phase/multiplicity.",
+            source=graph.source,
         ),
     )
 
@@ -800,13 +768,14 @@ def build_raised_external_master_boundaries(
     *,
     projects: Mapping[str, RaisedExternalKiraProject] | None = None,
     kinematics: DISKinematics = DIS_KINEMATICS,
+    graphs: Mapping[str, DISGraphSpec] = DIS_GRAPH_SPECS,
 ) -> tuple[RaisedExternalMasterBoundary, ...]:
-    """Insert analytic bubbles but stop before unresolved physical operations."""
+    """Insert analytic bubbles and preserve the native assembly separation."""
 
     project_records = projects or build_raised_external_kira_projects()
     master_arguments = {
-        "dimension": 4 - 2 * epsilon,
-        "epsilon": epsilon,
+        "dimension": 4 - 2 * kinematics.regulator,
+        "epsilon": kinematics.regulator,
         "mu_squared": kinematics.renormalization_scale,
         "euler_gamma": Expression.EULER_GAMMA,
     }
@@ -842,9 +811,10 @@ def build_raised_external_master_boundaries(
                 external_lines=_external_line_states(
                     project.project_input,
                     kinematics=kinematics,
+                    graphs=graphs,
                 ),
                 derivative=project.derivative,
-                blockers=_boundary_blockers(project),
+                blockers=_boundary_blockers(project, graphs=graphs),
             )
         )
     return tuple(boundaries)
@@ -857,6 +827,7 @@ def build_master_insertion_audit(
     ordinary_projects: Mapping[str, DISKiraProjectInput] | None = None,
     raised_projects: Mapping[str, RaisedExternalKiraProject] | None = None,
     kinematics: DISKinematics = DIS_KINEMATICS,
+    graphs: Mapping[str, DISGraphSpec] = DIS_GRAPH_SPECS,
 ) -> DISMasterInsertionAudit:
     """Build the complete analytic-master boundary for all 32 handoffs."""
 
@@ -864,11 +835,13 @@ def build_master_insertion_audit(
         reductions,
         projects=ordinary_projects,
         kinematics=kinematics,
+        graphs=graphs,
     )
     raised = build_raised_external_master_boundaries(
         raised_audits,
         projects=raised_projects,
         kinematics=kinematics,
+        graphs=graphs,
     )
     audit = DISMasterInsertionAudit(
         reductions=reductions,
@@ -993,8 +966,8 @@ def self_check() -> Mapping[str, object]:
 
     # Exercise coefficient extraction and the analytic-master boundary using
     # complete synthetic identity/zero rules.  This validates the handoff
-    # mechanics without manufacturing a physical endpoint convention or
-    # starting Kira.
+    # mechanics without starting Kira.  The endpoint convention and topology
+    # weights are exercised by the downstream native assembler.
     synthetic_reductions: dict[str, ReductionResult] = {}
     for key, record in projects.items():
         identity = _master_identity(record, kinematics=DIS_KINEMATICS)
@@ -1024,10 +997,10 @@ def self_check() -> Mapping[str, object]:
         projects=projects,
     )
     if len(boundaries) != 4 or any(
-        boundary.physically_ready or not boundary.blockers
+        not boundary.physically_ready or boundary.blockers
         for boundary in boundaries
     ):
-        raise AssertionError("Raised-external boundaries must remain fail-closed")
+        raise AssertionError("Raised-external boundaries lost topology readiness")
     expected_external_orders = {
         "q_bubble": {5: 0, 6: 1},
         "q_lsz": {5: 1, 6: 0},
@@ -1046,12 +1019,17 @@ def self_check() -> Mapping[str, object]:
             if state.is_cut
         ):
             raise AssertionError("An external cut lost its paper normalization")
+    # Four raised records alone must still be rejected because native assembly
+    # requires the complete 28 ordinary plus four raised record boundary.
     try:
         require_resolved_physical_assembly(boundaries)
-    except UnresolvedPhysicalInputError:
-        pass
+    except UnresolvedPhysicalInputError as error:
+        if {blocker.key for blocker in error.blockers} != {
+            "complete-master-boundary"
+        }:
+            raise AssertionError("Unexpected raised-boundary blocker") from error
     else:  # pragma: no cover - protects the scientific boundary itself
-        raise AssertionError("Unresolved raised-external boundary was accepted")
+        raise AssertionError("Incomplete raised-only master boundary was accepted")
     if any(
         MASTER_SUPPORT[boundary.identity.support_key].theta_factors
         for boundary in boundaries
@@ -1070,7 +1048,7 @@ def self_check() -> Mapping[str, object]:
                 DIS_KINEMATICS.incoming_virtuality,
                 DIS_KINEMATICS.photon_scale,
             ),
-            "physical_boundary": "blocked",
+            "physical_boundary": "raised subset topology-ready",
             "blockers": tuple(
                 blocker
                 for boundary in boundaries

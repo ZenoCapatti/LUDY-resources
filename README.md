@@ -52,8 +52,14 @@ $ uv run --locked marimo edit calculations/dy/python/masters.py
 $ uv run --locked marimo edit calculations/dis/python/notebook.py
 ```
 
-The DY `notebook.py` defines the full editable graph/routing/numerator set and
-does not launch Kira until its batch run button is pressed. `masters.py` derives and evaluates the
+The DY `notebook.py` defines the complete editable physical input layer:
+Spenso symbols and momenta, eight raw Dirac chains, three longitudinal Ward
+projections, and ordered momentum--mass graph lines with full cut masks and
+propagator powers. The shared cross-box trace helper simplifies every chain;
+expanded scalar numerators are confined to exact validation oracles. Derived
+Kira projects use semantic `(graph, cut, graph sources)` keys; historical FIRE
+topology labels are confined to validation provenance. The notebook does not
+launch Kira until its batch run button is pressed. `masters.py` derives and evaluates the
 closed-form `B`, `Bcut`, `Tcut`, `Bcutm`, `Tcutm`, and maximal-cut `M00` basis
 in radial and light-cone coordinates, with exact normalization, virtuality, and
 soft-endpoint checks, without launching Kira or reading a reduction work
@@ -136,8 +142,12 @@ Symbolica expression to `user_numerator` runs the same helper pipeline on an
 editable numerator. Analytic master evaluators are imported from
 [`calculations/dy/python/masters.py`](calculations/dy/python/masters.py), which
 is their single implementation site. The complete DY notebook imports the
-same cross-box apart and numerator-reduction helpers, defines all eight graphs
-and their Kira routes first, and then processes that graph set as one batch.
+same cross-box apart and numerator-reduction helpers, defines its symbols,
+eight graphs, and eight physical Dirac-chain numerators first, and then
+processes that graph set as one batch. Its importable assembly module derives
+Kira projects from graph/cut/source identities and structurally deduplicates
+equivalent physical families; it does not route the calculation through
+historical `topoN` identities.
 Every independent FIRE, Mathematica, and manuscript comparison is confined to
 its final validation appendix.
 

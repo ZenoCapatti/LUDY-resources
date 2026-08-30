@@ -4,173 +4,23 @@ __generated_with = "0.23.15"
 app = marimo.App(width="medium")
 
 with app.setup(hide_code=True):
-    from html import escape as _escape_html
-    from inspect import cleandoc as _cleandoc
     import math
-    import re as _re
-    from threading import Lock as _Lock
+    from pathlib import Path as _Path
+    import sys as _sys
 
     import marimo as _marimo
     from symbolica import E, S, Expression
-    import typst as _typst
 
-    _TYPST_FRAGMENT_CSS = r"""
-    <style>
-    .ludy-typst-fragment {
-      color: inherit;
-      display: inline-block;
-      max-width: 100%;
-      overflow-x: auto;
-      vertical-align: middle;
-    }
-    .ludy-typst-fragment > p { margin: 0; }
-    .ludy-typst-error {
-      color: var(--error, #b00020);
-      font-family: var(--monospace-font, ui-monospace, monospace);
-      font-size: 0.875rem;
-      white-space: pre-wrap;
-    }
-    </style>
-    """
+    _repository_root = str(_Path(__file__).resolve().parents[3])
+    if _repository_root not in _sys.path:
+        _sys.path.insert(0, _repository_root)
 
-    def _typst_renderer_state():
-        state = getattr(_typst, "_ludy_html_renderer_v2", None)
-        if state is None:
-            state = {
-                "compiler": _typst.Compiler(ignore_system_fonts=True),
-                "lock": _Lock(),
-                "cache": {},
-                "body_pattern": _re.compile(
-                    r"<body(?:\s[^>]*)?>(.*?)</body>",
-                    _re.DOTALL | _re.IGNORECASE,
-                ),
-                "head_pattern": _re.compile(
-                    r"<head(?:\s[^>]*)?>(.*?)</head>",
-                    _re.DOTALL | _re.IGNORECASE,
-                ),
-                "style_pattern": _re.compile(
-                    r"<style(?:\s[^>]*)?>.*?</style>",
-                    _re.DOTALL | _re.IGNORECASE,
-                ),
-                "heading_pattern": _re.compile(
-                    r"<(/?)h([2-6])(?=[\s>])",
-                    _re.IGNORECASE,
-                ),
-                "mathml_css": "",
-            }
-            setattr(_typst, "_ludy_html_renderer_v2", state)
-        return state
-
-    def typst_shared_css():
-        state = _typst_renderer_state()
-        return f'{state["mathml_css"]}{_TYPST_FRAGMENT_CSS}'
-
-    def render_typst_html(
-        source,
-        *,
-        font_size=15.0,
-        prose=False,
-        include_styles=True,
-    ):
-        """Compile one Typst fragment to themed prose or compact HTML."""
-
-        if not isinstance(source, str):
-            raise TypeError("Typst source must be a string")
-
-        state = _typst_renderer_state()
-
-        cleaned_source = _cleandoc(source)
-        try:
-            with state["lock"]:
-                body = state["cache"].get(cleaned_source)
-                if body is None:
-                    compiled = state["compiler"].compile(
-                        input=f"{cleaned_source}\n".encode("utf-8"),
-                        format="html",
-                    )
-                    if not isinstance(compiled, bytes):
-                        raise TypeError(
-                            "Typst HTML export returned multiple outputs"
-                        )
-                    document = compiled.decode("utf-8")
-                    body = state["body_pattern"].search(document)
-                    if body is None:
-                        raise ValueError(
-                            "Typst HTML output did not contain a body"
-                        )
-                    head = state["head_pattern"].search(document)
-                    mathml_css = (
-                        ""
-                        if head is None
-                        else "".join(
-                            state["style_pattern"].findall(head.group(1))
-                        )
-                    )
-                    if mathml_css:
-                        state["mathml_css"] = mathml_css
-                    body = body.group(1)
-                    state["cache"][cleaned_source] = body
-                    if len(state["cache"]) > 512:
-                        state["cache"].pop(next(iter(state["cache"])))
-            styles = typst_shared_css() if include_styles else ""
-            if prose:
-                body = state["heading_pattern"].sub(
-                    lambda match: (
-                        f"<{match.group(1)}h{int(match.group(2)) - 1}"
-                    ),
-                    body,
-                )
-                return (
-                    f"{styles}"
-                    '<div class="markdown prose dark:prose-invert contents">'
-                    f"{body}</div>"
-                )
-
-            size_style = (
-                ""
-                if font_size is None
-                else f"font-size:{float(font_size):g}pt"
-            )
-            return (
-                f"{styles}"
-                f'<div class="ludy-typst-fragment" style="{size_style}">'
-                f"{body}</div>"
-            )
-        except Exception as error:
-            diagnostic = str(getattr(error, "diagnostic", None) or error)
-            return (
-                f"{_TYPST_FRAGMENT_CSS if include_styles else ''}"
-                '<div class="ludy-typst-error" role="alert">'
-                "<strong>Typst compilation failed</strong>"
-                f"<pre>{_escape_html(diagnostic)}</pre>"
-                "</div>"
-            )
-
-    def typst_html(source, *, font_size=15.0, prose=False):
-        """Return one responsive Typst fragment as a Marimo HTML object."""
-
-        return _marimo.Html(
-            render_typst_html(source, font_size=font_size, prose=prose)
-        )
-
-    def typst_md(source):
-        """Render Typst prose with Marimo's Markdown typography classes."""
-
-        return typst_html(source, font_size=None, prose=True)
-
-    def scalar_printer(*, latex: str, typst: str):
-        """Build a display-only printer for a stable scalar name."""
-
-        from symbolica import PrintMode
-
-        def _print_scalar(_expression, mode, **_format_options):
-            if mode == PrintMode.Latex:
-                return latex
-            if mode == PrintMode.Typst:
-                return typst
-            return None
-
-        return _print_scalar
+    from notebooks.typst_marimo import (
+        render_typst_html,
+        typst_md,
+        typst_shared_css,
+    )
+    from notebooks.ludy import scalar_printer
 
     _marimo.md = typst_md
     globals()["mo"] = _marimo
