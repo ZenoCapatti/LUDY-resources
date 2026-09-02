@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "splitting-kernels-notebook"
+version = "0.1.0"
+description = "Symbolica-only reconstruction of splitting counter terms"
+requires-python = ">=3.12"
+dependencies = [
+    "marimo>=0.24.0",
+    "symbolica>=2.2.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["splitting_kernels*"]
