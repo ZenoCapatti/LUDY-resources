@@ -46,16 +46,14 @@ if TYPE_CHECKING:
     )
 
 
-MANUSCRIPT_SOURCE = (
-    "../LUDY/references/factorisable-local-unitarity/source/main.tex"
-)
+MANUSCRIPT_SOURCE = "paper/main.tex"
 MANUSCRIPT_SOURCE_SHA256 = (
-    "6a9a8b1c926e646933dd4ab65b7f2b7644486d5dee112528de5e392a4804fd5a"
+    "28936e580a651ff58a21f7b9f43abf51abdbaea7fb05105594fa79f202d42870"
 )
-MANUSCRIPT_SOURCE_BYTES = 52_260
+MANUSCRIPT_SOURCE_BYTES = 50_527
 HISTORICAL_SOURCE = "arXiv:2506.16489v1"
-DIS_RESULT_SOURCE = f"{MANUSCRIPT_SOURCE}:293-311"
-DIS_INTEGRAND_SOURCE = f"{MANUSCRIPT_SOURCE}:394-412"
+DIS_RESULT_SOURCE = f"{MANUSCRIPT_SOURCE}:285-303"
+DIS_INTEGRAND_SOURCE = f"{MANUSCRIPT_SOURCE}:392-409"
 HISTORICAL_ALL_CUT_SOURCE = (
     f"{HISTORICAL_SOURCE}, Submission/Discontinuities.tex:127-168,180-193"
 )
@@ -1100,14 +1098,13 @@ class PaperDISTargets:
 
 
 def paper_targets() -> PaperDISTargets:
-    """Encode the four reported LU-scheme targets with explicit assumptions.
+    """Encode the four current paper targets as reference-only expressions.
 
-    Lines 296--297 label the first pair ``F_L`` and lines 302--303 then provide
-    a second, different ``F_L`` pair.  The logarithmic first pair is interpreted
-    as ``F_2``.  The undefined ``P_ij(x,0)`` symbols are expanded using the
-    color-stripped leading-order kernels, since the printed equations already
-    carry ``C_F`` or ``T_F`` outside.  Both assumptions remain attached issues;
-    this object is a comparison target, not a literal source AST.
+    The current source labels the two transverse and two longitudinal lines
+    directly.  Its regularised ``P_ij`` notation is expanded with the
+    colour-stripped leading-order kernels because the displayed equations put
+    ``C_F`` and ``T_F`` outside.  This function is deliberately downstream of
+    the native topology/cut/master assembly.
     """
 
     normalization = electric_charge**2 * alpha_s / (2 * pi)
@@ -1122,7 +1119,7 @@ def paper_targets() -> PaperDISTargets:
         regular=normalization
         * x
         * color_t
-        * (p_gq * (cutoff_log + 1) + 2 * x * (x - 1)),
+        * (p_gq * (cutoff_log + 1) + 2 * x * (1 - x)),
     )
     f2q_bracket = (
         p_qq.multiply_smooth(cutoff_log)
@@ -1142,10 +1139,10 @@ def paper_targets() -> PaperDISTargets:
         functions=DISStructureFunctions(F2q=f2q, F2g=f2g, FLq=flq, FLg=flg),
         source_labels=MappingProxyType(
             {
-                "F2g": "F_Lg at manuscript line 296 (interpreted as F_2g)",
-                "F2q": "F_Lq at manuscript line 297 (interpreted as F_2q)",
-                "FLg": "F_Lg at manuscript line 302",
-                "FLq": "F_Lq at manuscript line 303",
+                "F2q": f"{MANUSCRIPT_SOURCE}:287-293",
+                "F2g": f"{MANUSCRIPT_SOURCE}:299-300",
+                "FLq": f"{MANUSCRIPT_SOURCE}:294-295",
+                "FLg": f"{MANUSCRIPT_SOURCE}:301-302",
             }
         ),
         issues=(
@@ -1314,16 +1311,6 @@ def paper_targets() -> PaperDISTargets:
                 ),
             ),
             SourceIssue(
-                key="duplicate-longitudinal-labels",
-                severity="warning",
-                description=(
-                    "The logarithmic formulas at lines 296--297 and the ordinary "
-                    "formulas at lines 302--303 are all labelled F_L. The first "
-                    "pair is interpreted as F_2 but needs source confirmation."
-                ),
-                source=DIS_RESULT_SOURCE,
-            ),
-            SourceIssue(
                 key="historical-projector-vector",
                 severity="note",
                 description=(
@@ -1331,7 +1318,7 @@ def paper_targets() -> PaperDISTargets:
                     "DIS source defines P = p - (p.q/q^2) q, which is adopted here."
                 ),
                 source=(
-                    f"{MANUSCRIPT_SOURCE}:305; {HISTORICAL_SOURCE}, "
+                    f"{MANUSCRIPT_SOURCE}:285; {HISTORICAL_SOURCE}, "
                     "Submission/DIS_setup.tex:94-104"
                 ),
             ),
@@ -1355,11 +1342,12 @@ def paper_targets() -> PaperDISTargets:
                 key="color-stripped-kernel-convention",
                 severity="warning",
                 description=(
-                    "P_gq(x,0) and P_qq(x,0) are not defined in the active "
-                    "manuscript. The target assumes their color-stripped LO forms "
-                    "because C_F and T_F are already printed outside."
+                    "The paper refers to regularised P_ij kernels rather than "
+                    "writing their distributional forms.  The target expands the "
+                    "colour-stripped LO kernels because C_F and T_F are printed "
+                    "outside."
                 ),
-                source=f"{MANUSCRIPT_SOURCE}:252-254,296-297",
+                source=f"{MANUSCRIPT_SOURCE}:289-303",
             ),
             SourceIssue(
                 key="f2-reference-only",
@@ -1373,7 +1361,7 @@ def paper_targets() -> PaperDISTargets:
                     "masters before this target is inspected."
                 ),
                 source=(
-                    f"{MANUSCRIPT_SOURCE}:305; {HISTORICAL_SOURCE}, "
+                    f"{MANUSCRIPT_SOURCE}:285; {HISTORICAL_SOURCE}, "
                     "Submission/DIS_setup.tex:94-113"
                 ),
             ),
@@ -2909,7 +2897,7 @@ LIMITATIONS = (
     "The five explicit topology records are physical inputs; this module does not generate them from a Lagrangian.",
     "A native result requires the exact 32-record Kira/master boundary, but no paper, LaTeX, Mathematica, or closed coefficient function.",
     "The historical LaTeX contains audited sign, projector, label, plus-distribution, and gluon-normalization inconsistencies and is comparison-only.",
-    "The active-manuscript formulas that duplicate the F_L labels are retained only as reference targets and interpreted as F_2 in that table.",
+    "The current paper formulas are transcribed literally as reference targets; they do not enter the native assembly.",
     "The gluon PDF comparison explicitly converts the d-2 incoming-state average with finite[(1-epsilon) K].",
     "No Kira process is started by this module.",
 )

@@ -113,9 +113,15 @@ def _(typst_md):
     Laurent series is organized in the endpoint basis. Summing the physical
     cut sectors yields the $q bar(q)$ and $q g$ coefficients.
 
-    Parton-model diagrams provide the published Drell--Yan check before and
-    after phase-space integration. The companion DIS calculation then
-    identifies the same one-leg collinear transition in both processes.
+    The primary output is the native, regularised
+    $C^(upright("MP"))-C^(upright("PM"))$ transition coefficient in a
+    Born-normalized convolution convention.  It is determined solely by the
+    graph inputs and their cut masters.  Parton-model, manuscript, and
+    Mathematica formulae appear later as downstream reference comparisons;
+    they do not select a sign, normalization, or finite term of this result.
+
+    The companion DIS calculation then tests the same one-leg collinear
+    transition in a distinct process.
     """)
     return
 
@@ -1454,6 +1460,186 @@ def _(
 
 @app.cell
 def _(
+    E,
+    dy_context,
+    endpoint_d0,
+    endpoint_d1,
+    endpoint_delta,
+    native_dy_one_leg_scheme_kernel,
+    native_scheme,
+    normalize_rational,
+):
+    """Construct the primary result from the native graph/master assembly only."""
+
+    def _endpoint_expression(_coefficient):
+        _canonical = _coefficient.canonical(dy_context.z)
+        return (
+            _canonical.delta.factor() * endpoint_delta
+            + _canonical.d0_prefactor.factor() * endpoint_d0
+            + _canonical.d1_prefactor.factor() * endpoint_d1
+            + _canonical.regular.factor()
+        )
+
+    def _component_row(_label, _coefficient):
+        _canonical = _coefficient.canonical(dy_context.z)
+        return {
+            "native qqbar sector": _label,
+            "delta(1-z)": _canonical.delta.factor(),
+            "D0(z)": _canonical.d0_prefactor.factor(),
+            "D1(z)": _canonical.d1_prefactor.factor(),
+            "ordinary": _canonical.regular.factor(),
+        }
+
+    native_result_ready = native_scheme is not None
+    if native_result_ready:
+        _native = native_scheme
+        _one_leg_1 = native_dy_one_leg_scheme_kernel(
+            dy_context.z,
+            dy_context.epsilon,
+            dy_context.mu_r_squared,
+            dy_context.lambda1_squared,
+        )
+        _one_leg_2 = native_dy_one_leg_scheme_kernel(
+            dy_context.z,
+            dy_context.epsilon,
+            dy_context.mu_r_squared,
+            dy_context.lambda2_squared,
+        )
+        _qg_reconstruction = normalize_rational(
+            _native.qg_mp_minus_pm
+            - dy_context.alpha_s
+            * dy_context.color_t
+            / (4 * dy_context.pi)
+            * (_one_leg_1.qg + _one_leg_2.qg)
+        )
+        _qq_reconstruction = (
+            _native.qq_mp_minus_pm
+            - (_one_leg_1.qq + _one_leg_2.qq).scaled(
+                dy_context.alpha_s
+                * dy_context.color_f
+                / (2 * dy_context.pi)
+            )
+        ).canonical(dy_context.z)
+        assert _qg_reconstruction == E("0"), _qg_reconstruction
+        assert _qq_reconstruction.is_zero_for(
+            dy_context.z
+        ), _qq_reconstruction
+        assert _native.qg_double_pole_coefficient == E("0")
+        assert _native.qq_double_pole_coefficient.is_zero_for(dy_context.z)
+
+        native_result_rows = [
+            {
+                "channel": "qqbar",
+                "native Born-normalized C_MP-C_PM": _endpoint_expression(
+                    _native.qq_mp_minus_pm
+                ),
+                "epsilon^-2": _endpoint_expression(
+                    _native.qq_double_pole_coefficient
+                ),
+                "epsilon^-1": _endpoint_expression(
+                    _native.qq_single_pole_coefficient
+                ),
+                "two-leg reconstruction": _endpoint_expression(
+                    _qq_reconstruction
+                ),
+            },
+            {
+                "channel": "qg",
+                "native Born-normalized C_MP-C_PM": (
+                    _native.qg_mp_minus_pm.factor()
+                ),
+                "epsilon^-2": _native.qg_double_pole_coefficient,
+                "epsilon^-1": _native.qg_single_pole_coefficient.factor(),
+                "two-leg reconstruction": _qg_reconstruction,
+            },
+        ]
+        native_one_leg_rows = [
+            {
+                "one-leg record": "K_q(z, Lambda_1^2)",
+                "regularised endpoint expression": _endpoint_expression(
+                    _one_leg_1.qq
+                ),
+            },
+            {
+                "one-leg record": "K_g(z, Lambda_1^2)",
+                "regularised endpoint expression": _one_leg_1.qg.factor(),
+            },
+        ]
+        native_result_pole_rows = [
+            {
+                "channel": "qqbar",
+                "epsilon^-2 coefficient": _endpoint_expression(
+                    _native.qq_double_pole_coefficient
+                ),
+                "epsilon^-1 coefficient": _endpoint_expression(
+                    _native.qq_single_pole_coefficient
+                ),
+                "pole content": "two positive P_qq leg records",
+            },
+            {
+                "channel": "qg",
+                "epsilon^-2 coefficient": _native.qg_double_pole_coefficient,
+                "epsilon^-1 coefficient": _native.qg_single_pole_coefficient.factor(),
+                "pole content": "positive P_qg",
+            },
+        ]
+        native_result_sector_rows = [
+            _component_row("virtual triangle cuts", _native.qq_virtual_triangle),
+            _component_row("two external-bubble cuts", _native.qq_external_bubbles),
+            _component_row("direct complementary cuts", _native.qq_direct),
+            _component_row("crossed complementary cuts", _native.qq_crossed),
+            _component_row(
+                "physical sum (native Born-normalized convention)",
+                _native.qq_mp_minus_pm,
+            ),
+        ]
+    else:
+        _not_loaded = "cut-sector master sum"
+        native_result_rows = [
+            {
+                "channel": _channel,
+                "native Born-normalized C_MP-C_PM": _not_loaded,
+                "epsilon^-2": _not_loaded,
+                "epsilon^-1": _not_loaded,
+                "two-leg reconstruction": _not_loaded,
+            }
+            for _channel in ("qqbar", "qg")
+        ]
+        native_one_leg_rows = [
+            {
+                "one-leg record": "native one-leg record",
+                "regularised endpoint expression": _not_loaded,
+            }
+        ]
+        native_result_pole_rows = [
+            {
+                "channel": _channel,
+                "epsilon^-2 coefficient": _not_loaded,
+                "epsilon^-1 coefficient": _not_loaded,
+                "pole content": _not_loaded,
+            }
+            for _channel in ("qqbar", "qg")
+        ]
+        native_result_sector_rows = [
+            {
+                "native qqbar sector": _not_loaded,
+                "delta(1-z)": _not_loaded,
+                "D0(z)": _not_loaded,
+                "D1(z)": _not_loaded,
+                "ordinary": _not_loaded,
+            }
+        ]
+    return (
+        native_one_leg_rows,
+        native_result_pole_rows,
+        native_result_ready,
+        native_result_rows,
+        native_result_sector_rows,
+    )
+
+
+@app.cell
+def _(
     assemble_reference_dy_handoff,
     dy_context,
     dy_graphs,
@@ -2110,8 +2296,9 @@ def _(
     displayed_dy = full_dy if full_dy is not None else full_dy_preview
     if full_audit is None:
         _run_status = mo.callout(
-            "The analytic coefficient is the sum over physical cut sectors, "
-            "IBP coefficients, and master integrals.",
+            "The native MP-PM transition is assembled from physical cut "
+            "sectors, IBP coefficients, and analytic masters. The closed-form "
+            "ledger below is a separate downstream diagnostic.",
             kind="neutral",
         )
         _reduction_table = typst_md(
@@ -2138,7 +2325,7 @@ def _(
         _run_status = mo.callout(
             f"All {len(full_audit.complete_projects)} physical cut sectors are "
             f"reduced; the algebraic, Ward, and master-pole "
-            f"residuals are zero; {_downstream_status}.",
+            f"residuals of the native transition are zero; {_downstream_status}.",
             kind="success",
         )
         _reduction_table = mo.ui.table(
@@ -2204,8 +2391,8 @@ def _(
         )
 
     _virtual_rows = [
-        endpoint_row("ordinary virtual form-factor benchmark", displayed_dy.ordinary_virtual),
-        endpoint_row("local all-cut virtual (complex)", displayed_dy.local_all_cut_virtual),
+        endpoint_row("ordinary virtual form-factor reference benchmark", displayed_dy.ordinary_virtual),
+        endpoint_row("local all-cut virtual diagnostic (complex)", displayed_dy.local_all_cut_virtual),
     ]
     _qq_graph_rows = [
         endpoint_row(name, coefficient)
@@ -2213,7 +2400,7 @@ def _(
     ]
     _qq_graph_rows.append(
         endpoint_row(
-            "assembled transverse qqbar coefficient",
+            "assembled transverse qqbar reference ledger",
             displayed_dy.qq_transverse.total,
         )
     )
@@ -2222,7 +2409,7 @@ def _(
         for name, coefficient in displayed_dy.qg_transverse.pieces.items()
     ]
     _qg_graph_rows.append(
-        endpoint_row("assembled transverse qg coefficient", displayed_dy.qg_transverse.total)
+        endpoint_row("assembled transverse qg reference ledger", displayed_dy.qg_transverse.total)
     )
     mo.vstack(
         [
@@ -2300,15 +2487,139 @@ def _(
             _normalization_table,
             typst_md("=== Crossed-box endpoint sum over all four cuts"),
             _crossed_endpoint_table,
-            typst_md("=== Virtual coefficients"),
+            typst_md(r"""
+            === Auxiliary closed-form transverse ledger
+
+            The following finite transverse records are retained for the
+            source and parton-model diagnostics below. They are not the
+            primary native $C^(upright("MP"))-C^(upright("PM"))$ result and do
+            not constitute an absolute Drell--Yan cross section.
+            """),
+            typst_md("==== Virtual reference records"),
             expression_table(_virtual_rows, pagination=False),
-            typst_md("=== $q bar(q)$ coefficient by physical sector"),
+            typst_md("==== $q bar(q)$ transverse reference ledger"),
             expression_table(_qq_graph_rows, pagination=False),
-            typst_md("=== $q g$ coefficient by physical sector"),
+            typst_md("==== $q g$ transverse reference ledger"),
             expression_table(_qg_graph_rows, pagination=False),
         ]
     )
     return (displayed_dy,)
+
+
+@app.cell(hide_code=True)
+def _(
+    expression_table,
+    mo,
+    native_one_leg_rows,
+    native_result_pole_rows,
+    native_result_ready,
+    native_result_rows,
+    native_result_sector_rows,
+    typst_md,
+):
+    _result_status = (
+        mo.callout(
+            "All selected physical cut-sector reductions reconstruct the "
+            "two-leg native transition exactly; both epsilon^-2 coefficients "
+            "vanish.",
+            kind="success",
+        )
+        if native_result_ready
+        else mo.callout(
+            "Run or load the complete physical Kira reductions to evaluate "
+            "the native MP-PM transition.",
+            kind="neutral",
+        )
+    )
+    mo.vstack(
+        [
+            typst_md(r"""
+            == 8. Native regularised MP--PM transition
+
+            This is the result used by the calculation.  We report the
+            coefficient-function difference
+
+            $ C_(a b)^(upright("MP"))-C_(a b)^(upright("PM")) $
+
+            after dividing out the common leading $q bar(q)$ hard factor.  The
+            off-diagonal $qg$ label is therefore a convolution channel, rather
+            than an additional Born process.  We use
+            $a_s=alpha_s/(2 pi)$, equivalently $g_s^2=4 pi alpha_s$, and retain
+            $C_F$ and $T_F$ symbolically.
+
+            Let $L_i=log(mu_R^2/Lambda_i^2)$ and introduce the colour-stripped
+            kernels
+
+            $ P_(q q)(z)=3/2 delta(1-z)+2 cal(D)_0(z)-(1+z), quad
+              P_(q g)(z)=z^2+(1-z)^2. $
+
+            The graph/master calculation gives one record for each routed
+            incoming leg,
+
+            $ K_q(z,Lambda_i^2)=P_(q q)(z)(1/epsilon+L_i)
+              +(7/2-pi^2/3)delta(1-z)-2 cal(D)_1(z)
+              +z-2-frac((1+z^2)log z,1-z)+(1+z)log(1-z), $
+
+            $ K_g(z,Lambda_i^2)=P_(q g)(z)(1/epsilon+L_i)-2
+              -P_(q g)(z)(log z+log(1-z)), $
+
+            and the physical NLO transition terms are
+
+            $ [C_(q bar(q))^(upright("MP")-upright("PM"))]_(upright("NLO"))
+              =a_s C_F
+                (K_q(z,Lambda_1^2)+K_q(z,Lambda_2^2)), $
+
+            $ [C_(q g)^(upright("MP")-upright("PM"))]_(upright("NLO"))
+              =frac(a_s T_F,2)
+                (K_g(z,Lambda_1^2)+K_g(z,Lambda_2^2)). $
+
+            Equivalently, the displayed parentheses define the corresponding
+            coefficients in $C=C^(0)+a_s C^(1)+cal(O)(a_s^2)$.
+
+            Here *regularised* means that $d=4-2 epsilon$ and the physical
+            virtuality cutoffs $Lambda_i^2$ are retained.  The simple
+            collinear $1/epsilon$ poles and the endpoint distributions are
+            part of the result; they have not yet been removed by a PDF
+            factorization prescription.
+
+            A common absolute observable factor, including a single global
+            cluster factor such as $1/(4 pi)$, cancels from this
+            Born-normalized MP--PM difference.  It is not a factor per
+            incoming leg.  An absolute cross section must restore that global
+            convention together with flux, measurement, luminosity, and the
+            common MP/PM cut sectors.  Those common sectors are absent by
+            construction from the transition, so this notebook does not claim
+            a complete native absolute NLO Drell--Yan coefficient.
+            """),
+            typst_md("=== Native one-leg endpoint records"),
+            expression_table(native_one_leg_rows, pagination=False),
+            typst_md("=== Native two-leg transition coefficients"),
+            expression_table(native_result_rows, pagination=False),
+            typst_md("=== Native pole content"),
+            expression_table(native_result_pole_rows, pagination=False),
+            _result_status,
+            typst_md(r"""
+            === $q bar(q)$ transition by native physical sector
+
+            The sector sum includes the two external-bubble insertions as
+            physical terms.  The table is displayed in the same
+            Born-normalized convention as the result above.
+            """),
+            expression_table(native_result_sector_rows, pagination=False),
+            typst_md(r"""
+            === Cross-process test
+
+            The two $K_q$ records and the two $K_g$ records form the public
+            one-leg contract tested in the DIS notebook.  With the same
+            cutoff on both sides, the quark DIS transition is one half of the
+            $q bar(q)$ result, while the gluon record agrees with the $qg$
+            result after the finite polarization conversion.  This comparison
+            tests the native constructions of two processes; no manuscript or
+            Mathematica expression enters it.
+            """),
+        ]
+    )
+    return
 
 
 @app.cell(hide_code=True)
@@ -2329,9 +2640,12 @@ def _(
 
     _comparison_rows = [
         {
-            **_row,
-            "paper": _row["paper"].factor(),
-            "ours": _row["ours"].factor(),
+            "level": _row["level"],
+            "result": _row["result"],
+            "AEM reference": _row["paper"].factor(),
+            "independent PM diagrams": _row["ours"].factor(),
+            "difference": _row["ours - paper"],
+            "comparison": _row["match"],
         }
         for _row in aem_parton_kernel_comparison_rows
     ]
@@ -2349,18 +2663,18 @@ def _(
             {
                 "level": "integrated two-body phase space",
                 "result": _name,
-                "paper": factorized_endpoint_expression(
+                "AEM reference": factorized_endpoint_expression(
                     _paper_coefficient,
                     *_collectors,
                     canonicalize=True,
                 ),
-                "ours": factorized_endpoint_expression(
+                "independent PM diagrams": factorized_endpoint_expression(
                     _our_coefficient,
                     *_collectors,
                     canonicalize=True,
                 ),
-                "ours - paper": endpoint_expression(_residual),
-                "match": "exact (residual = 0)" if _exact else "mismatch",
+                "difference": endpoint_expression(_residual),
+                "comparison": "exact (residual = 0)" if _exact else "mismatch",
             }
         )
         assert _exact, {_name: _residual}
@@ -2376,7 +2690,13 @@ def _(
     mo.vstack(
         [
             typst_md(r"""
-            == 8. Independent AEM parton-model validation
+            == 9. Supporting reduced AEM kernel derivation
+
+            This is the diagram-level derivation supporting the direct,
+            all-factor comparison in the following section.  It does not enter
+            the graph selection, the master reduction, or the normalization of
+            the native MP--PM transition.  Its purpose is to document the
+            independently assembled PM diagrams in the stated AEM convention.
 
             For $q bar(q) arrow gamma^* g$, the two emission diagrams combine
             as their two squares minus twice their interference. For
@@ -2387,19 +2707,292 @@ def _(
             85. The integrated rows start from the same diagram sums, apply the
             $d$-dimensional two-body phase space of paper Eqs. 79--80, and
             reproduce Eq. 88 and the integrated $q g$ result immediately before
-            Eq. 93. Both columns divide out the common factor
+            Eq. 93. For this reduced derivation only, both columns factor out
+            the common dimensional term
             $(4 pi mu^2/Q^2)^epsilon Gamma(1-epsilon)/Gamma(1-2epsilon)$.
-            Each column retains a compact displayed form, while the
-            canonical expansion of *ours - paper* supplies the exact equality
-            criterion.
+            Section 10 restores it, together with the QED, flux, and
+            luminosity factors. Each reduced row retains a compact displayed
+            form, while the canonical expansion of the difference supplies the
+            equality criterion.
             """),
             _phase_space_table,
             _comparison_table,
             mo.callout(
-                "All four canonical residuals vanish. The diagram traces and "
-                "their phase-space integrals therefore agree exactly with the "
-                "published parton-model calculation.",
+                "All four residuals vanish in the stated AEM normalization. "
+                "This checks the independent PM diagram assembly only; it does "
+                "not define the native MP-PM result above.",
                 kind="success",
+            ),
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    E,
+    EndpointCoefficient,
+    S,
+    aem_integrated_from_diagrams,
+    aem_integrated_paper_targets,
+    aem_virtual_laurent,
+    dy_context,
+    replace_all,
+    scalar_printer,
+):
+    """Restore the external AEM cross-section convention around PM kernels.
+
+    The endpoint coefficients above are intentionally reduced kernels.  This
+    cell keeps the AEM luminosity, QED, flux, and dimensional factors outside
+    them, so that the conventional absolute PM presentation cannot feed back
+    into the native LU construction.
+    """
+
+    aem_a_s = S(
+        "DY_AEM_a_s",
+        print=scalar_printer(latex=r"a_s", typst="a_s"),
+    )
+    aem_alpha_em = S(
+        "DY_AEM_alpha_em",
+        print=scalar_printer(latex=r"\alpha_{\mathrm{em}}", typst="alpha_(em)"),
+    )
+    aem_hadronic_s = S(
+        "DY_AEM_S",
+        print=scalar_printer(latex=r"S", typst="S"),
+    )
+    aem_q_squared = S(
+        "DY_AEM_Q_sq",
+        print=scalar_printer(latex=r"Q^2", typst="Q^2"),
+    )
+
+    _epsilon = dy_context.epsilon
+    _z = dy_context.z
+    _aem_rules = (
+        # AEM uses a_s = alpha_s/(2 pi).  The virtual reference is at z=1,
+        # where its partonic invariant is Q^2.
+        (dy_context.alpha_s, 2 * dy_context.pi * aem_a_s),
+        (dy_context.s, aem_q_squared),
+    )
+
+    def _in_aem_convention(_coefficient):
+        def _replace(_expression):
+            return replace_all(_expression, _aem_rules).expand().together().cancel()
+
+        return EndpointCoefficient(
+            delta=_replace(_coefficient.delta),
+            d0_prefactor=_replace(_coefficient.d0_prefactor),
+            d1_prefactor=_replace(_coefficient.d1_prefactor),
+            regular=_replace(_coefficient.regular),
+        )
+
+    # AEM Eqs. 25 and 35: the hadronic luminosity convention is separated from
+    # the per-flavour electric charge.  The NLO rows additionally carry the
+    # common d-dimensional factor which was divided out in section 9.
+    aem_absolute_prefactor = (
+        4
+        * dy_context.pi
+        * aem_alpha_em**2
+        / (3 * dy_context.color_count * aem_hadronic_s * aem_q_squared)
+    )
+    aem_dimensional_factor = (
+        (4 * dy_context.pi * dy_context.mu_r_squared / aem_q_squared) ** _epsilon
+        * (1 - _epsilon).gamma()
+        / (1 - 2 * _epsilon).gamma()
+    )
+    aem_absolute_born_factor = (
+        aem_absolute_prefactor * dy_context.electric_charge**2
+    )
+    aem_absolute_nlo_factor = (
+        aem_absolute_born_factor * aem_dimensional_factor
+    )
+    aem_absolute_born = EndpointCoefficient(delta=E("1"))
+    aem_absolute_targets = {
+        _name: _in_aem_convention(_coefficient)
+        for _name, _coefficient in aem_integrated_paper_targets.items()
+    }
+    aem_absolute_from_diagrams = {
+        _name: _in_aem_convention(_coefficient)
+        for _name, _coefficient in aem_integrated_from_diagrams.items()
+    }
+    aem_absolute_residuals = {
+        _name: (
+            aem_absolute_from_diagrams[_name] - aem_absolute_targets[_name]
+        ).canonical(_z)
+        for _name in aem_absolute_targets
+    }
+    assert all(
+        _residual.is_zero_for(_z)
+        for _residual in aem_absolute_residuals.values()
+    ), aem_absolute_residuals
+
+    # The virtual term remains a source transcription.  It is converted to the
+    # same external convention for display, but is deliberately not compared to
+    # an independently assembled raw PM amplitude.
+    aem_absolute_virtual_reference = _in_aem_convention(aem_virtual_laurent)
+    return (
+        aem_a_s,
+        aem_absolute_born,
+        aem_absolute_born_factor,
+        aem_absolute_from_diagrams,
+        aem_absolute_nlo_factor,
+        aem_absolute_prefactor,
+        aem_absolute_residuals,
+        aem_absolute_targets,
+        aem_absolute_virtual_reference,
+        aem_alpha_em,
+        aem_dimensional_factor,
+        aem_hadronic_s,
+        aem_q_squared,
+    )
+
+
+@app.cell(hide_code=True)
+def _(
+    aem_absolute_born,
+    aem_absolute_born_factor,
+    aem_absolute_from_diagrams,
+    aem_absolute_nlo_factor,
+    aem_absolute_residuals,
+    aem_absolute_targets,
+    aem_absolute_virtual_reference,
+    dy_context,
+    expression_table,
+    factorized_endpoint_expression,
+    mo,
+    typst_md,
+):
+    def _born_expression(_coefficient):
+        return aem_absolute_born_factor * factorized_endpoint_expression(
+            _coefficient,
+            canonicalize=True,
+        )
+
+    def _nlo_expression(_coefficient):
+        return aem_absolute_nlo_factor * factorized_endpoint_expression(
+            _coefficient,
+            dy_context.z.log(),
+            (1 - dy_context.z).log(),
+            canonicalize=True,
+        )
+
+    _real_rows = [
+        {
+            "partonic contribution": "Born qqbar -> gamma*",
+            "AEM conventional cross section": _born_expression(aem_absolute_born),
+            "independent PM diagrams": (
+                "normalization anchor; not an LU graph calculation"
+            ),
+            "PM - AEM": "not evaluated",
+            "comparison": "external Born normalization",
+        }
+    ]
+    for _name, _target in aem_absolute_targets.items():
+        _residual = aem_absolute_residuals[_name]
+        _display_name = {
+            "qg Compton (integrated result before Eq. 93)": (
+                "ordered qg Compton: q(p_1) g(p_2) -> gamma* q"
+            )
+        }.get(_name, _name)
+        _real_rows.append(
+            {
+                "partonic contribution": _display_name,
+                "AEM conventional cross section": _nlo_expression(_target),
+                "independent PM diagrams": _nlo_expression(
+                    aem_absolute_from_diagrams[_name]
+                ),
+                "PM - AEM": _nlo_expression(_residual),
+                "comparison": "exact (factorized residual = 0)",
+            }
+        )
+
+    _virtual_rows = [
+        {
+            "partonic contribution": "qqbar virtual: Fig. 3(a,b), Eqs. 82--83",
+            "AEM conventional cross section": _nlo_expression(
+                aem_absolute_virtual_reference
+            ),
+            "independent PM diagrams": "AEM source transcription only",
+            "PM - AEM": "not applicable",
+            "comparison": "reference only; outside direct validation",
+        }
+    ]
+    mo.vstack(
+        [
+            typst_md(r"""
+            == 10. Direct unstripped AEM PM validation
+
+            This is a direct, unstripped validation of the independently
+            assembled real PM diagrams in the AEM cross-section convention. It
+            restores the external cross-section convention around the reduced
+            kernels and remains external to the native
+            $C^(upright("MP"))-C^(upright("PM"))$ construction.
+
+            Write $z=Q^2/(x_1 x_2 S)$ and $hat(s)=x_1 x_2 S$.  In the AEM
+            luminosity convention,
+
+            $
+              cal(B)_(upright("AEM"))(S,Q^2)
+              = frac(4 pi alpha_(em)^2, 3 N_c S Q^2),
+              quad
+              cal(N)_epsilon
+              = (frac(4 pi mu_R^2,Q^2))^epsilon
+                frac(Gamma(1-epsilon),Gamma(1-2 epsilon)).
+            $
+
+            The corresponding partonic flux normalization is
+
+            $
+              frac(d hat(sigma)_(a b), d Q^2)
+              = frac(4 pi alpha_(em)^2 e_q^2,
+                  3 N_c Q^2 hat(s)) C_(a b)(z),
+            $
+
+            and the hadronic result is
+
+            $
+              frac(d sigma^(upright("PM")),d Q^2)
+              = cal(B)_(upright("AEM")) sum_f e_f^2
+                integral frac(d x_1,x_1) integral frac(d x_2,x_2)
+                { [q_f bar(q)_f+bar(q)_f q_f] C_(q bar(q))(z)
+                + [(q_f+bar(q)_f)g+g(q_f+bar(q)_f)] C_(q g)(z) }.
+            $
+
+            Thus the displayed Born row carries
+            $cal(B)_(upright("AEM")) e_q^2$, while each NLO row carries
+            $cal(B)_(upright("AEM")) e_q^2 cal(N)_epsilon$.  Its coefficient
+            retains $a_s=alpha_s/(2 pi)$, $C_F$, or $T_F$ explicitly.  The
+            real-emission and Compton rows below are independent diagram
+            calculations; their equality is tested by the exact endpoint
+            residual after restoring the same outer factors on both sides. The
+            Compton row is the ordered $q(p_1)g(p_2)$ contribution.  The two
+            $qg$ luminosities in the formula supply both beam orientations, and
+            $q_f+bar(q)_f$ supplies the charge-conjugate channels.
+            """),
+            expression_table(_real_rows, pagination=False),
+            typst_md(r"""
+            === Virtual: AEM source transcription only
+
+            The virtual coefficient is shown in the same AEM convention to
+            complete the conventional PM ledger.  It is recorded solely as an
+            AEM source transcription; the direct validation above consists of
+            the independently assembled real-emission and ordered-Compton rows.
+            """),
+            expression_table(_virtual_rows, pagination=False),
+            mo.callout(
+                "The AEM prefactor supplies the QED, partonic-flux, and "
+                "hadronic-luminosity convention. It is not a calibration of "
+                "the LU cluster factor 1/(4 pi): the native LU graph records "
+                "do not yet include a complete QED Born process, flux, and "
+                "leptonic measurement normalization.",
+                kind="neutral",
+            ),
+            mo.callout(
+                "The endpoint coefficients are retained through epsilon^0, "
+                "so N_epsilon is intentionally kept factorized. Re-expanding "
+                "it through the finite term would require the O(epsilon) real "
+                "coefficient functions; the exact residuals above are "
+                "factorized identities at the retained order.",
+                kind="warn",
             ),
         ]
     )
@@ -2430,33 +3023,54 @@ def _(
     _coefficient_comparison_table = expression_table(
         [
             {
-                "result": "qqbar NLO coefficient",
-                "LaTeX": factorized_endpoint_expression(
+                "result": "qqbar transverse ledger",
+                "local LaTeX": factorized_endpoint_expression(
                     displayed_dy.qq_manuscript,
                     _qq_source_log,
                 ),
-                "Mathematica": factorized_endpoint_expression(
+                "recorded Mathematica": factorized_endpoint_expression(
                     displayed_dy.qq_recorded_mathematica,
                     _qq_source_log,
                 ),
-                "ours": factorized_endpoint_expression(
+                "closed-form ledger": factorized_endpoint_expression(
                     displayed_dy.qq_transverse.total,
                     _qq_source_log,
                 ),
+                "ledger - LaTeX": factorized_endpoint_expression(
+                    displayed_dy.qq_transverse_minus_manuscript,
+                    _qq_source_log,
+                    canonicalize=True,
+                ),
+                "ledger - Mathematica": factorized_endpoint_expression(
+                    displayed_dy.qq_transverse_minus_recorded_mathematica,
+                    _qq_source_log,
+                    canonicalize=True,
+                ),
             },
             {
-                "result": "qg NLO coefficient",
-                "LaTeX": factorized_endpoint_expression(
+                "result": "qg transverse ledger",
+                "local LaTeX": factorized_endpoint_expression(
                     displayed_dy.qg_manuscript,
                     _qg_source_log,
                 ),
-                "Mathematica": factorized_endpoint_expression(
+                "recorded Mathematica": factorized_endpoint_expression(
                     displayed_dy.qg_recorded_mathematica,
                     _qg_source_log,
                 ),
-                "ours": factorized_endpoint_expression(
+                "closed-form ledger": factorized_endpoint_expression(
                     displayed_dy.qg_transverse.total,
                     _qg_source_log,
+                ),
+                "ledger - LaTeX": factorized_endpoint_expression(
+                    displayed_dy.qg_transverse_minus_manuscript,
+                    _qg_source_log,
+                    canonicalize=True,
+                ),
+                "ledger - Mathematica": factorized_endpoint_expression(
+                    displayed_dy.qg_transverse.total
+                    - displayed_dy.qg_recorded_mathematica,
+                    _qg_source_log,
+                    canonicalize=True,
                 ),
             },
         ],
@@ -2465,114 +3079,17 @@ def _(
     mo.vstack(
         [
             typst_md(r"""
-            == 9. Local LaTeX and Mathematica comparison
+            == 11. Local LaTeX and Mathematica comparison
 
-            Section 8 pairs the AEM paper with the independent parton-diagram
-            sum. The table here places each complete NLO coefficient in the
-            three local source forms. *LaTeX* denotes local manuscript
-            Eqs. 317--318, *Mathematica* denotes the recorded symbolic result,
-            and *ours* is derived from the physical traces, IBP identities,
-            and analytic masters. Compact factorization exposes the common
-            endpoint structure and the remaining source differences directly.
+            This downstream table places three separately recorded transverse
+            ledgers side by side. *Local LaTeX* and *recorded Mathematica* are
+            source records; the *closed-form ledger* is the finite diagnostic
+            assembled in this notebook.  Neither source is an input to the
+            native MP--PM construction.  The two difference columns are shown
+            explicitly, so the table records disagreements rather than treating
+            either local source as a target to be matched.
             """),
             _coefficient_comparison_table,
-        ]
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(
-    expression_table,
-    mo,
-    native_kernel_rows,
-    native_pole_rows,
-    native_scheme_ready,
-    native_sector_rows,
-    typst_md,
-):
-    _result_callout = (
-        mo.callout(
-            "The physical cut sum gives positive P_qg and 2 P_qq poles. In "
-            "both channels the MP-PM pole "
-            "is exactly the negative of the independently assembled AEM PM "
-            "pole, and both epsilon^-2 coefficients vanish.",
-            kind="success",
-        )
-        if native_scheme_ready
-        else mo.callout(
-            "The Drell--Yan transition coefficient is the sum of the physical "
-            "cut-sector master terms displayed here.",
-            kind="neutral",
-        )
-    )
-    mo.vstack(
-        [
-            typst_md(r"""
-            == 10. MP--PM kernel and one-leg scheme conclusion
-
-            The graph numerators, cut memberships, observable phases, sector
-            weights, and analytic masters determine the Drell--Yan transition
-            coefficient. A complementary MP cut contributes $+1$, while a
-            complementary PM cut contributes $-1$.
-
-            The first table gives the resulting
-            $C^(upright("MP"))-C^(upright("PM"))$ coefficient. The second compares
-            its pole with the conventional parton-model diagrams. Their exact
-            relation in each channel is
-
-            $[C^(upright("MP"))-C^(upright("PM"))]_(1/epsilon)
-              +[C^(upright("PM"))]_(1/epsilon)=0$.
-
-            The $q bar(q)$ identity holds separately in the $delta(1-z)$,
-            $cal(D)_0(z)$, $cal(D)_1(z)$, and ordinary components.
-            """),
-            expression_table(native_kernel_rows, pagination=False),
-            expression_table(native_pole_rows, pagination=False),
-            _result_callout,
-            typst_md(r"""
-            === $q bar(q)$ transition by physical sector
-
-            The two external-bubble rows combine the bubble coefficient, the
-            cut-bubble master, and the virtuality factors $J_1$ and $J_2$. The
-            physical sum uses the AEM/convolution convention. The final row
-            records the historical normalization map $C(z) arrow z C(z)$.
-            """),
-            expression_table(native_sector_rows, pagination=False),
-            typst_md(r"""
-            === DIS--DY one-leg equality
-
-            With the displayed channel normalizations, the Drell--Yan result
-            decomposes into records associated with individual incoming legs.
-            At arbitrary factorization cutoffs, the companion DIS calculation
-            gives the same record for a leg of the same species,
-
-            $ K_q^(upright("DIS"))(Lambda_i^2)
-                =K_(q,i)^(upright("DY"))(Lambda_i^2), quad
-              K_g^(upright("DIS"))(Lambda_i^2)
-                =K_(q g,i)^(upright("DY"))(Lambda_i^2). $
-
-            The full quark--antiquark transition is the sum of its two records,
-
-            $ K_(q bar(q))^(upright("DY"))(Lambda_1^2,Lambda_2^2)
-              =K_(q,1)^(upright("DY"))(Lambda_1^2)
-               +K_(bar(q),2)^(upright("DY"))(Lambda_2^2). $
-
-            For symmetric legs, $Lambda_1^2=Lambda_2^2=Lambda^2$, this becomes
-
-            $ K_q^(upright("DIS"))(Lambda^2)
-                =frac(1,2)K_(q bar(q))^(upright("DY"))(Lambda^2,Lambda^2), quad
-              K_g^(upright("DIS"))(Lambda^2)
-                =K_(q g)^(upright("DY"))(Lambda^2). $
-
-            The gluon equality includes the finite $(1-epsilon)$ conversion
-            from the $d-2$ polarization average to the two-helicity convention.
-
-            Both equalities hold in every pole, logarithmic,
-            endpoint-distribution, and ordinary component. The MP--PM
-            collinear transition is therefore universal per incoming leg at
-            this order.
-            """),
         ]
     )
     return
@@ -2583,10 +3100,10 @@ def _(typst_md):
     typst_md(r"""
     = Supporting validation and reference comparisons
 
-    The main text establishes the trace, reduction, master, virtuality,
-    parton-model, source-comparison, and cross-process identities. The
-    following tables record supporting polynomial identities, historical
-    convention maps, and the detailed AEM transcription ledger.
+    The main text establishes the native graph-to-master MP--PM transition and
+    its one-leg contract. The following tables record supporting polynomial
+    identities, historical convention maps, and external reference ledgers.
+    They do not modify the native result.
 
     == Trace-to-scalar polynomial identities
 
@@ -2989,20 +3506,19 @@ def _(
             typst_md(r"""
             == Historical convention map
 
-            The historical full coefficient and scheme expression assign
-            opposite orientations to MP--PM. The raw $q g$ cut sum consequently
-            appears with the reverse sign. The $q bar(q)$ reconstruction
-            includes the two half-weighted external-bubble contributions and
-            the exact smooth map $C(z) arrow z C(z)$. The tables localize these
-            convention choices and their algebraic effects.
+            This reference ledger records historical orientations and smooth
+            convention maps.  The raw $q g$ cut sum can consequently appear
+            with the reverse sign, while the $q bar(q)$ reconstruction includes
+            two half-weighted external-bubble contributions and the smooth map
+            $C(z) arrow z C(z)$.  These rows diagnose source conventions; they
+            do not alter the native coefficient.
             """),
             expression_table(historical_reference_rows, pagination=False),
             expression_table(scheme_source_audit_rows, pagination=False),
             typst_md(r"""
             == Supporting AEM diagram and transcription tables
 
-            The main-text paper comparison supplies the physical validation.
-            These rows transcribe the paper's coefficients and follow
+            These downstream rows transcribe reference coefficients and follow
             #link("https://inspirehep.net/literature/140456")[Altarelli, Ellis, and Martinelli, Nucl. Phys. B157 (1979) 461--497]
             (#link("https://doi.org/10.1016/0550-3213(79)90116-0")[DOI]).
             The two real $q bar(q)$ emission diagrams are assembled as two

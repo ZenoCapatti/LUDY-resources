@@ -24,12 +24,12 @@ dis/
 
 There are three distinct reference layers:
 
-1. The active manuscript source inspected in the sibling research checkout at
-   `../LUDY/references/factorisable-local-unitarity/source/main.tex` specifies
-   the integral families, normalizations, and coefficient functions intended
-   for the paper. It is provenance, not a runtime dependency of this checkout.
-   The inspected 52,260-byte artifact is pinned in `physical.py` by SHA-256
-   `6a9a8b1c926e646933dd4ab65b7f2b7644486d5dee112528de5e392a4804fd5a`.
+1. The checked-in manuscript source [`paper/main.tex`](../../paper/main.tex)
+   specifies the integral families, normalizations, and coefficient functions
+   intended for the paper. It is provenance, not an input to the native MP
+   assembly. The inspected 50,527-byte artifact is pinned in `physical.py` by
+   SHA-256
+   `28936e580a651ff58a21f7b9f43abf51abdbaea7fb05105594fa79f202d42870`.
 2. [arXiv:2506.16489v1](https://arxiv.org/abs/2506.16489v1), *Multi-partonic
    interactions, iterated discontinuities and the virtuality expansion in
    deep inelastic scattering*, supplies the historical derivation and official
@@ -64,12 +64,15 @@ L = \log\!\frac{Q^2}{\Lambda^2}, \qquad
 \mathcal D_n(x)=\left[\frac{\log^n(1-x)}{1-x}\right]_+,
 ```
 
-and write the native coefficient functions as
+and use the coefficient convention
 
 ```math
+\widehat F_{i,a}^{\mathrm{MP}}
+=\widehat F_{i,a}^{(0)}
++a_s\widehat F_{i,a}^{(1),\mathrm{MP}}+\mathcal O(a_s^2),
+\qquad
 \widehat F_{i,a}^{(1),\mathrm{MP}}
-=\frac{e_q^2\alpha_s}{2\pi}\,x\,C_a\,
-M_{i,a}^{\mathrm{MP}},
+=e_q^2 x C_a M_{i,a}^{\mathrm{MP}},
 \qquad C_q=C_F,\quad C_g=T_F.
 ```
 
@@ -202,11 +205,10 @@ normalization or an invitation to substitute a reference formula.
 The historical and active sources remain valuable comparisons, but the native
 answer is fixed before either is read:
 
-- the active manuscript labels both scale-dependent equations at
-  `main.tex:296-297` as `F_L`; their structure identifies the intended
-  observables as `F_2g` and `F_2q`, while the actual longitudinal pair appears
-  separately at `main.tex:302-303`. Literal and intended labels remain separate
-  in `physical.PAPER_TARGETS`;
+- the current manuscript labels the four functions directly at
+  `paper/main.tex:287-302`. `physical.PAPER_TARGETS` transcribes those lines
+  literally, expands their colour-stripped kernel notation only for the
+  downstream comparison, and never supplies a native calculation input;
 - `Submission/Discontinuities.tex:80-94` defines
   `disc_s f=f(s-i0)-f(s+i0)`, so the raised-cut definition at `:143-154`
   is missing the alternating `(-1)^(a-1)` factor. The intermediate examples at

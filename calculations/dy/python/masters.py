@@ -433,8 +433,16 @@ def _(mo):
     virtuality integrations carries
     $(2 pi)^(N_c-d-N_v)$ before angular and delta-function Jacobians.
     Spin and colour averages remain observable-dependent prefactors and are
-    not folded into a scalar master.  DIS receives the additional $1/(4 pi)$
-    factor recorded in PDF equations (125) and (132).
+    not folded into a scalar master.  The clustering convention supplies one
+    global $1/(4 pi)$ factor for either the one-cluster DIS observable or the
+    two-cluster DY observable.  It is separate from the $p_i^2$ measures and
+    is not assigned once per incoming leg.  A DY coefficient normalized to
+    its Born cross section cancels that common factor.  To compare an absolute
+    DY rate with a conventional parton-model source, it must be restored
+    together with the photon normalization, flux, measurement Jacobian, and
+    parton luminosity.  The scalar-master ledger alone does not determine that
+    complete bridge, so a standalone $1/(4 pi)$ must not be inserted merely to
+    force agreement.
 
     The early PDF master pages instead write $(2 pi i)^(N_c)$.  Its $i^2$
     explains the negative double-cut bubble; that Cutkosky phase is not a
@@ -484,7 +492,7 @@ def _(d, pi, spenso_table):
             "2π factor": (2 * pi) ** (2 - d),
         },
         {
-            "object": "DIS-only observable factor",
+            "object": "global clustering/observable factor",
             "loops": 0,
             "cut edges": 0,
             "virtuality integrals": 0,

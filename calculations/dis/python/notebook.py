@@ -96,11 +96,12 @@ def _(mo):
     The resulting graph sum is expanded at leading incoming virtuality and then
     in the final-state endpoint. This produces the $delta(1-x)$,
     $cal(D)_0(x)$, $cal(D)_1(x)$, and regular components of the multi-partonic
-    coefficient. A second branch assembles the conventional real and virtual
+    coefficient. This native regularised MP coefficient is the central result
+    reported below. A second branch assembles the conventional real and virtual
     parton diagrams and their MS-bar factorization. Their difference defines the
     one-incoming-leg transition kernel. The final DIS--DY comparison tests its
-    universality, while the Pink Book, LaTeX, and Mathematica comparisons record
-    the corresponding literature checks.
+    universality, while the Pink Book, LaTeX, and Mathematica comparisons appear
+    downstream as reference checks.
     """)
     return
 
@@ -1487,6 +1488,202 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(
+    dis_cuts,
+    dis_graphs,
+    dis_kinematics,
+    master_insertion_audit,
+    mo,
+    spenso_table,
+):
+    native_scheme_audit = audit_native_dis_scheme_change(
+        master_insertion_audit=master_insertion_audit,
+        graphs=dis_graphs,
+        cuts=dis_cuts,
+        kinematics=dis_kinematics,
+    )
+    _evidence = native_scheme_audit.evidence
+    native_mp_result = (
+        native_scheme_audit.require_result()
+        if native_scheme_audit.ready
+        else None
+    )
+    _boundary = (
+        f"{_evidence.master_records_present}/"
+        f"{_evidence.master_records_expected} present; "
+        f"{_evidence.master_records_exact} algebraically exact; "
+        f"exact boundary: "
+        f"{'complete' if _evidence.master_boundary_exact else 'declared'}"
+    )
+    _evidence_rows = [
+        {
+            "mathematical stage": "physical topologies",
+            "status": (
+                f"{len(_evidence.declared_topologies)} compact topologies -> "
+                f"{len(_evidence.declared_graphs)} rooted traces"
+            ),
+        },
+        {
+            "mathematical stage": "oriented cut support",
+            "status": (
+                f"{len(_evidence.declared_cut_signatures)} unit-multiplicity "
+                "oriented sectors; external--external phase = -1; support pairs: "
+                + ", ".join(name for name, _lines in _evidence.cut_support_pairs)
+            ),
+        },
+        {
+            "mathematical stage": "graph normalization",
+            "status": "; ".join(_evidence.topology_owned_fields),
+        },
+        {
+            "mathematical stage": "IBP coefficients and analytic masters",
+            "status": _boundary,
+        },
+        {
+            "mathematical stage": "distribution basis",
+            "status": (
+                f"{_evidence.sign_convention}, {_evidence.incoming_legs} "
+                "incoming leg; " + "; ".join(_evidence.distribution_basis)
+            ),
+        },
+        {
+            "mathematical stage": "multi-partonic coefficient",
+            "status": (
+                "assembled; all Laurent poles cancel"
+                if native_mp_result is not None
+                else "defined by the 32-term master sum"
+            ),
+        },
+    ]
+    _items = [
+        mo.md(r"""
+        == 8. Native regularised multi-partonic DIS result
+
+        This is the primary result of the calculation.  The five physical
+        topologies, their rooted cuts, the Kira reductions, and the analytic
+        masters determine the four multi-partonic coefficient functions before
+        the independent parton-model calculation and all literature checks.
+
+        Write $a_s=alpha_s/(2 pi)$, $L=log(Q^2/Lambda^2)$, and
+        $P_(q g)(x)=x^2+(1-x)^2$.  In the paper convention
+        $F=F^(0)+a_s F^(1)+cal(O)(a_s^2)$, the native coefficient is
+
+        $ hat(F)_(i,a)^(1,upright("MP"))
+          =e_q^2 x C_a M_(i,a)^(upright("MP")), quad
+          C_q=C_F, quad C_g=T_F, $
+
+        so the physical NLO contribution is
+        $a_s hat(F)_(i,a)^(1,upright("MP"))$.  The native assembler stores this
+        same contribution with $a_s$ included.
+
+        $ M_(2,q)^(upright("MP"))
+          =(-1-frac(2 pi^2,3)+frac(3L,2))delta(1-x)
+          +(2L-frac(3,2))cal(D)_0(x)
+          +1+3x-frac(2(1+x^2),1-x)log x-(1+x)L, $
+
+        $ M_(2,g)^(upright("MP"))
+          =P_(q g)(x)(L-2log x)+6x(1-x)-2, $
+
+        $ M_(L,q)^(upright("MP"))=2x, quad
+          M_(L,g)^(upright("MP"))=4x(1-x). $
+
+        The gluon rows give one $q$-or-$bar(q)$ term; the complete one-flavour
+        $gamma^*g$ contribution contains the two equal terms.  Regularisation
+        here combines the finite virtuality cutoff $Lambda^2$, dimensional
+        regularisation in $d=4-2epsilon$, and the distributional endpoint
+        basis.  The physical coefficient is finite: every $epsilon^(-2)$ and
+        $epsilon^(-1)$ component cancels, while $L$ records the physical
+        virtuality-cutoff dependence.
+
+        The observable normalization is
+
+        $ frac(upright(d)p^2,2pi)frac(1,4pi)
+          =frac(upright(d)p^2,8pi^2). $
+
+        The scalar masters supply the loop measure and cut-edge factors; each
+        topology supplies its channel coupling, colour factor, spin average,
+        phase, and rooted multiplicity.  The table gives the independently
+        assembled coefficients in their canonical endpoint components.
+        """),
+        spenso_table(_evidence_rows, pagination=False),
+    ]
+    if native_mp_result is None:
+        _items.append(
+            mo.callout(
+                "The topology and cut data define the complete 32-term "
+                "scalar-master representation.",
+                kind="neutral",
+            )
+        )
+    else:
+        def _plus(_coefficient, _order):
+            return (
+                _coefficient.plus[_order]
+                if _order < len(_coefficient.plus)
+                else E("0")
+            )
+
+        _native_rows = []
+        for _name, _coefficient in (
+            ("F2q / C_F", native_mp_result.brackets.F2q),
+            ("F2g / T_F", native_mp_result.brackets.F2g),
+            ("FLq / C_F", native_mp_result.brackets.FLq),
+            ("FLg / T_F", native_mp_result.brackets.FLg),
+        ):
+            _native_rows.append(
+                {
+                    "native MP bracket": _name,
+                    "delta(1-x)": _coefficient.delta,
+                    "D0": _plus(_coefficient, 0),
+                    "D1": _plus(_coefficient, 1),
+                    "regular": _coefficient.regular,
+                }
+            )
+        _pole_rows = []
+        for _power in (-2, -1):
+            _functions = native_mp_result.laurent[_power]
+            for _name, _coefficient in (
+                ("F2q", _functions.F2q),
+                ("F2g", _functions.F2g),
+                ("FLq", _functions.FLq),
+                ("FLg", _functions.FLg),
+            ):
+                _pole_rows.append(
+                    {
+                        "Laurent power": _power,
+                        "observable": _name,
+                        "delta": _coefficient.delta,
+                        "plus": _coefficient.plus,
+                        "regular": _coefficient.regular,
+                    }
+                )
+        _items.extend(
+            (
+                spenso_table(_native_rows, pagination=False),
+                mo.md("=== Dimensional-pole and raised-cut checks"),
+                spenso_table(_pole_rows, pagination=False),
+                spenso_table(
+                    [
+                        {"raised branch": _name, "residual": _value}
+                        for _name, _value in (
+                            native_mp_result.raised_external_residuals.items()
+                        )
+                    ],
+                    pagination=False,
+                ),
+                mo.callout(
+                    "The 32 master insertions are exact; every epsilon^-2 and "
+                    "epsilon^-1 component vanishes, and all four raised-external "
+                    "branch identities have zero residual.",
+                    kind="success",
+                ),
+            )
+        )
+    mo.vstack(_items)
+    return native_mp_result, native_scheme_audit
+
+
 @app.cell
 def _():
     # Complete editable symbol input for the independent conventional
@@ -2769,9 +2966,237 @@ def _(
     )
 
 
+@app.cell
+def _(
+    DistributionCoefficient,
+    E,
+    Expression,
+    dis_kinematics,
+    native_mp_result,
+    parton_alpha_s,
+    parton_c2q_distribution_ours,
+    parton_color_f,
+    parton_color_t,
+    parton_electric_charge,
+    parton_endpoint_d0,
+    parton_endpoint_d1,
+    parton_endpoint_delta,
+    parton_f2_ours_results,
+    parton_structure_functions,
+    parton_x,
+    pink_book_c2q_distribution,
+    pink_book_f2_targets,
+    pink_book_parton_targets,
+    normalize_rational,
+):
+    # The Pink Book writes coefficient functions after removing the common
+    # electromagnetic, QCD, and DIS-projector factors.  Restore them on both
+    # sides here, so this table checks the actual partonic structure functions
+    # rather than a ratio designed to hide an overall normalization error.
+    _pi = Expression.PI
+    _a_s = parton_alpha_s / (2 * _pi)
+    _one_parton_factor = (
+        parton_electric_charge**2 * _a_s * parton_x
+    )
+
+    def _regular_distribution(_expression):
+        return DistributionCoefficient(
+            variable=parton_x,
+            regular=normalize_rational(_expression),
+        )
+
+    def _display_distribution(_coefficient):
+        _plus = _coefficient.plus + (E("0"), E("0"))
+        return (
+            _coefficient.delta * parton_endpoint_delta
+            + _plus[0] * parton_endpoint_d0
+            + _plus[1] * parton_endpoint_d1
+            + _coefficient.regular
+        ).expand().collect(
+            parton_endpoint_delta,
+            parton_endpoint_d0,
+            parton_endpoint_d1,
+            (1 - parton_x).log(),
+            parton_x.log(),
+            coeff_map=lambda _coefficient: _coefficient.factor(),
+        )
+
+    # First form physical Pink Book targets.  The two gluon endpoint terms are
+    # equal, so a complete one-flavour gamma*g structure function has a factor
+    # of two relative to each printed q-or-antiquark coefficient.
+    _pink_f2q = pink_book_c2q_distribution.multiply_smooth(
+        _one_parton_factor
+    )
+    _pink_f2g_full = _regular_distribution(
+        2
+        * _one_parton_factor
+        * pink_book_f2_targets[
+            r"C_(2,g)^(1), per q or bar(q) term"
+        ]
+    )
+    _pink_flq = _regular_distribution(
+        _one_parton_factor * pink_book_parton_targets[r"C_(L,q)^(1)"]
+    )
+    _pink_flg_full = _regular_distribution(
+        2
+        * _one_parton_factor
+        * pink_book_parton_targets[
+            r"C_(L,g)^(1), per q or bar(q) term"
+        ]
+    )
+
+    # Conventional PM results in the same, unstripped convention.  The F_L
+    # expressions already retain this normalization; the F_2 distributions
+    # must be multiplied smoothly by x to preserve the endpoint algebra.
+    _pm_f2q = parton_c2q_distribution_ours.multiply_smooth(
+        _one_parton_factor
+    )
+    _pm_f2g_full = _regular_distribution(
+        2
+        * _one_parton_factor
+        * parton_f2_ours_results[
+            r"C_(2,g)^(1), per q or bar(q) term"
+        ]
+    )
+    _pm_flq = _regular_distribution(
+        parton_structure_functions[r"hat(F)_(L,q)"]
+    )
+    _pm_flg_full = _regular_distribution(
+        parton_structure_functions[r"hat(F)_(L,g), full flavour"]
+    )
+
+    _pm_records = (
+        (
+            r'hat(F)_(2,q)^(upright("PM"),upright("NLO"))',
+            "q",
+            _one_parton_factor,
+            _pm_f2q,
+            _pink_f2q,
+        ),
+        (
+            r'hat(F)_(2,g)^(upright("PM"),upright("NLO"))',
+            "g, one flavour (q + anti-q)",
+            2 * _one_parton_factor,
+            _pm_f2g_full,
+            _pink_f2g_full,
+        ),
+        (
+            r'hat(F)_(L,q)^(upright("PM"),upright("NLO"))',
+            "q",
+            _one_parton_factor,
+            _pm_flq,
+            _pink_flq,
+        ),
+        (
+            r'hat(F)_(L,g)^(upright("PM"),upright("NLO"))',
+            "g, one flavour (q + anti-q)",
+            2 * _one_parton_factor,
+            _pm_flg_full,
+            _pink_flg_full,
+        ),
+    )
+    pm_unstripped_normalization_rows = []
+    _pm_exact = True
+    for _result, _channel, _factor, _ours, _pink_book in _pm_records:
+        _residual = _ours - _pink_book
+        _exact = _residual.is_zero
+        _pm_exact = _pm_exact and _exact
+        pm_unstripped_normalization_rows.append(
+            {
+                "partonic structure function": _result,
+                "incoming channel": _channel,
+                "restored prefactor": _factor,
+                "Pink Book": _display_distribution(_pink_book),
+                "ours": _display_distribution(_ours),
+                "ours - Pink Book": _display_distribution(_residual),
+                "match": "exact" if _exact else "mismatch",
+            }
+        )
+    assert _pm_exact
+
+    # F_L has no Born coefficient.  Consequently an NLO PDF-scheme change
+    # contributes D^(1) convoluted with F_L^(0)=0, and the native LU/MP result
+    # can itself be calibrated directly against the conventional result.
+    native_longitudinal_normalization_rows = []
+    native_longitudinal_normalization_exact = native_mp_result is not None
+    if native_mp_result is not None:
+        _native_x = dis_kinematics.bjorken_x
+
+        def _map_native_distribution(_coefficient):
+            return DistributionCoefficient(
+                variable=parton_x,
+                delta=normalize_rational(
+                    _coefficient.delta.replace(_native_x, parton_x)
+                ),
+                plus=tuple(
+                    normalize_rational(_entry.replace(_native_x, parton_x))
+                    for _entry in _coefficient.plus
+                ),
+                regular=normalize_rational(
+                    _coefficient.regular.replace(_native_x, parton_x)
+                ),
+            )
+
+        # The channel colours are not contained in the native brackets.  They
+        # are restored here together with e_q^2 a_s x; the gluon line is again
+        # promoted from one endpoint contribution to one complete flavour.
+        _native_flq = _map_native_distribution(
+            native_mp_result.brackets.FLq
+        ).multiply_smooth(
+            _one_parton_factor * parton_color_f
+        )
+        _native_flg_full = _map_native_distribution(
+            native_mp_result.brackets.FLg
+        ).multiply_smooth(
+            2 * _one_parton_factor * parton_color_t
+        )
+        _native_records = (
+            (
+                r'hat(F)_(L,q)^(upright("MP/LU"),upright("NLO"))',
+                "q",
+                _one_parton_factor * parton_color_f,
+                _native_flq,
+                _pink_flq,
+            ),
+            (
+                r'hat(F)_(L,g)^(upright("MP/LU"),upright("NLO"))',
+                "g, one flavour (q + anti-q)",
+                2 * _one_parton_factor * parton_color_t,
+                _native_flg_full,
+                _pink_flg_full,
+            ),
+        )
+        for _result, _channel, _factor, _ours, _pink_book in _native_records:
+            _residual = _ours - _pink_book
+            _exact = _residual.is_zero
+            native_longitudinal_normalization_exact = (
+                native_longitudinal_normalization_exact and _exact
+            )
+            native_longitudinal_normalization_rows.append(
+                {
+                    "native MP/LU structure function": _result,
+                    "incoming channel": _channel,
+                    "restored prefactor": _factor,
+                    "Pink Book": _display_distribution(_pink_book),
+                    "native MP/LU": _display_distribution(_ours),
+                    "MP/LU - Pink Book": _display_distribution(_residual),
+                    "match": "exact" if _exact else "mismatch",
+                }
+            )
+        assert native_longitudinal_normalization_exact
+
+    return (
+        native_longitudinal_normalization_exact,
+        native_longitudinal_normalization_rows,
+        pm_unstripped_normalization_rows,
+    )
+
+
 @app.cell(hide_code=True)
 def _(
     mo,
+    native_longitudinal_normalization_exact,
+    native_longitudinal_normalization_rows,
     parton_c2q_distribution_ours,
     parton_c2q_distribution_residual,
     parton_endpoint_d0,
@@ -2794,6 +3219,7 @@ def _(
     parton_virtual_master_rows,
     parton_virtual_reduction_residuals,
     parton_ward_residuals,
+    pm_unstripped_normalization_rows,
     pink_book_c2q_distribution,
     pink_book_f2_targets,
     pink_book_parton_targets,
@@ -2938,21 +3364,96 @@ def _(
                 ),
             }
         )
+    _normalization_items = [
+        mo.md(r"""
+        === Primary direct, unstripped normalization validation
+
+        The Pink Book reference is conventionally printed as coefficient
+        functions.  Here every common factor is restored before comparison,
+
+        $ hat(F)_(i,q)^(upright("NLO"))
+          =e_q^2 a_s x C_(i,q)^(1), quad
+          hat(F)_(i,g)^(upright("NLO"),"1 flavour")
+          =2e_q^2 a_s x C_(i,g)^(1,"per q or bar(q) term"), quad
+          a_s=alpha_s/(2 pi). $
+
+        The colour factors belong to the coefficient functions in these
+        equations.  The factor of two in the gluon rows combines the equal
+        $q$ and $overline(q)$ endpoint contributions into one complete
+        one-flavour $gamma^*g$ structure function.  In particular, this is a
+        comparison of the physical partonic structure functions, not a ratio
+        after removing $e_q^2$, $alpha_s$, $x$, colour, or the phase-space
+        normalization.  The single DIS clustering factor is already included
+        in the native measure,
+
+        $ frac(upright(d)p^2,2 pi) frac(1,4 pi)
+          =frac(upright(d)p^2,8 pi^2), $
+
+        and the conventional branch uses the same $W=(4 pi)^(-1)
+        integral upright("d") Phi_2 |cal(M)|^2$ normalization.
+
+        The first table is the direct native MP/LU calibration.  Since
+        $F_L^(0)=0$, the NLO PDF-scheme term formed from $D^(1)$ and
+        $F_L^(0)$ vanishes, so the longitudinal result is unchanged between
+        LU and $overline("MS")$ at this order.  In contrast, $F_2^(0)$ is
+        nonzero: its all-factor table directly validates the conventional PM
+        branch, while a direct native-LU $F_2$ comparison requires the
+        explicit $D$ convolution carrying LU to $overline("MS")$.
+        """),
+    ]
+    if native_longitudinal_normalization_rows:
+        _normalization_items.extend(
+            (
+                spenso_table(
+                    native_longitudinal_normalization_rows,
+                    pagination=False,
+                ),
+                mo.callout(
+                    "Both unstripped native longitudinal residuals vanish "
+                    "exactly; this fixes the native DIS normalization against "
+                    "the conventional structure functions at NLO.",
+                    kind="success"
+                    if native_longitudinal_normalization_exact
+                    else "warn",
+                ),
+            )
+        )
+    else:
+        _normalization_items.append(
+            mo.callout(
+                "The direct native longitudinal table is available once the "
+                "complete 32-record master boundary is loaded.",
+                kind="neutral",
+            )
+        )
+    _normalization_items.extend(
+        (
+            spenso_table(pm_unstripped_normalization_rows, pagination=False),
+            mo.callout(
+                "All four unstripped PM residuals vanish exactly. The PM "
+                "comparison therefore tests the complete conventional "
+                "partonic-structure-function normalization, including the "
+                "single 1/(4π) factor.",
+                kind="success",
+            ),
+        )
+    )
     mo.vstack(
         [
             mo.md(r"""
-            == 8. Independent coefficient branches
+            == 9. Independent conventional parton-model branch
 
-            The preceding graph reduction and virtuality expansion define the
-            multi-partonic branch. A conventional on-shell calculation provides
-            a second branch from real and virtual parton diagrams. Both branches
-            use the same DIS projectors, coupling normalization, flavour
-            convention, and endpoint-distribution basis.
+            The native multi-partonic coefficient above is fixed by the
+            topology, cut, reduction, and master assembly.  This independent
+            on-shell calculation supplies the conventional parton-model branch
+            needed to form the scheme transition.  Both branches use the same
+            DIS projectors, coupling normalization, flavour convention, and
+            endpoint-distribution basis.
 
             === Conventional parton-model branch
 
             The real channels are
-            $gamma^* q -> q g$ and $gamma^* g -> q bar(q)$. Their squared
+            $gamma^* q -> q g$ and $gamma^* g -> q overline(q)$. Their squared
             amplitudes and ordered interferences determine
             $p^mu p^nu W_(mu nu)$ and $g^mu nu W_(mu nu)$, while the
             $q^mu q^nu$ contraction verifies the Ward identity in both channels.
@@ -2980,8 +3481,8 @@ def _(
             collinear counterterm at $mu_F^2=Q^2$ cancels every Laurent pole.
             The complete quark result is represented by its $delta(1-x)$,
             $cal(D)_0(x)$, $cal(D)_1(x)$, and regular components. The complete
-            one-flavour $gamma^*g$ amplitude contains equal $q$ and $bar(q)$
-            terms; the comparison table follows the per-$q$-or-$bar(q)$
+            one-flavour $gamma^*g$ amplitude contains equal $q$ and $overline(q)$
+            terms; the comparison table follows the per-$q$-or-$overline(q)$
             convention of the printed coefficient.
 
             Ellis--Stirling--Webber,
@@ -2992,23 +3493,12 @@ def _(
             (4.86), with $T_F equiv T_R$, together with the
             #link("https://www.hep.phy.cam.ac.uk/theory/webber/QCDupdates.html")[corrected
             fermion flow] for Fig. 4.8(c,d).
-
+            """),
+            *_normalization_items,
+            mo.md(r"""
             === Virtual contribution
             """),
             spenso_table(parton_virtual_diagram_rows, pagination=False),
-            mo.md(r"""
-            === Full Pink Book comparison
-            """),
-            spenso_table(_comparison_rows, pagination=False),
-            mo.callout(
-                "The conventional real-plus-virtual calculation matches every "
-                "displayed Pink Book result exactly. In particular, the full "
-                "quark C2 coefficient matches component by component in "
-                "δ(1−x), 𝒟₀, 𝒟₁, and the regular function after the "
-                "virtual form factor is included. Every expanded "
-                "algebraic residual is zero.",
-                kind="success",
-            ),
             mo.md(r"""
             === Real, virtual, and factorization components
 
@@ -3050,6 +3540,25 @@ def _(
                 ],
                 pagination=False,
             ),
+            mo.md(r"""
+            === Reference-only Pink Book comparison
+
+            The following comparison checks the independently derived
+            conventional parton-model branch against the Pink Book.  It is
+            evaluated after both the native MP result and the PM branch have
+            been assembled; the reference formulas provide no input to either
+            calculation.
+            """),
+            spenso_table(_comparison_rows, pagination=False),
+            mo.callout(
+                "The conventional real-plus-virtual calculation matches every "
+                "displayed Pink Book result exactly. In particular, the full "
+                "quark C2 coefficient matches component by component in "
+                "δ(1−x), 𝒟₀, 𝒟₁, and the regular function after the "
+                "virtual form factor is included. Every expanded "
+                "algebraic residual is zero.",
+                kind="success",
+            ),
             mo.callout(
                 "The real and virtual parton diagrams complete the conventional "
                 "PM coefficient. Together with its derived collinear pole, this "
@@ -3059,180 +3568,6 @@ def _(
         ]
     )
     return
-
-
-@app.cell(hide_code=True)
-def _(
-    dis_cuts,
-    dis_graphs,
-    dis_kinematics,
-    master_insertion_audit,
-    mo,
-    spenso_table,
-):
-    native_scheme_audit = audit_native_dis_scheme_change(
-        master_insertion_audit=master_insertion_audit,
-        graphs=dis_graphs,
-        cuts=dis_cuts,
-        kinematics=dis_kinematics,
-    )
-    _evidence = native_scheme_audit.evidence
-    native_mp_result = (
-        native_scheme_audit.require_result()
-        if native_scheme_audit.ready
-        else None
-    )
-    _boundary = (
-        f"{_evidence.master_records_present}/"
-        f"{_evidence.master_records_expected} present; "
-        f"{_evidence.master_records_exact} algebraically exact; "
-        f"exact boundary: "
-        f"{'complete' if _evidence.master_boundary_exact else 'declared'}"
-    )
-    _evidence_rows = [
-        {
-            "mathematical stage": "physical topologies",
-            "status": (
-                f"{len(_evidence.declared_topologies)} compact topologies -> "
-                f"{len(_evidence.declared_graphs)} rooted traces"
-            ),
-        },
-        {
-            "mathematical stage": "oriented cut support",
-            "status": (
-                f"{len(_evidence.declared_cut_signatures)} unit-multiplicity "
-                "oriented sectors; external--external phase = -1; support pairs: "
-                + ", ".join(name for name, _lines in _evidence.cut_support_pairs)
-            ),
-        },
-        {
-            "mathematical stage": "graph normalization",
-            "status": "; ".join(_evidence.topology_owned_fields),
-        },
-        {
-            "mathematical stage": "IBP coefficients and analytic masters",
-            "status": _boundary,
-        },
-        {
-            "mathematical stage": "distribution basis",
-            "status": (
-                f"{_evidence.sign_convention}, {_evidence.incoming_legs} "
-                "incoming leg; " + "; ".join(_evidence.distribution_basis)
-            ),
-        },
-        {
-            "mathematical stage": "multi-partonic coefficient",
-            "status": (
-                "assembled; all Laurent poles cancel"
-                if native_mp_result is not None
-                else "defined by the 32-term master sum"
-            ),
-        },
-    ]
-    _blocker_rows = [
-        {
-            "required contribution": _blocker.key,
-            "mathematical role": _blocker.kind,
-            "affected graph terms": ", ".join(
-                _blocker.affected_records
-            ),
-            "completion condition": _blocker.description,
-            "origin": _blocker.source,
-        }
-        for _blocker in native_scheme_audit.blockers
-    ]
-    _items = [
-            mo.md(r"""
-            === Multi-partonic branch
-
-            Summing the rooted topologies, oriented cuts, reduction
-            coefficients, analytic masters, and endpoint actions gives
-
-            $ hat(F)_(i,a)^(1,upright("MP"))
-              =frac(e_q^2 alpha_s,2 pi) x C_a M_(i,a)^(upright("MP")), quad
-              C_q=C_F, quad C_g=T_F. $
-
-            The table follows the decomposition
-            $M= M_delta delta(1-x)+M_0 cal(D)_0(x)
-            +M_1 cal(D)_1(x)+M_(upright("reg"))(x)$ for each of
-            $F_(2,q)$, $F_(2,g)$, $F_(L,q)$, and $F_(L,g)$. The accompanying
-            Laurent table displays the cancellation of the dimensional poles.
-            """),
-            spenso_table(_evidence_rows, pagination=False),
-    ]
-    if native_mp_result is None:
-        _items.append(
-            mo.callout(
-                "The topology and cut data define the complete 32-term "
-                "scalar-master representation.",
-                kind="neutral",
-            )
-        )
-    else:
-        def _plus(_coefficient, _order):
-            return (
-                _coefficient.plus[_order]
-                if _order < len(_coefficient.plus)
-                else E("0")
-            )
-
-        _native_rows = []
-        for _name, _coefficient in (
-            ("F2q / C_F", native_mp_result.brackets.F2q),
-            ("F2g / T_F", native_mp_result.brackets.F2g),
-            ("FLq / C_F", native_mp_result.brackets.FLq),
-            ("FLg / T_F", native_mp_result.brackets.FLg),
-        ):
-            _native_rows.append(
-                {
-                    "MP bracket": _name,
-                    "delta(1-x)": _coefficient.delta,
-                    "D0": _plus(_coefficient, 0),
-                    "D1": _plus(_coefficient, 1),
-                    "regular": _coefficient.regular,
-                }
-            )
-        _pole_rows = []
-        for _power in (-2, -1):
-            _functions = native_mp_result.laurent[_power]
-            for _name, _coefficient in (
-                ("F2q", _functions.F2q),
-                ("F2g", _functions.F2g),
-                ("FLq", _functions.FLq),
-                ("FLg", _functions.FLg),
-            ):
-                _pole_rows.append(
-                    {
-                        "Laurent power": _power,
-                        "observable": _name,
-                        "delta": _coefficient.delta,
-                        "plus": _coefficient.plus,
-                        "regular": _coefficient.regular,
-                    }
-                )
-        _items.extend(
-            (
-                spenso_table(_native_rows, pagination=False),
-                spenso_table(_pole_rows, pagination=False),
-                spenso_table(
-                    [
-                        {"raised branch": _name, "residual": _value}
-                        for _name, _value in (
-                            native_mp_result.raised_external_residuals.items()
-                        )
-                    ],
-                    pagination=False,
-                ),
-                mo.callout(
-                    "The 32 master insertions are exact; every epsilon^-2 and "
-                    "epsilon^-1 component vanishes, and all four raised-external "
-                    "branch identities have zero residual.",
-                    kind="success",
-                ),
-            )
-        )
-    mo.vstack(_items)
-    return native_mp_result, native_scheme_audit
 
 
 @app.cell
@@ -3595,7 +3930,7 @@ def _(
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == 9. Scheme transition and DIS--DY universality
+    == 10. Scheme transition and DIS--DY universality
 
     The conventional MS-bar coefficient and its collinear counterterm define
     the bare PM branch in the present sign convention,
@@ -3682,7 +4017,7 @@ def _(
             mo.md(r"""
             = Validation and comparisons
 
-            == LaTeX and historical Mathematica coefficients
+            == Reference-only LaTeX and historical Mathematica coefficients
 
             The reference columns preserve the printed coefficient functions,
             their overall coupling conventions, and the positive-region
@@ -3988,13 +4323,11 @@ def _(mo, spenso_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    == Printed LaTeX coefficient functions
+    == Reference-only printed LaTeX coefficient functions
 
-    The two scale-dependent equations at active-manuscript lines 296--297 are
-    both labelled $F_L$, while lines 302--303 give a second pair of $F_L$
-    equations. The comparison table records the literal labels and associates
-    the first pair with $F_2$ according to its scale dependence and tensor
-    structure.
+    The current manuscript presents correctly labelled $F_2$ and $F_L$ quark
+    and gluon equations.  The comparison table transcribes those four printed
+    coefficient functions in the native normalization and endpoint basis.
 
     The target expands the printed
     $P_(g q)(x,0)$ and $P_(q q)(x,0)$ as color-stripped leading-order kernels,
@@ -4004,8 +4337,7 @@ def _(mo):
     between the printed coefficients and the graph calculation.
 
     The source-issue table records the discontinuity and raised-cut signs, the
-    malformed plus-distribution expansion, the reversed $F_L$ definition, the
-    $P_(q g)$/$P_(g q)$ label exchange, the transverse-decomposition sign, the
+    endpoint-distribution and transverse-decomposition conventions, the
     class-1/2 quark sign, and the mixed gluon normalization. The same table
     records the Mathematica factors that set the two `valv5` bubbles to zero,
     reverse `realMP-virtualMP`, and generate `delta(0)` through endpoint
