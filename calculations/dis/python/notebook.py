@@ -3381,9 +3381,9 @@ def _(
         equations.  The factor of two in the gluon rows combines the equal
         $q$ and $overline(q)$ endpoint contributions into one complete
         one-flavour $gamma^*g$ structure function.  In particular, this is a
-        comparison of the physical partonic structure functions, not a ratio
-        after removing $e_q^2$, $alpha_s$, $x$, colour, or the phase-space
-        normalization.  The single DIS clustering factor is already included
+        comparison of the physical partonic structure functions with
+        $e_q^2$, $alpha_s$, $x$, colour, and the phase-space normalization all
+        retained.  The single DIS clustering factor is already included
         in the native measure,
 
         $ frac(upright(d)p^2,2 pi) frac(1,4 pi)
@@ -3546,8 +3546,8 @@ def _(
             The following comparison checks the independently derived
             conventional parton-model branch against the Pink Book.  It is
             evaluated after both the native MP result and the PM branch have
-            been assembled; the reference formulas provide no input to either
-            calculation.
+            been assembled; the reference formulas then supply the downstream
+            comparison columns.
             """),
             spenso_table(_comparison_rows, pagination=False),
             mo.callout(
@@ -3666,7 +3666,8 @@ def _(
         _native_g - _pm_g + _p_qg / _epsilon
     )
     # Convert the d-2 incoming-gluon average to the two-helicity/PDF
-    # convention. At finite order this is finite[(1-epsilon) K_raw].
+    # convention. Retain the pole and finite terms of
+    # (1-epsilon) K_raw through epsilon^0.
     _native_gluon_pole_residue = normalize_rational(
         native_dis_gluon_kernel_raw.series(_epsilon, 0, 0).get_coefficient(-1)
     )
@@ -3967,7 +3968,7 @@ def _(mo):
     two-helicity PDF convention is
 
     $ K_g^(upright("2 hel"))
-      =upright("finite")[(1-epsilon)K_g^(d-2)]. $
+      =[(1-epsilon)K_g^(d-2)]_(epsilon^(-1),epsilon^0). $
 
     The unconverted difference equals $P_(q g)(x)$, and this finite polarization
     transformation gives the exact one-leg equality.
@@ -4329,12 +4330,12 @@ def _(mo):
     and gluon equations.  The comparison table transcribes those four printed
     coefficient functions in the native normalization and endpoint basis.
 
-    The target expands the printed
-    $P_(g q)(x,0)$ and $P_(q q)(x,0)$ as color-stripped leading-order kernels,
-    because the printed equations already put $T_F$ and $C_F$ outside. The
-    tensor decomposition uses $F_2=2 x [F_2/(2 x)]$ and
-    $F_L=F_2-2 x F_1$. Componentwise subtraction then exposes the differences
-    between the printed coefficients and the graph calculation.
+    The target uses the explicitly defined color-stripped kernels
+    $P_(q q)^(0)$ and $P_(q g)^(0)$ because the printed equations already put
+    $C_F$ and $T_F$ outside.  The tensor decomposition uses
+    $F_2=2 x [F_2/(2 x)]$ and $F_L=F_2-2 x F_1$.  In this common convention,
+    the current manuscript coefficients coincide componentwise with the native
+    graph calculation displayed above.
 
     The source-issue table records the discontinuity and raised-cut signs, the
     endpoint-distribution and transverse-decomposition conventions, the
@@ -4467,7 +4468,7 @@ def _(spenso_table, validation_ledger):
         "graph-level projected-numerator Kira reductions": "projected-numerator IBP identities",
         "finite-virtuality raised-external Kira reductions": "raised-external IBP identities",
         "active-manuscript targets isolated from native assembly": "literature coefficients as independent references",
-        "LU to MSbar conversion": "MP to MS-bar transition",
+        "MP-PM one-leg universality": "bare MP-PM one-leg universality",
     }
     spenso_table(
         [

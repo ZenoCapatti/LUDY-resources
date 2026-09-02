@@ -48,12 +48,12 @@ if TYPE_CHECKING:
 
 MANUSCRIPT_SOURCE = "paper/main.tex"
 MANUSCRIPT_SOURCE_SHA256 = (
-    "28936e580a651ff58a21f7b9f43abf51abdbaea7fb05105594fa79f202d42870"
+    "f03be253167e7b65f774a499c0aa14a3a70c2896ca632ea0a6480187a1c0e60b"
 )
-MANUSCRIPT_SOURCE_BYTES = 50_527
+MANUSCRIPT_SOURCE_BYTES = 53_784
 HISTORICAL_SOURCE = "arXiv:2506.16489v1"
-DIS_RESULT_SOURCE = f"{MANUSCRIPT_SOURCE}:285-303"
-DIS_INTEGRAND_SOURCE = f"{MANUSCRIPT_SOURCE}:392-409"
+DIS_RESULT_SOURCE = f"{MANUSCRIPT_SOURCE}:285-308"
+DIS_INTEGRAND_SOURCE = f"{MANUSCRIPT_SOURCE}:433-449"
 HISTORICAL_ALL_CUT_SOURCE = (
     f"{HISTORICAL_SOURCE}, Submission/Discontinuities.tex:127-168,180-193"
 )
@@ -1101,30 +1101,32 @@ def paper_targets() -> PaperDISTargets:
     """Encode the four current paper targets as reference-only expressions.
 
     The current source labels the two transverse and two longitudinal lines
-    directly.  Its regularised ``P_ij`` notation is expanded with the
-    colour-stripped leading-order kernels because the displayed equations put
-    ``C_F`` and ``T_F`` outside.  This function is deliberately downstream of
-    the native topology/cut/master assembly.
+    directly and writes colour-stripped leading-order kernels because the
+    displayed equations put ``C_F`` and ``T_F`` outside.  This function is
+    deliberately downstream of the native topology/cut/master assembly.
     """
 
     normalization = electric_charge**2 * alpha_s / (2 * pi)
-    cutoff_log = (lambda_squared * x**2 / Q_squared).log()
-    p_gq = 1 - 2 * x + 2 * x**2
-    delta_x = DistributionCoefficient.delta_basis(x)
-    d0_x = DistributionCoefficient.plus_basis(x, 0)
-    p_qq = delta_x.scaled(E("3/2")) + d0_x.multiply_smooth(1 + x**2)
+    cutoff_log = (Q_squared / lambda_squared).log()
+    p_qg = x**2 + (1 - x) ** 2
 
     f2g = DistributionCoefficient(
         variable=x,
         regular=normalization
         * x
         * color_t
-        * (p_gq * (cutoff_log + 1) + 2 * x * (1 - x)),
+        * (p_qg * (cutoff_log - 2 * x.log()) + 6 * x * (1 - x) - 2),
     )
-    f2q_bracket = (
-        p_qq.multiply_smooth(cutoff_log)
-        + delta_x.scaled(1 + 2 * pi**2 / 3)
-        + d0_x.multiply_smooth((6 * x**2 - 4 * x + 1) / 2)
+    f2q_bracket = DistributionCoefficient(
+        variable=x,
+        delta=-1 - 2 * pi**2 / 3 + E("3/2") * cutoff_log,
+        plus=(2 * cutoff_log - E("3/2"),),
+        regular=(
+            1
+            + 3 * x
+            - 2 * (1 + x**2) * x.log() / (1 - x)
+            - (1 + x) * cutoff_log
+        ),
     )
     f2q = f2q_bracket.multiply_smooth(normalization * x * color_f)
     flg = DistributionCoefficient(
@@ -1139,10 +1141,10 @@ def paper_targets() -> PaperDISTargets:
         functions=DISStructureFunctions(F2q=f2q, F2g=f2g, FLq=flq, FLg=flg),
         source_labels=MappingProxyType(
             {
-                "F2q": f"{MANUSCRIPT_SOURCE}:287-293",
-                "F2g": f"{MANUSCRIPT_SOURCE}:299-300",
-                "FLq": f"{MANUSCRIPT_SOURCE}:294-295",
-                "FLg": f"{MANUSCRIPT_SOURCE}:301-302",
+                "F2q": f"{MANUSCRIPT_SOURCE}:294-298",
+                "F2g": f"{MANUSCRIPT_SOURCE}:305",
+                "FLq": f"{MANUSCRIPT_SOURCE}:300-301",
+                "FLg": f"{MANUSCRIPT_SOURCE}:306",
             }
         ),
         issues=(
@@ -1347,7 +1349,7 @@ def paper_targets() -> PaperDISTargets:
                     "colour-stripped LO kernels because C_F and T_F are printed "
                     "outside."
                 ),
-                source=f"{MANUSCRIPT_SOURCE}:289-303",
+                source=f"{MANUSCRIPT_SOURCE}:287-308",
             ),
             SourceIssue(
                 key="f2-reference-only",
@@ -1416,7 +1418,7 @@ def known_normalization_ledger() -> Mapping[Channel, DISNormalization]:
             value=1 / (2 * pi) ** d,
             owner="analytic_master",
             applied_in_physical_handoff=False,
-            source=f"{MANUSCRIPT_SOURCE}:398",
+            source=f"{MANUSCRIPT_SOURCE}:435",
             note="Must already be present in each analytic master.",
         ),
         NormalizationEntry(
@@ -1424,7 +1426,7 @@ def known_normalization_ledger() -> Mapping[Channel, DISNormalization]:
             value=2 * pi,
             owner="analytic_master",
             applied_in_physical_handoff=False,
-            source=f"{MANUSCRIPT_SOURCE}:207-208,229",
+            source=f"{MANUSCRIPT_SOURCE}:201-204",
             note=(
                 "Phase-stripped physical convention. The literal paper_* "
                 "masters instead use 2*pi*i per edge; PAPER_PHASES records "
@@ -1436,7 +1438,7 @@ def known_normalization_ledger() -> Mapping[Channel, DISNormalization]:
             value=1 / (2 * pi),
             owner="external_measure",
             applied_in_physical_handoff=True,
-            source=f"{MANUSCRIPT_SOURCE}:173,226",
+            source=f"{MANUSCRIPT_SOURCE}:170,231",
             note="The singular p^2 integration supplies the remaining epsilon factor.",
         ),
         NormalizationEntry(
@@ -1444,7 +1446,7 @@ def known_normalization_ledger() -> Mapping[Channel, DISNormalization]:
             value=1 / (4 * pi),
             owner="external_measure",
             applied_in_physical_handoff=True,
-            source=f"{MANUSCRIPT_SOURCE}:173,226",
+            source=f"{MANUSCRIPT_SOURCE}:231-233",
             note="Together with dp^2/(2pi), this gives dp^2/(8pi^2).",
         ),
         NormalizationEntry(
@@ -1500,7 +1502,8 @@ def known_normalization_ledger() -> Mapping[Channel, DISNormalization]:
         ),
         limitations=(
             "The topology phase and rooting multiplicity are separate typed fields.",
-            "Comparison with a two-helicity PDF kernel applies finite[(1-epsilon) K].",
+            "Comparison with a two-helicity PDF kernel retains the pole and "
+            "finite terms of (1-epsilon) K through epsilon^0.",
         ),
     )
     return MappingProxyType({"q": quark, "g": gluon})
@@ -2873,20 +2876,20 @@ def build_validation_ledger(
             required_for_physical_result=False,
         ),
         ValidationCheck(
-            key="LU to MSbar conversion",
+            key="MP-PM one-leg universality",
             stage="scheme",
             status=(
                 "not-run"
                 if native_scheme_exact is None
                 else "pass" if native_scheme_exact else "fail"
             ),
-            expected="same one-incoming-leg kernel in native DIS and native DY",
+            expected="same bare MP-PM one-incoming-leg kernel in native DIS and native DY",
             actual=native_scheme_exact,
             reason=(
-                "The independently traced bare PM coefficient is subtracted only "
-                "after native MP assembly.  Quark distributions agree component "
-                "by component; the gluon comparison includes the explicit "
-                "d-2 to two-helicity polarization conversion."
+                "The independently traced bare PM coefficient is subtracted after "
+                "native MP assembly.  Quark distributions agree component by "
+                "component; the gluon comparison includes the explicit d-2 to "
+                "two-helicity polarization conversion."
             ),
         ),
     )
@@ -2898,7 +2901,7 @@ LIMITATIONS = (
     "A native result requires the exact 32-record Kira/master boundary, but no paper, LaTeX, Mathematica, or closed coefficient function.",
     "The historical LaTeX contains audited sign, projector, label, plus-distribution, and gluon-normalization inconsistencies and is comparison-only.",
     "The current paper formulas are transcribed literally as reference targets; they do not enter the native assembly.",
-    "The gluon PDF comparison explicitly converts the d-2 incoming-state average with finite[(1-epsilon) K].",
+    "The gluon PDF comparison converts the d-2 incoming-state average by retaining the pole and finite terms of (1-epsilon) K through epsilon^0.",
     "No Kira process is started by this module.",
 )
 
@@ -2978,20 +2981,20 @@ def self_check() -> Mapping[str, object]:
             raise AssertionError("DIS phase-stripped sector orientation changed")
 
     targets = paper_targets().functions
-    cutoff_log_at_endpoint = (lambda_squared / Q_squared).log()
+    cutoff_log = (Q_squared / lambda_squared).log()
     expected_f2q_delta = (
         electric_charge**2
         * alpha_s
         * color_f
         / (2 * pi)
-        * (E("3/2") * cutoff_log_at_endpoint + 1 + 2 * pi**2 / 3)
+        * (-1 - 2 * pi**2 / 3 + E("3/2") * cutoff_log)
     )
     expected_f2q_d0 = (
         electric_charge**2
         * alpha_s
         * color_f
         / (2 * pi)
-        * (2 * cutoff_log_at_endpoint + E("3/2"))
+        * (2 * cutoff_log - E("3/2"))
     )
     if canonical(targets.F2q.delta - expected_f2q_delta) != E("0"):
         raise AssertionError("F2q delta transcription changed")
