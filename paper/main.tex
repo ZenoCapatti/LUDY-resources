@@ -393,9 +393,9 @@ Finally, the infrared interplay between the multi-partonic contributions and the
 \label{sec:integrals_DIS_DY}
 \textbf{DIS:} For DIS, we have $\Gamma_{q}=\{\triangle,\Box,\bigcirc,\text{lsz}\}$ and $\Gamma_{g}=\{\Box,\timesbox\}$. The corresponding integrals have the form
 \begin{equation}
-\frac{I^{\mu\nu}_{\mathfrak{q}G}}{e_q^2 g^2}= \int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{\mathfrak{q}G}^{\mu\nu}}{\prod_{j=1}^6 D_j^{\alpha_j^G}},
+\frac{I^{\mu\nu}_{\mathfrak{q}G}}{e_q^2 g^2}= \bar{\mu}^{2\epsilon}\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{\mathfrak{q}G}^{\mu\nu}}{\prod_{j=1}^6 D_j^{\alpha_j^G}},
 \end{equation}
-with $D_1=k^2$, $D_2=(k+p)^2$, $D_3=(k+p+q)^2$, $D_4=(k+q)^2$, $D_5=p^2$, $D_6=(p+q)^2$. In particular:
+with $D_1=k^2$, $D_2=(k+p)^2$, $D_3=(k+p+q)^2$, $D_4=(k+q)^2$, $D_5=p^2$, $D_6=(p+q)^2$. $\bar{\mu}^{2\epsilon}$ is the usual $\overline{\text{MS}}$ measure. In particular:
 $\boldsymbol{\alpha}^\triangle=[1,1,1,0,1,1]$, $\boldsymbol{\alpha}^\Box=[1,2,1,0,1,0]$, 
 $\boldsymbol{\alpha}^{\timesbox}=[1,1,1,1,1,0]$, $\boldsymbol{\alpha}^{\bigcirc}=[1,0,1,0,1,2]$,
 $\boldsymbol{\alpha}^{\text{lsz}}=[1,1,0,0,2,1]$,
@@ -410,9 +410,9 @@ N_{g\timesbox}^{\mu\nu}&=\text{Tr}[\slashed{k}\gamma^\sigma (\slashed{k}+\slashe
 \end{align}
 \textbf{DY, zero bin:} For DY, we have $\Gamma_{q\bar{q}}=\{\triangle, \text{lsz}_1,\text{lsz}_2,\Box_1,\Box_2, \timesbox\}$ and $\Gamma_{qg}=\{\slashed{\triangle},\bigcirc, \Box\}$. The $q\bar{q}$ channel contributions that are localised at $s=q^2$ read:
 \begin{align}
-\frac{I_{G}^{q\bar{q}}}{e_q^2 g^2}&=\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{G}^{q\bar{q}} \, \delta_{q^2}^+(p_{12})}{\prod_{j=1}^5 D_j^{\alpha_j^G}}  \ \ G\in\{\triangle,\text{lsz}_1,\text{lsz}_2\},
+\frac{I_{G}^{q\bar{q}}}{e_q^2 g^2}&=\bar{\mu}^{2\epsilon}\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{G}^{q\bar{q}} \, \delta_{q^2}^+(p_{12})}{\prod_{j=1}^5 D_j^{\alpha_j^G}},
 \end{align}
-with $D_1=k^2$, $D_2=(k+p_1)^2$, $D_3=(k-p_2)^2$, $D_4=p_1^2$, $D_5=p_2^2$. We have $\boldsymbol{\alpha}^{\triangle}=[1,1,1,1,1]$, $\boldsymbol{\alpha}^{\text{lsz}_1}=[1,1,0,2,1]$, $\boldsymbol{\alpha}^{\text{lsz}_2}=[1,1,0,1,2]$, and
+for $G\in\{\triangle,\text{lsz}_1,\text{lsz}_2\}$, with $D_1=k^2$, $D_2=(k+p_1)^2$, $D_3=(k-p_2)^2$, $D_4=p_1^2$, $D_5=p_2^2$. We have $\boldsymbol{\alpha}^{\triangle}=[1,1,1,1,1]$, $\boldsymbol{\alpha}^{\text{lsz}_1}=[1,1,0,2,1]$, $\boldsymbol{\alpha}^{\text{lsz}_2}=[1,1,0,1,2]$, and
 \begin{align}
 N_{\triangle}^{q\bar{q}}&=\text{Tr}[\slashed{p}_1\gamma^\sigma (\slashed{k}+\slashed{p}_1) \gamma^\mu (\slashed{k}-\slashed{p}_2)\gamma_\sigma \slashed{p}_2\gamma_\mu], \\
 N_{\text{lsz}_1}^{q\bar{q}}&=\text{Tr}[\slashed{p}_1\gamma^\sigma \slashed{k} \gamma_\sigma \slashed{p}_1\gamma_\mu \slashed{p}_2\gamma^\mu],  
@@ -422,7 +422,7 @@ and $N_{\text{lsz}_2}^{q\bar{q}}=N_{\text{lsz}_1}^{q\bar{q}}|_{p_1\leftrightarro
 
 \textbf{DY, spectrum:} For the diagrams that contribute to the entire $z=q^2/s$ spectrum, namely $G\in\{\slashed{\triangle},\Box,\Box_1,\Box_2, \timesbox,\bigcirc\}$, we have
 \begin{equation}
-\frac{I_{G}^{\mathfrak{q}\mathfrak{q}'}}{e_q^2 g^2}=\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{G}^{\mathfrak{q}\mathfrak{q}'} \, \delta_{q^2}^+(p_{12}-k)\delta^+_0(k)}{\prod_{j=1}^4 D_j^{\alpha_j^G}}
+\frac{I_{G}^{\mathfrak{q}\mathfrak{q}'}}{e_q^2 g^2}=\bar{\mu}^{2\epsilon}\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{G}^{\mathfrak{q}\mathfrak{q}'} \, \delta_{q^2}^+(p_{12}-k)\delta^+_0(k)}{\prod_{j=1}^4 D_j^{\alpha_j^G}}
 \end{equation}
 with $D_1=(k-p_1)^2$, $D_2=(k-p_2)^2$, $D_3=p_1^2$, $D_4=p_2^2$ and $D_5=s$. We now have $\boldsymbol{\alpha}^{\slashed{\triangle}}=[1,0,1,1,1]$, $\boldsymbol{\alpha}^{\Box}=\boldsymbol{\alpha}^{\Box_1}=\boldsymbol{\alpha}^{\Box_2}=[2,0,1,1,0]$, $\boldsymbol{\alpha}^{\Box}=\boldsymbol{\alpha}^{\Box_1}=\boldsymbol{\alpha}^{\timesbox}=[1,1,1,1,0]$, $\boldsymbol{\alpha}^{\bigcirc}=[0,0,1,1,2]$. The numerators read:
 \begin{align}
@@ -434,7 +434,7 @@ N^{q\bar{q}}_{\Box_1}&=\text{Tr}[\slashed{p}_1\gamma^\sigma (\slashed{k}-\slashe
 N^{q\bar{q}}_{\timesbox}&=\text{Tr}[\slashed{p}_1\gamma^\sigma (\slashed{k}-\slashed{p}_1) \gamma^\mu \slashed{p}_2\gamma_\sigma (\slashed{k}-\slashed{p}_2)\gamma_\mu],
 \end{align}
 and $N_{\Box_2}^{q\bar{q}}=N_{\Box_1}^{q\bar{q}}|_{p_1\leftrightarrow p_2}$.
-\subsection{Splitting counter-term calculation}
+\subsection{Analytic calculations}
 \label{sec:AP-splitting-counterterms}
 
 We now outline the computation of the splitting counter-terms, eq.~\eqref{eq:splitting_cts_nlo}. We focus on the $D_{qq}$ as a working example, and work in the axial gauge. To determine it, we must compute the contribution of all the additional cut diagrams introduced on top of the bare parton model. In the axial gauge, all the collinear singularities are in fact contained in only two cut diagrams, shown in fig. . Cut diagrams possessing soft singularities instead cancel each other (fig.), after the virtuality expansion. Thus, at leading power in $\Lambda^2$, the computation reduces to the two cut diagrams of fig. Their contributions read:
