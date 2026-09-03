@@ -1,47 +1,47 @@
 # Local Agent Guidance
 
-This repository is a research monorepo. It contains a local Marimo environment
-backed by sibling GammaLoop and Symbolica Community working copies, the
-standalone `kirapy` package, and the DY Python application. All Marimo notebooks
-share the repository-root environment. Keep changes focused on this repository
-unless the user explicitly asks to modify a sibling repository.
+This repository is a research monorepo for factorisable Local Unitarity. Keep
+changes within this repository unless the user explicitly expands the scope.
+All paths in documentation and commands must be repository-relative; do not
+record workstation-specific checkout paths.
 
-## Repository Layout
+## Repository layout
 
-- LUDY: `/Users/lcnbr/dev/work/bern/LUDY-clean`
-- Kira wrapper: `packages/kirapy`
-- DY calculation overview: `calculations/dy`
-- DY/Kira application notebooks: `calculations/dy/python`
-- Mathematica source snapshot: `calculations/dy/mathematica`
-- Cross-box helper source and walkthrough: `notebooks/ludy.py`
-- Analytic master implementations: `calculations/dy/python/masters.py`
-- General cone notebook: `notebooks/collinear-cone.py`
-- GammaLoop: `/Users/lcnbr/dev/work/bern/gammaloop/ludy`
-- Symbolica Community: `/Users/lcnbr/dev/work/bern/symbolica-community`
+- `paper/`: manuscript, bibliography, and local TeX inputs.
+- `calculations/dis/`: complete native DIS calculation and reference audits.
+- `calculations/dy/python/`: complete native DY calculation and analytic
+  masters.
+- `calculations/dy/mathematica/`: curated historical Mathematica/FIRE source
+  snapshot.
+- `calculations/splitting/`: Symbolica splitting counter-term package,
+  notebook, and tests.
+- `notebooks/ludy.py`: crossed-box walkthrough and the public implementation
+  of generic apart, numerator-reduction, Kira, cut, and master-routing helpers.
+- `notebooks/collinear-cone.py`: general cone visualization.
+- `notebooks/typst_marimo.py`: small Typst/Marimo helper and showcase.
+- `notebooks/marimo-steady-state-slowdown.py`: focused Marimo performance
+  reproducer.
+- `packages/kirapy/`: self-contained reusable Kira wrapper.
+- `references/`: AEM and Pink Book validation sources.
+- `docs/` and `reproducers/`: dependency notes and standalone regression cases.
 
-`packages/kirapy` is a self-contained uv/Nix subproject intended to work
-after cloning only this repository. Do not introduce sibling checkout paths or
-the notebook dependency graph into its package metadata, lock, or flake.
+The Mathematica tree is curated evidence. Preserve the complete notebook,
+first-party packages, `tools/trace_form.log`, and historical FIRE fixtures.
+Do not vendor nested version-control metadata, generated databases, or the
+third-party FIRE source/build tree. Historical paths inside fixtures are
+provenance and need not be executable.
 
-`calculations/dy/python` contains application notebooks and an importable
-assembly module, but no separate uv or Nix environment. Keep notebook-only
-dependencies in the root project rather than adding them to the reusable
-wrapper.
+## Migration and manuscript boundary
 
-The root uv sources intentionally use the relative sibling paths
-`../gammaloop/ludy` and `../symbolica-community`. The root Nix flake uses a
-public, exact GammaLoop revision while uv overlays the editable local source.
-If the working copies move, update the uv paths. This root environment serves
-the cross-box source/walkthrough, cone visualization, full-DY Kira application,
-analytic-master derivation, and DIS application.
+The integration sequence intentionally establishes the organized repository,
+portable dependency graph, and fully validated native code before correcting
+the paper. In the current integration stack, do not fold corrected DIS/DY
+manuscript formulas into a migration, organization, environment, or code
+commit. Apply those changes in the subsequent isolated paper commit, after the
+code-validation gate passes. The native calculations are the scientific source
+of truth during this interval.
 
-The Mathematica directory is a curated source snapshot. Preserve the complete
-notebook, first-party packages, `tools/trace_form.log`, and historical FIRE
-fixtures. Do not vendor nested version-control metadata, generated databases,
-or the large third-party FIRE source/build tree. The fixture files retain
-historical paths intentionally and serve as golden evidence, not launchers.
-
-## Version Control
+## Version control
 
 Use Jujutsu for every version-control operation. Do not run Git commands.
 
@@ -52,40 +52,47 @@ $ jj log --no-pager
 $ jj describe -m "<description>"
 ```
 
-Inspect the current change before editing and preserve unrelated work. In
-particular, Symbolica Community may already contain user-owned working-copy
-changes; never clean, restore, or fold those into a LUDY change.
+Inspect the current change before editing and preserve unrelated work. Keep
+repository organization, code changes, validation, and paper corrections
+reviewable as distinct changes.
 
-## Development Environment
+## Root development environment
 
-Run project commands inside the Nix development shell. Host-level uv and
-Marimo are not assumed to exist.
+Run every Marimo notebook from the repository-root Nix/uv environment. Host
+`uv`, Marimo, compilers, Kira, and Fermat are not assumed to exist.
 
 ```console
 $ nix develop
 $ uv sync --locked
 $ uv run --locked marimo edit notebooks/ludy.py
 $ uv run --locked marimo edit notebooks/collinear-cone.py
+$ uv run --locked marimo edit notebooks/marimo-steady-state-slowdown.py
 $ uv run --locked marimo edit calculations/dy/python/notebook.py
 $ uv run --locked marimo edit calculations/dy/python/masters.py
 $ uv run --locked marimo edit calculations/dis/python/notebook.py
+$ uv run --locked marimo edit calculations/splitting/notebooks/splitting_counter_terms.py
 ```
 
-The equivalent one-shot launch is:
+The root project uses exact public Git revisions for GammaLoop and Symbolica
+Community. A fresh clone must not require sibling checkouts. Keep the revisions
+in `pyproject.toml`, `uv.lock`, `flake.nix`, and `flake.lock` aligned when they
+move. Local editable development overlays may be used outside the committed
+configuration, but workstation paths must never enter project metadata or
+documentation.
 
-```console
-$ nix develop --command uv run --locked marimo edit notebooks/ludy.py
-```
+Bootstrap direnv in a fresh clone with `cp .envrc.example .envrc` followed by
+`direnv allow`. Put licenses and other local-only values in the ignored
+`.envrc.local`; never add them to `.envrc.example`.
 
-The shell inherits GammaLoop's Rust, Python, Maturin, compiler, and native
-library toolchain and adds Node.js for Marimo's language-server bridge. It pins
-uv to Nix Python 3.13, disables uv-managed Python downloads, and sets
-`NO_SYMBOLICA_OEM_LICENSE=1` while compiling local native extensions. Ty is a
-locked uv development dependency. Never place a Symbolica license or other
-secret in the repository; provide it through the external environment or the
-ignored `.envrc` file when needed.
+The root environment also installs repository-local editable sources for
+`packages/kirapy` and `calculations/splitting`. Keep notebook-only dependencies
+at the root. Do not give the DY or DIS applications separate uv or Nix
+environments.
 
-For the standalone Kira wrapper, use its own shell and lock instead:
+## Independent kirapy package
+
+`packages/kirapy` is independently locked so it works after cloning this
+repository without the notebook dependency graph:
 
 ```console
 $ cd packages/kirapy
@@ -94,131 +101,130 @@ $ uv sync --locked
 $ uv run --locked pytest
 ```
 
-The wrapper wheel contains no Kira or Fermat binaries. Its Nix shell supplies
-the pinned runtime and `FERMATPATH`; Fermat's restrictive license must remain
-explicit in its derivation and documentation.
+Do not add root notebooks or application packages to its metadata. Its wheel
+contains only the Python interface; Kira and Fermat remain external executables
+supplied by its Nix shell or configured by the user.
 
-Opening or checking `notebook.py` must not launch Kira. Preserve the explicit
-run control and resumable, ignored work directory. The DY and DIS applications
-import the process-independent helpers from `notebooks/ludy.py`.
+Fermat has a restrictive non-business-use license. Preserve that fact in its
+derivation and documentation. Do not vendor or redistribute it outside the
+existing licensed Nix packaging arrangement.
 
-`notebooks/ludy.py` owns the reusable cross-box helper implementations and
-presents them immediately before first use in the walkthrough. Keep its
-Mathematica/FIRE comparisons and other oracle code in the final validation
-appendix. Import analytic master evaluators from
-`calculations/dy/python/masters.py` rather than duplicating them.
+## Calculation architecture
 
-`notebooks/ludy.py` is the root-environment physical cross-box example and the
-single public implementation site for generic apart, numerator-reduction,
-Kira, cut, and master-routing helpers. Keep process normalization separate from
-the loop numerator and do not copy helper implementations into applications.
+`notebooks/ludy.py` is both the physical crossed-box walkthrough and the single
+public implementation site for the shared algebraic pipeline. Present each
+helper immediately before its first mathematical use. Keep process
+normalization separate from loop numerators. Import analytic master evaluators
+from `calculations/dy/python/masters.py`; do not duplicate them.
 
-## uv Dependency Wiring
+The DIS and DY applications supply process-specific physical inputs:
+topologies, ordered momentum/mass lines, cuts, traces, projectors, phases,
+multiplicities, and channel normalization. Their native closed results must be
+assembled only from those inputs, exact Kira coefficients, and analytic
+masters. Preserve the boundary that keeps LaTeX, Mathematica, AEM, Pink Book,
+and typed historical formulas downstream as validation references.
 
-LUDY is a virtual uv project. Its two native dependencies are editable local
-sources:
+The complete native calculations include the virtuality expansion and endpoint
+distribution assembly. Their independently constructed parton-model branches
+are separate starting graph selections. The DIS and DY `MP-PM` records compare
+the common incoming-leg scheme kernel only after both branches are fixed. Keep
+the incoming-gluon `d-2` versus two-helicity/PDF polarization conversion
+explicit; it has a finite effect when multiplied by a pole.
 
-- the Python distribution `gammaloop` comes from `../gammaloop/ludy`;
-- the Python distribution `symbolica` comes from
-  `../symbolica-community`.
+The splitting counter-term package is an independent symbolic calculation and
+validation layer. It uses the root environment but retains its local Python
+package structure and tests. Do not silently substitute its results into the
+native DIS/DY assembly or deduplicate the two derivations without an explicit
+scientific comparison.
 
-The reusable `kirapy` package comes from the repository-local
-`packages/kirapy` source. Keep its independent package lock and subflake for
-package development, while all notebook-only dependencies remain in the root
-project.
+## Notebook execution behavior
 
-Both source projects declare `tool.uv.package = false` for their own workflows,
-so LUDY must retain `package = true` on both `tool.uv.sources` entries. Removing
-that override can produce a successful sync without installing the native
-module.
+Opening or statically checking the complete DIS and DY notebooks must not
+launch Kira. Preserve their explicit run controls and resumable ignored work
+directories. `notebooks/ludy.py` may run or resume its twelve manifest-checked
+crossed-box projects during complete evaluation. The masters, cone, display,
+performance, and splitting notebooks do not launch Kira.
 
-GammaLoop's root Cargo manifest is a virtual workspace. The
-`config-settings-package` entry in `pyproject.toml` therefore directs Maturin to
-`crates/gammaloop-api/Cargo.toml`; keep that override unless GammaLoop's own
-packaging layout changes.
+Persisted reduction data under `runs/` is local and ignored. Reuse it only when
+its manifests and fingerprints match the declared inputs. Missing caches are an
+operational requirement to run reductions, not permission to inject a
+reference coefficient into the native result.
 
-Editable installs expose Python changes immediately, but native Rust changes
-require a rebuild:
+Keep Mathematica/FIRE comparisons and other oracle code in final validation
+sections. Historical `topoN` labels may appear in provenance adapters but must
+not become active physical graph identities.
 
-```console
-$ uv sync --reinstall-package gammaloop
-$ uv sync --reinstall-package symbolica
-```
+## Public dependency pins
 
-The initial native build is slow. Preserve and reuse the sibling repositories'
-ignored Cargo `target/` directories and uv's cache.
+The compatible source family currently consists of:
 
-## Symbolica Community Cargo Wiring
+- GammaLoop `4f44c86382977bade32a230801034b5c37faddbd`;
+- Symbolica Community `4f62108b789ec33b25cb259696e6ff67780bab38`;
+- `symbolica-integrate` `306a6f4b7e53eacbc774545c41082d119a22632b`;
+- official Symbolica `d6bb961d22c026c4866b2e698f56fbb964c4ee0e`.
 
-The root Python environment installs the editable sibling checkout at
-`../symbolica-community`. Its published integration branch pins compatible
-GammaLoop and `symbolica-integrate` forks rather than carrying their obsolete
-API shims in Symbolica itself. GammaLoop and Vakint own the strict-linear solve
-port, `symbolica-integrate` uses the public polynomial variable APIs, and the
-Spynso boundary owns the Python-normalization conversion.
+These crates exchange Symbolica and PyO3 types across boundaries. Keep them on
+the same Symbolica 2.2 and PyO3 0.28 families. When the pins deliberately move,
+update the public revisions together and verify one Symbolica source identity
+and one PyO3 version in the resulting Cargo graph. The rational-polynomial
+user-data variable-list reproducer remains an upstream regression case;
+current LUDY and kirapy artifacts do not store that unsupported form.
 
-These crates exchange Symbolica and PyO3 types across crate boundaries. Keep
-Symbolica Community, GammaLoop, and `example_extension` aligned with the same
-Symbolica 2.2 and PyO3 0.28 dependency families. The baseline is exact
-official Symbolica `dev` at
-`d6bb961d22c026c4866b2e698f56fbb964c4ee0e`. It fixes
-printer-independent canonical strings. The rational-polynomial user-data
-variable-list MWE still fails, but current LUDY and kirapy state artifacts do
-not store rational-polynomial coefficient atoms in symbol user data, so that
-edge case does not require a runtime fork. Keep the MWE as an upstream
-regression case and make every Symbolica source identity resolve to the exact
-official revision. GammaLoop, symbolica-integrate, and Symbolica Community
-retain only their caller-side compatibility changes. Their matching published
-revisions are `4f44c86382977bade32a230801034b5c37faddbd`,
-`306a6f4b7e53eacbc774545c41082d119a22632b`, and
-`4f62108b789ec33b25cb259696e6ff67780bab38`, respectively.
+GammaLoop's root Cargo manifest is a virtual workspace. Retain the
+`config-settings-package` entry that points Maturin at
+`crates/gammaloop-api/Cargo.toml` unless upstream packaging changes.
 
-When those pins deliberately move, update the Community, GammaLoop, and
-symbolica-integrate revisions together and verify the graph:
-
-```console
-$ cargo update -p symbolica --precise d6bb961d22c026c4866b2e698f56fbb964c4ee0e
-$ cargo check --locked
-$ cargo tree --locked -i symbolica
-$ cargo tree --locked -i pyo3
-```
-
-Run those commands from the Symbolica Community working copy inside LUDY's Nix
-shell. The trees should contain one Symbolica source identity and one PyO3
-version.
-
-## Symbolica Runtime Constraint
+## Symbolica runtime constraint and secrets
 
 GammaLoop and Symbolica Community contain separately linked native Symbolica
-engines. A restricted or unlicensed Symbolica build permits only one active
-engine, so importing both `gammaloop` and `symbolica.core` in the same process
-can abort that process.
+engines. A restricted or unlicensed build may permit only one active engine,
+so a process that imports both can abort. The crossed-box notebook requires a
+license permitting both engines. On restricted installations, keep direct
+Symbolica and GammaLoop checks in separate processes and avoid combined-engine
+notebooks.
 
-`notebooks/ludy.py` uses both the GammaLoop and Community/Spenso APIs and
-therefore requires a license that permits the two engines in one process.
-Sharing one uv environment does not itself activate both engines; imports do.
-On a restricted clone, run direct-Symbolica and GammaLoop checks in separate
-processes and avoid notebooks that import both.
-
-This checkout uses the user's active multi-core license from its ignored
-`.envrc`, so combined GammaLoop and Community/Spenso runtime checks are allowed.
-Launch non-interactive checks as `direnv exec . nix develop --command ...`;
-invoking `nix develop --command` directly does not load `.envrc`. Never print or
-commit the license value. On clones without that license, the restricted-build
-constraint above still applies.
+Provide any license through the external environment or an ignored `.envrc`.
+Use `direnv exec . nix develop --command ...` for non-interactive licensed
+checks. Never print, commit, copy into documentation, or otherwise expose a
+license key or credential.
 
 ## Verification
 
-After changing the environment or notebook, run:
+After changing root code, dependencies, or notebooks, run:
 
 ```console
 $ direnv exec . nix flake check
 $ direnv exec . nix develop --command uv lock --check
+$ direnv exec . nix develop --command uv run --locked pytest calculations/splitting/tests
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/ludy.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/collinear-cone.py
+$ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/marimo-steady-state-slowdown.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dy/python/notebook.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dy/python/masters.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dis/python/notebook.py
+$ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/splitting/notebooks/splitting_counter_terms.py
+```
+
+The side-effect-free DIS module checks are:
+
+```console
+$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.ancillary import self_check; self_check()'
+$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.masters import normalization_self_checks; normalization_self_checks()'
+$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.physical import self_check; self_check()'
+$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.assembly import self_check; self_check()'
+$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.native_scheme import self_check; self_check()'
+$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.mathematica_reference import self_check; self_check()'
+```
+
+Full notebook execution uses export commands so it does not require an editor:
+
+```console
+$ direnv exec . nix develop --command uv run --locked marimo export html notebooks/ludy.py -o /tmp/ludy-cross-box.html --force
+$ direnv exec . nix develop --command uv run --locked marimo export html notebooks/collinear-cone.py -o /tmp/ludy-cone.html --force
+$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/notebook.py -o /tmp/ludy-dy.html --force
+$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/masters.py -o /tmp/ludy-dy-masters.html --force
+$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dis/python/notebook.py -o /tmp/ludy-dis.html --force
+$ direnv exec . nix develop --command uv run --locked marimo export html calculations/splitting/notebooks/splitting_counter_terms.py -o /tmp/ludy-splitting.html --force
 ```
 
 After changing `packages/kirapy`, also run from that directory:
@@ -230,16 +236,6 @@ $ nix develop --command uv run --locked pytest
 $ nix develop --command uv run --locked ty check src tests
 ```
 
-Full notebook executions can be checked from the repository root without
-starting the editor or pressing Kira's explicit run controls:
-
-```console
-$ direnv exec . nix develop --command uv run --locked marimo export html notebooks/ludy.py -o /tmp/ludy-notebook-validation.html --force
-$ direnv exec . nix develop --command uv run --locked marimo export html notebooks/collinear-cone.py -o /tmp/ludy-collinear-cone-validation.html --force
-$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/notebook.py -o /tmp/ludy-dy-notebook-validation.html --force
-$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/masters.py -o /tmp/ludy-dy-masters-validation.html --force
-$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dis/python/notebook.py -o /tmp/ludy-dis-notebook-validation.html --force
-```
-
-Do not commit `.venv/`, `.direnv/`, `.marimo/`, `__marimo__/`, Cargo build
-outputs, or generated validation exports.
+Do not commit `.envrc`, `.venv/`, `.direnv/`, `.marimo/`, `__marimo__/`,
+`__pycache__/`, `/runs/`, Cargo outputs, generated notebook HTML, or generated
+LaTeX build products.

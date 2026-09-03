@@ -1,12 +1,13 @@
 [project]
 name = "ludy"
 version = "0.1.0"
-description = "Marimo notebooks backed by local GammaLoop and Symbolica Community builds"
+description = "Reproducible notebooks and calculations for factorisable local unitarity"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "gammaloop",
     "kirapy",
     "marimo",
+    "splitting-kernels-notebook",
     "symbolica",
     "typst>=0.15,<0.16",
     "wigglystuff>=0.5.23",
@@ -20,11 +21,13 @@ python-downloads = "never"
 python-preference = "only-system"
 
 [tool.uv.sources]
-gammaloop = { path = "../gammaloop/ludy", editable = true, package = true }
+gammaloop = { git = "https://github.com/alphal00p/gammaloop", rev = "4f44c86382977bade32a230801034b5c37faddbd" }
 kirapy = { path = "packages/kirapy", editable = true }
-symbolica = { path = "../symbolica-community", editable = true, package = true }
+splitting-kernels-notebook = { path = "calculations/splitting", editable = true }
+symbolica = { git = "https://github.com/symbolica-dev/symbolica-community", rev = "4f62108b789ec33b25cb259696e6ff67780bab38" }
 
 [dependency-groups]
 dev = [
+    "pytest>=9.1.1",
     "ty>=0.0.65",
 ]

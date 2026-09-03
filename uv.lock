@@ -3,7 +3,7 @@ revision = 3
 requires-python = "==3.13.*"
 
 [manifest]
-overrides = [{ name = "symbolica", editable = "../symbolica-community" }]
+overrides = [{ name = "symbolica", git = "https://github.com/symbolica-dev/symbolica-community?rev=4f62108b789ec33b25cb259696e6ff67780bab38" }]
 
 [[package]]
 name = "anyio"
@@ -320,7 +320,7 @@ wheels = [
 [[package]]
 name = "gammaloop"
 version = "0.3.4"
-source = { editable = "../gammaloop/ludy" }
+source = { git = "https://github.com/alphal00p/gammaloop?rev=4f44c86382977bade32a230801034b5c37faddbd#4f44c86382977bade32a230801034b5c37faddbd" }
 dependencies = [
     { name = "jupyter" },
     { name = "numpy" },
@@ -331,29 +331,6 @@ dependencies = [
     { name = "pyyaml" },
     { name = "symbolica" },
     { name = "ufo-model-loader" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "jupyter", specifier = ">=1.1.1" },
-    { name = "numpy", specifier = ">=2.3.3" },
-    { name = "polars", specifier = ">=1.33.1" },
-    { name = "pydot" },
-    { name = "pymupdf", specifier = ">=1.23.4" },
-    { name = "pytest" },
-    { name = "pyyaml", specifier = ">=6.0.1" },
-    { name = "symbolica", specifier = ">=0.14.0" },
-    { name = "ufo-model-loader", specifier = ">=0.1.6" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "black", specifier = ">=23.12.1,<24" },
-    { name = "inline-snapshot", specifier = ">=0.21.2" },
-    { name = "pytest", specifier = ">=8.3.5,<9" },
-    { name = "pyyaml", specifier = ">=6.0.1,<7" },
-    { name = "symbolica", specifier = ">=0.16.0" },
-    { name = "ufo-model-loader", specifier = ">=0.1.6" },
 ]
 
 [[package]]
@@ -862,6 +839,7 @@ dependencies = [
     { name = "gammaloop" },
     { name = "kirapy" },
     { name = "marimo" },
+    { name = "splitting-kernels-notebook" },
     { name = "symbolica" },
     { name = "typst" },
     { name = "wigglystuff" },
@@ -869,21 +847,26 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pytest" },
     { name = "ty" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "gammaloop", editable = "../gammaloop/ludy" },
+    { name = "gammaloop", git = "https://github.com/alphal00p/gammaloop?rev=4f44c86382977bade32a230801034b5c37faddbd" },
     { name = "kirapy", editable = "packages/kirapy" },
     { name = "marimo" },
-    { name = "symbolica", editable = "../symbolica-community" },
+    { name = "splitting-kernels-notebook", editable = "calculations/splitting" },
+    { name = "symbolica", git = "https://github.com/symbolica-dev/symbolica-community?rev=4f62108b789ec33b25cb259696e6ff67780bab38" },
     { name = "typst", specifier = ">=0.15,<0.16" },
     { name = "wigglystuff", specifier = ">=0.5.23" },
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "ty", specifier = ">=0.0.65" }]
+dev = [
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "ty", specifier = ">=0.0.65" },
+]
 
 [[package]]
 name = "marimo"
@@ -1561,6 +1544,21 @@ wheels = [
 ]
 
 [[package]]
+name = "splitting-kernels-notebook"
+version = "0.1.0"
+source = { editable = "calculations/splitting" }
+dependencies = [
+    { name = "marimo" },
+    { name = "symbolica" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "marimo", specifier = ">=0.24.0" },
+    { name = "symbolica", specifier = ">=2.2.0" },
+]
+
+[[package]]
 name = "stack-data"
 version = "0.6.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1589,16 +1587,7 @@ wheels = [
 [[package]]
 name = "symbolica"
 version = "2.2.0"
-source = { editable = "../symbolica-community" }
-
-[package.metadata]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "ipykernel", specifier = ">=6.16.2" },
-    { name = "pytest", specifier = ">=7.0.0" },
-    { name = "pytest-cov", specifier = ">=4.0.0" },
-]
+source = { git = "https://github.com/symbolica-dev/symbolica-community?rev=4f62108b789ec33b25cb259696e6ff67780bab38#4f62108b789ec33b25cb259696e6ff67780bab38" }
 
 [[package]]
 name = "terminado"

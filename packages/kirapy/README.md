@@ -18,9 +18,11 @@ $ uv run --locked pytest -q tests
 
 All runnable Marimo notebooks use the repository-root uv/Nix environment. That
 environment consumes this package through a repository-local editable source
-and also provides the sibling GammaLoop and Symbolica Community checkouts.
-This package retains its own lock and subflake only for isolated wrapper
-development, tests, and the pinned Kira/Fermat runtime contract.
+and resolves GammaLoop and Symbolica Community from the root project's exact
+public Git revisions. This package retains its own lock and subflake only for
+isolated wrapper development, tests, and the pinned Kira/Fermat runtime
+contract; it remains usable from a fresh checkout without the root notebook
+dependency graph.
 
 The subflake pins Kira 3.1 at Git revision `dad964c`, its Nix inputs, and the
 official Fermat 7.9b binary. Its bundled runtime is available for Apple Silicon

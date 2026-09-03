@@ -37,7 +37,7 @@ locked calculations under `calculations/`.
   manifests still match the notebook inputs exactly.
 - `collinear-cone.py` is the independent interactive cone visualization.
 
-Run either notebook from the repository root so the editable sibling sources
+Run either notebook from the repository root so the locked public dependencies
 and generated paths resolve consistently:
 
 ```console
@@ -46,12 +46,13 @@ $ uv sync --locked
 $ uv run --locked marimo edit notebooks/ludy.py
 ```
 
-The root project uses `../gammaloop/ludy` and `../symbolica-community`; the
-Symbolica Community checkout should track its latest `simplify-spenso-api`
-bookmark.
+The root project resolves GammaLoop and Symbolica Community from the exact
+public Git revisions recorded in `pyproject.toml` and `uv.lock`; a fresh clone
+does not require adjacent source checkouts.
+
 GammaLoop and Symbolica Community contain separately linked Symbolica engines,
 so `ludy.py` requires a license that permits both engines in one process. For
-the clone-ready DY reduction that has no sibling-checkout dependency, use
+the complete DY reduction, use
 [`calculations/dy/python/notebook.py`](../calculations/dy/python/notebook.py)
 with the shared root environment. That notebook imports the generic algebraic
 helpers from `ludy.py`, defines its complete graph set first, and retains one

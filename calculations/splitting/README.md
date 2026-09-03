@@ -1,33 +1,48 @@
-# Splitting counter-term notebook
+# Splitting counter-term calculation
 
-The Marimo notebook reconstructs the real collinear calculations from
-`splitting_counter_term_computation.tex` with a shared Symbolica pipeline.
-Spenso/Idenso derive all three real numerators and the virtual numerator;
-Idenso also reduces the color contractions supplying `C_F`, `T_R`, and `C_A`.
-The shared Sudakov convention assigns `x` to the daughter entering the hard
-interaction and `1-x` to the cut daughter.
+This calculation reconstructs the real and virtual collinear splitting
+counter-terms with Symbolica, Spenso, and Idenso. The reusable
+`splitting_kernels` package derives the three real numerators and the virtual
+numerator, reduces the color contractions supplying `C_F`, `T_R`, and `C_A`,
+and performs the phase-space and normalization checks. The shared Sudakov
+convention assigns `x` to the daughter entering the hard interaction and
+`1-x` to the cut daughter.
 
-Activate the existing environment and open the notebook with:
+The calculation is an independent validation layer. Its symbolic results are
+not inputs to the native DIS or Drell--Yan assemblies.
 
-```bash
-source .venv/bin/activate
-marimo edit notebooks/splitting_counter_terms.py
+## Environment
+
+The package is installed as an editable local source by the repository-root
+uv project. Use the root lock and Nix shell; no separate `.venv` is required.
+
+From the repository root:
+
+```console
+$ nix develop
+$ uv sync --locked
+$ uv run --locked marimo edit calculations/splitting/notebooks/splitting_counter_terms.py
 ```
 
-Run it as a read-only application with:
+Run the notebook as a read-only application with:
 
-```bash
-marimo run notebooks/splitting_counter_terms.py
+```console
+$ uv run --locked marimo run calculations/splitting/notebooks/splitting_counter_terms.py
 ```
 
-Run the symbolic regression tests with:
+Run its symbolic regression suite with:
 
-```bash
-python -m pytest
+```console
+$ uv run --locked pytest calculations/splitting/tests
 ```
 
-## Symbolic backend constraint
+For a licensed non-interactive environment, prefix these commands with
+`direnv exec . nix develop --command` as shown in the root README. Keep the
+license outside the repository.
 
-All mathematical expression construction and manipulation uses Symbolica,
-Spenso, or Idenso. The calculation code does not import `re` or SymPy and does
-not perform algebra through string or LaTeX rewriting.
+## Symbolic backend boundary
+
+Mathematical expression construction and manipulation use Symbolica, Spenso,
+or Idenso. The calculation does not implement algebra through regular
+expressions, SymPy, or string/LaTeX rewriting. Preserve exact expression-level
+comparisons in the tests when extending the calculation.

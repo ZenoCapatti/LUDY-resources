@@ -1,5 +1,5 @@
 {
-  description = "Marimo environment for local GammaLoop development";
+  description = "Reproducible Marimo environment for LUDY resources";
 
   inputs = {
     # Keep the previously working Darwin toolchain while GammaLoop's current
@@ -12,8 +12,8 @@
     };
     nixpkgs.url = "github:NixOS/nixpkgs/b86751bc4085f48661017fa226dee99fab6c651b";
 
-    # Public pin keeps the repository evaluable away from this workstation.
-    # Local source edits are still supplied to uv through pyproject.toml.
+    # Keep the development shell and uv's Python dependency on the same
+    # published GammaLoop revision.
     gammaloop = {
       url = "github:alphal00p/gammaloop/4f44c86382977bade32a230801034b5c37faddbd";
       inputs.crane.follows = "crane";

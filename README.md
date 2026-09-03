@@ -1,189 +1,171 @@
-# LUDY research workspace
+# LUDY resources
 
-This repository is a small research monorepo. Reusable Python code lives under
-`packages/`, complete calculations live under `calculations/`, and general
-interactive experiments live under `notebooks/`.
+This repository contains the calculations, notebooks, manuscript, and source
+references for factorisable Local Unitarity. It is organized as a research
+monorepo: the root Nix/uv environment runs every Marimo notebook, while the
+reusable Kira wrapper retains its own independently locked package environment.
 
 ```text
-packages/
-  kirapy/                     reusable Python wrapper and pinned Kira runtime
+paper/                         manuscript and its local TeX inputs
 calculations/
-  dis/
-    ancillary/                 official arXiv fixture provenance and schema
-    python/                    DIS source model, masters, and validation notebook
+  dis/                         native NLO DIS calculation and validations
   dy/
-    mathematica/              original DY calculation and FIRE reference data
-    python/                   Kira and analytic-master notebooks
+    python/                    native NLO Drell--Yan calculation and masters
+    mathematica/               historical Mathematica/FIRE source snapshot
+  splitting/                   splitting counter-term calculation and tests
 notebooks/
-  ludy.py                     physical/editable cross-box and all shared helpers
-  collinear-cone.py           independent cone visualization
-docs/symbolica-fork.md        Symbolica pin and state-round-trip scope
-reproducers/                  standalone dependency-regression programs
-pyproject.toml, flake.nix     shared environment for every Marimo notebook
+  ludy.py                      crossed-box walkthrough and shared pipeline
+  collinear-cone.py            cone visualization
+  typst_marimo.py              small Typst/Marimo display helper
+  marimo-steady-state-slowdown.py
+                                 focused Marimo performance reproducer
+packages/kirapy/               reusable Kira project and result interface
+references/                    AEM and Pink Book source material
+docs/                          dependency and compatibility notes
+reproducers/                   standalone dependency-regression cases
 ```
 
-The two DY implementations are intentionally siblings. The Mathematica tree
-retains the scientific source and historical FIRE fixtures; the Python
-application recreates the reduction through the reusable `kirapy` package.
-See [`calculations/dy/README.md`](calculations/dy/README.md) for the mapping
-between them.
+## Calculation flow
 
-[`calculations/dis`](calculations/dis) is a focused NLO DIS paper-validation
-workspace. It transcribes the six printed graph integrands, derives projected
-numerators with Spenso, records the analytic one-loop master basis, and builds
-cut-specialized Kira smoke projects. Its validation ledger keeps the missing
-cut weights, graph-level IBP coefficients, and integrated channel results
-explicit, so this scaffold does not claim a completed physical coefficient.
+The crossed-box notebook introduces the common analytic stages: physical
+propagators and cuts, traces and projectors, partial fractions, numerator
+reduction, Kira/IBP reduction, analytic master insertion, virtuality expansion,
+and endpoint distributions. The DIS and Drell--Yan notebooks reuse that
+surface with their own physical graph sets, cut ledgers, process weights, and
+normalizations.
 
-## Run the notebooks
+The native DIS and Drell--Yan assemblies are complete. Their closed
+coefficients are produced from topologies, cuts, exact reduction records, and
+analytic masters. Reference formulas are introduced only after the native
+results have been fixed:
 
-All Marimo notebooks use the repository-root uv lock and Nix shell. The root
-environment includes the editable `packages/kirapy` checkout, the sibling
-GammaLoop and Symbolica Community checkouts, and the pinned Kira/Fermat
-runtime:
+- the DY parton-model branch is compared with the Altarelli--Ellis--Martinelli
+  calculation;
+- the DIS parton-model branch is compared with the Pink Book coefficient
+  functions; and
+- the independently assembled DIS and DY multi-partonic-minus-parton-model
+  differences test the common one-leg scheme kernel, including the explicit
+  incoming-gluon polarization conversion.
+
+The retained Mathematica notebook and manuscript formulas are historical
+reference layers, not calculation inputs. Detailed conventions, results, and
+audits are recorded in
+[`calculations/dis/README.md`](calculations/dis/README.md) and
+[`calculations/dy/README.md`](calculations/dy/README.md).
+
+> **Migration status.** This integration stack deliberately lands the
+> organized and validated code before changing the manuscript formulas. The
+> corresponding paper corrections belong to a subsequent paper-only commit;
+> until that commit is applied, the native notebook results are the source of
+> truth for the corrected DIS and Drell--Yan coefficients.
+
+## Reproducible root environment
+
+The root lock uses exact public Git revisions of GammaLoop and Symbolica
+Community. A fresh clone therefore does not require sibling source checkouts.
+`packages/kirapy` and `calculations/splitting` are editable local sources in the
+same root environment.
 
 ```console
-$ nix develop
-$ uv sync --locked
+$ cp .envrc.example .envrc
+$ direnv allow
+$ direnv exec . nix develop --command uv sync --locked
+```
+
+Put a locally configured Symbolica license in the ignored `.envrc.local`; the
+example environment loads that file when it is present. Then run licensed
+non-interactive commands through direnv:
+
+```console
+$ direnv exec . nix develop --command uv run --locked python -c 'import symbolica'
+```
+
+Never place a license key or another credential in the repository. A local
+`.envrc` or another ignored external environment is appropriate.
+
+## Marimo notebooks
+
+Open any notebook from the repository root after entering the Nix shell:
+
+```console
 $ uv run --locked marimo edit notebooks/ludy.py
 $ uv run --locked marimo edit notebooks/collinear-cone.py
+$ uv run --locked marimo edit notebooks/marimo-steady-state-slowdown.py
 $ uv run --locked marimo edit calculations/dy/python/notebook.py
 $ uv run --locked marimo edit calculations/dy/python/masters.py
 $ uv run --locked marimo edit calculations/dis/python/notebook.py
+$ uv run --locked marimo edit calculations/splitting/notebooks/splitting_counter_terms.py
 ```
 
-The DY `notebook.py` defines the complete editable physical input layer:
-Spenso symbols and momenta, eight raw Dirac chains, three longitudinal Ward
-projections, and ordered momentum--mass graph lines with full cut masks and
-propagator powers. The shared cross-box trace helper simplifies every chain;
-expanded scalar numerators are confined to exact validation oracles. Derived
-Kira projects use semantic `(graph, cut, graph sources)` keys; historical FIRE
-topology labels are confined to validation provenance. The notebook does not
-launch Kira until its batch run button is pressed. `masters.py` derives and evaluates the
-closed-form `B`, `Bcut`, `Tcut`, `Bcutm`, `Tcutm`, and maximal-cut `M00` basis
-in radial and light-cone coordinates, with exact normalization, virtuality, and
-soft-endpoint checks, without launching Kira or reading a reduction work
-directory.
+The cross-box walkthrough runs or resumes its manifest-checked Kira projects
+during a complete evaluation. The full DIS and DY notebooks keep reduction
+launches behind explicit controls and can reuse fingerprint-checked records
+under the ignored `runs/` directory. Static checks and ordinary imports do not
+start Kira. The splitting notebook is symbolic and does not use Kira.
 
-The DIS notebook executes the source-transcription and native-algebra layers:
-six graph traces and their projectors, a four-child Symbolica crossed-box
-partial fraction, 18 exact numerator-reconstruction checks, 15 structurally
-compatible all-cut sectors, and 16 serializable cut-specialized Kira smoke
-projects. It also displays the paper and reusable `B`, `Bcut`, and `Tcut`
-masters and an explicit validation ledger. Kira runs only when its button is
-pressed, and those smoke reductions are not assembled into a physical DIS
-result.
+The bundled Kira/Fermat runtime currently supports x86-64 Linux and Apple
+Silicon macOS. Other systems can use compatible externally installed
+executables.
 
-The bundled native runtime currently supports x86-64 Linux and Apple Silicon
-macOS. Other systems can use the same notebooks with a separately installed
-Kira 3.1-compatible executable.
+## Validation
 
-## Reusable Kira wrapper
-
-[`packages/kirapy`](packages/kirapy) is an independently locked uv/Nix
-project. Its wheel contains only the Python interface; Kira and Fermat are
-external executables supplied by its Nix shell or configured by the user.
+The principal root checks are:
 
 ```console
-$ cd packages/kirapy
-$ nix develop
-$ uv sync --locked
-$ uv run --locked pytest
-```
-
-The wrapper exposes deterministic Kira project generation, resumable runs,
-exact Symbolica parsing, and completeness checks. Native Symbolica and Spenso
-objects cross Kira's text interface through aliases backed by full SHA-256
-digests; Fermat-facing scalar names use a collision-checked ten-character
-projection. Native expressions are restored from a checksummed Symbolica state
-artifact before results are returned. Its tests compare the full 27-integral
-topology-1 result against the retained FIRE oracle. API and work-directory
-details are in [`packages/kirapy/README.md`](packages/kirapy/README.md).
-The exact official Symbolica pin, the out-of-scope state-import edge case, and
-the dependent compatibility ports are documented in
-[`docs/symbolica-fork.md`](docs/symbolica-fork.md).
-
-Fermat is downloaded from its official distribution and has a
-[non-business-use restriction](https://home.bway.net/lewis/ferm7.html). Review
-those terms before using the bundled runtime on an institutional or commercial
-machine. The official Apple Silicon Fermat binary requires macOS 26 or newer;
-on older macOS versions, configure a compatible external Kira/Fermat runtime.
-
-## Mathematica source context
-
-[`calculations/dy/mathematica/DY_calculation.nb`](calculations/dy/mathematica/DY_calculation.nb)
-is the complete original calculation with a small portability edit to its
-initialization cell. The local Wolfram packages, gamma-trace data, and topology
-1--8 FIRE fixtures are retained beside it.
-
-Wolfram Mathematica is required to evaluate the notebook. FIRE is required
-only to rerun the historical FIRE cells; set `FIRE_ROOT` to a FIRE 6 directory
-containing `FIRE6.m` and `bin/FIRE6`. The Python/Kira implementation does not
-require FIRE. Snapshot provenance and exact inclusions are documented in
-[`calculations/dy/mathematica/README.md`](calculations/dy/mathematica/README.md).
-
-## Notebook architecture
-
-The shared root environment intentionally uses editable sibling checkouts at
-`../gammaloop/ludy` and `../symbolica-community`. It serves
-[`notebooks/ludy.py`](notebooks/ludy.py),
-[`notebooks/collinear-cone.py`](notebooks/collinear-cone.py), and both notebooks
-under [`calculations/dy/python`](calculations/dy/python), together with
-[`calculations/dis/python/notebook.py`](calculations/dis/python/notebook.py).
-
-`ludy.py` is both the source of the DY/Kira helper implementations and a
-cell-by-cell cross-box walkthrough. Each helper is defined immediately before
-the walkthrough first needs it, while the Mathematica/FIRE comparisons and
-other validation checks are collected in a final appendix. Its Kira project
-builder, algebraic reduction pipeline, and resumable runner are module-visible
-for companion notebooks.
-The physical trace is the default worked numerator; assigning a native
-Symbolica expression to `user_numerator` runs the same helper pipeline on an
-editable numerator. Analytic master evaluators are imported from
-[`calculations/dy/python/masters.py`](calculations/dy/python/masters.py), which
-is their single implementation site. The complete DY notebook imports the
-same cross-box apart and numerator-reduction helpers, defines its symbols,
-eight graphs, and eight physical Dirac-chain numerators first, and then
-processes that graph set as one batch. Its importable assembly module derives
-Kira projects from graph/cut/source identities and structurally deduplicates
-equivalent physical families; it does not route the calculation through
-historical `topoN` identities.
-Every independent FIRE, Mathematica, and manuscript comparison is confined to
-its final validation appendix.
-
-The DIS implementation is split by evidence layer. `ancillary.py` pins and
-audits the two official arXiv source fixtures without fetching them on import;
-`masters.py` implements the paper-phase and reusable one-loop scalar masters;
-and `physical.py` owns the finite-virtuality kinematics, six source traces,
-projectors, numerator reductions, typed paper targets, Kira serialization, and
-validation ledger. The notebook presents those layers and retains the missing
-oriented cut weights, full reductions, virtuality integration, pole
-cancellation, and channel sums as blockers.
-
-Validate and export the complete notebook set from the repository root:
-
-```console
-$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.ancillary import self_check; self_check()'
-$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.masters import normalization_self_checks; normalization_self_checks()'
-$ direnv exec . nix develop --command uv run --locked python -c 'from calculations.dis.python.physical import self_check; self_check()'
+$ direnv exec . nix flake check
+$ direnv exec . nix develop --command uv lock --check
+$ direnv exec . nix develop --command uv run --locked pytest calculations/splitting/tests
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/ludy.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/collinear-cone.py
+$ direnv exec . nix develop --command uv run --locked marimo check --strict notebooks/marimo-steady-state-slowdown.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dy/python/notebook.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dy/python/masters.py
 $ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/dis/python/notebook.py
-$ direnv exec . nix develop --command uv run --locked marimo export html notebooks/ludy.py -o /tmp/ludy-validation.html --force
-$ direnv exec . nix develop --command uv run --locked marimo export html notebooks/collinear-cone.py -o /tmp/ludy-collinear-cone-validation.html --force
-$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/notebook.py -o /tmp/ludy-dy-notebook-validation.html --force
-$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/masters.py -o /tmp/ludy-dy-masters-validation.html --force
-$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dis/python/notebook.py -o /tmp/ludy-dis-validation.html --force
+$ direnv exec . nix develop --command uv run --locked marimo check --strict calculations/splitting/notebooks/splitting_counter_terms.py
 ```
 
-GammaLoop and Symbolica Community contain separately linked Symbolica engines.
-Use them in one process only when the configured license permits multiple
-engines.
+Complete notebook execution can be checked without opening an editor:
 
-This checkout loads the active multi-engine license from its ignored `.envrc`.
-Use `direnv exec . nix develop --command ...` for non-interactive commands so
-that license is present, and never print or commit its value. Keep any other
-credentials in ignored environment files as well. Use Jujutsu for
-version-control operations in this repository.
+```console
+$ direnv exec . nix develop --command uv run --locked marimo export html notebooks/ludy.py -o /tmp/ludy-cross-box.html --force
+$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/notebook.py -o /tmp/ludy-dy.html --force
+$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dy/python/masters.py -o /tmp/ludy-dy-masters.html --force
+$ direnv exec . nix develop --command uv run --locked marimo export html calculations/dis/python/notebook.py -o /tmp/ludy-dis.html --force
+$ direnv exec . nix develop --command uv run --locked marimo export html calculations/splitting/notebooks/splitting_counter_terms.py -o /tmp/ludy-splitting.html --force
+```
+
+`packages/kirapy` has a separate package-development gate:
+
+```console
+$ cd packages/kirapy
+$ nix flake check
+$ nix develop --command uv lock --check
+$ nix develop --command uv run --locked pytest
+$ nix develop --command uv run --locked ty check src tests
+```
+
+## Kira, Fermat, and Mathematica
+
+[`packages/kirapy`](packages/kirapy) generates deterministic, resumable Kira
+projects and restores exact Symbolica expressions from checksummed state
+artifacts. Its wheel does not contain Kira or Fermat binaries. The Nix shell
+supplies pinned executables and `FERMATPATH`, or users may configure compatible
+external executables.
+
+Fermat is distributed under an official
+[non-business-use restriction](https://home.bway.net/lewis/ferm7.html).
+Review those terms before using the bundled runtime on an institutional or
+commercial machine.
+
+The Mathematica snapshot under `calculations/dy/mathematica` preserves the
+original notebook, its first-party Wolfram packages, trace data, and historical
+FIRE fixtures. Mathematica is needed only to evaluate that source. FIRE 6 is
+needed only to rerun its historical FIRE cells and is configured through an
+external `FIRE_ROOT`; neither is required by the native Python/Kira path.
+
+## Manuscript
+
+The manuscript and its local inputs live under [`paper/`](paper/). See
+[`paper/README.md`](paper/README.md) for the build boundary and the current
+migration status. Source references used for external validation are catalogued
+under [`references/`](references/).

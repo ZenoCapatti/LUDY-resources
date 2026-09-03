@@ -1,11 +1,14 @@
 .DS_Store
 .envrc
+.envrc.local
 .direnv/
 .marimo/
+.pytest_cache/
 .venv/
 __marimo__/
 __pycache__/
 *.py[cod]
+*.egg-info/
 calculations/splitting/notebooks/*.html
 *.log
 !calculations/dy/mathematica/tools/trace_form.log
