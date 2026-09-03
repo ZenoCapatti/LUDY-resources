@@ -230,18 +230,18 @@ In the LU scheme, the additional contributions are packaged compactly. Let $\Gam
 \label{eq:disc_dis}
 \left(W_{\mathfrak{q}}^{\text{LU},(1)}\right)^{\mu\nu}&=\sum_{G\in\Gamma_{\mathfrak{q}}}\int_0^{\Lambda^2} \frac{\mathrm{d}p^2}{8\pi^2}\frac{\text{disc}_{p^2}\text{disc}_{1-x}I_{\mathfrak{q} G}^{\mu\nu}}{\langle\mathfrak{q}\rangle}, 
 \end{align}
- The integrals $I_{\mathfrak{q} G}^{\mu\nu}$ are given as \emph{End Matter} material. The discontinuities in $p^2$ and $1-x$ account for the sums over initial- and final-state cuts, respectively. $\text{disc}_{\tilde{s}}$ is both understood as a sum over Cutkosky cuts~\cite{Cutkosky:1960sp} in the $\tilde{s}$ channel or as the difference of the function it operates on evaluated at $\tilde{s}+i\varepsilon$ and $\tilde{s}-i\varepsilon$ (at LP, no subtleties such as those of ref.~\cite{Bourjaily:2020wvq} arise).  
+ The integrals $I_{\mathfrak{q} G}^{\mu\nu}$ are given as \emph{End Matter} material. The discontinuities in $p^2$ and $1-x$ account for the sums over initial- and final-state cuts, respectively. The measure $\mathrm{d}p^2/(8\pi^2)=[\mathrm{d}p^2/(2\pi)](1/4\pi)$ contains one observable-normalisation factor. $\text{disc}_{\tilde{s}}$ is both understood as a sum over Cutkosky cuts~\cite{Cutkosky:1960sp} in the $\tilde{s}$ channel or as the difference of the function it operates on evaluated at $\tilde{s}+i\varepsilon$ and $\tilde{s}-i\varepsilon$ (at LP, no subtleties such as those of ref.~\cite{Bourjaily:2020wvq} arise).  
 
 For hadronic collisions, the situation is analogous. For DY, the NLO, LP cross-section reads:
 \begin{align}
 \label{eq:disc_dy}
 \frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}}{\mathrm{d}q^2}&= \sum_{G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}} \!\left[\prod_{i=1}^2\int_0^{\Lambda^2}\frac{\mathrm{d}p_i^2}{2\pi}\text{disc}_{p_i^2}\right] \! \frac{I_{ G}^{\mathfrak{q}\mathfrak{q}'}}{4\pi\langle\mathfrak{q}\rangle \langle\mathfrak{q}'\rangle}
 \end{align}
-where the diagrams being summed over, $G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}$, are given in the appendix~\ref{sec:integrals_DIS_DY}. This time, we have one discontinuity for each incoming hadron. 
+where the diagrams being summed over, $G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}$, are given in the appendix~\ref{sec:integrals_DIS_DY}. This time, we have one discontinuity for each incoming hadron. The factor $1/(4\pi)$ is the single global observable-normalisation factor for the complete two-leg cluster.
 
-To determine the universal scheme transformation from LU-scheme to $\overline{\text{MS}}$ PDFs, we employ standard Altarelli-Parisi (AP) techniques~\cite{Altarelli:1977zs}, adapted to the present framework (see \emph{End Matter} material). This also establishes the factorisability of the minimal set of multi-partonic diagrams. We introduce the \emph{splitting counter-terms} $D_{\mathfrak{q}\mathfrak{q}'}$ by the relation $f_{\mathfrak{q}'}^{\overline{\text{MS}}}=D_{\mathfrak{q}\mathfrak{q}'}\otimes f_{\mathfrak{q}'}^{\text{LU}}$:
+To determine the universal scheme transformation from LU-scheme to $\overline{\text{MS}}$ PDFs, we employ standard Altarelli-Parisi (AP) techniques~\cite{Altarelli:1977zs}, adapted to the present framework (see \emph{End Matter} material). This also establishes the factorisability of the minimal set of multi-partonic diagrams. We introduce the \emph{splitting counter-terms} $D_{\mathfrak{q}\mathfrak{q}'}$ through
 \begin{equation}
-f_{\mathfrak{q}}^{\overline{\text{MS}}}(x;\mu^2)=\hspace{-0.15cm}\sum_{\mathfrak{q}'\in\mathfrak{S}_1}\hspace{-0.05cm}\int_0^1 \hspace{-0.05cm}\frac{\mathrm{d}\xi}{\xi} D_{\mathfrak{q}\mathfrak{q}'}\hspace{-0.06cm}\left(\xi,\tfrac{\Lambda^2}{\mu^2}\right)f_{\mathfrak{q}'}^{\text{LU}}\hspace{-0.06cm}\left(\tfrac{x}{\xi};\Lambda^2\right).
+f_{\mathfrak{q}}^{\overline{\text{MS}}}(x;\mu^2)=\hspace{-0.15cm}\sum_{\mathfrak{q}'\in\mathfrak{S}_1}\hspace{-0.05cm}\int_0^1 \hspace{-0.05cm}\frac{\mathrm{d}\xi}{\xi} D_{\mathfrak{q}'\mathfrak{q}}\hspace{-0.06cm}\left(\xi,\tfrac{\Lambda^2}{\mu^2}\right)f_{\mathfrak{q}'}^{\text{LU}}\hspace{-0.06cm}\left(\tfrac{x}{\xi};\Lambda^2\right).
 \end{equation}
 The coupling expansion reads
 \begin{equation}
@@ -280,16 +280,16 @@ $\bar{\xi}=1-\xi$, $c_{gq}=T_F$, $c_{qq}=c_{qg}=C_F$ and $c_{gg}=C_A$. $P_{\math
 
 \section{\label{sec:level2}Reverse Unitarity computation}
 
-We now compute the NLO DIS and DY cross sections in the LU scheme using Reverse Unitarity, providing two benchmark tests of the correctness and universality of the splitting counter-terms of eq.~\eqref{eq:splitting_cts_nlo}. In the following, we will use $f=f^{(0)}+a_s f^{(1)}+\mathcal{O}(a_s)$ for the coupling expansion of the observable $f$.
+We now compute the NLO DIS and DY cross sections in the LU scheme using Reverse Unitarity, providing two benchmark tests of the correctness and universality of the splitting counter-terms of eq.~\eqref{eq:splitting_cts_nlo}. In the following, we will use $f=f^{(0)}+a_s f^{(1)}+\mathcal{O}(a_s^2)$ for the coupling expansion of the observable $f$.
 
-\underline{\textbf{DIS}}: The structure functions are obtained from the partonic tensor by projection of the partonic tensors with the usual projectors, $F_{a\mathfrak{q}}=\mathrm{P}_a^{\mu\nu}(W_{\mathfrak{q}})_{\mu\nu}$. We obtained in ref.~\cite{Capatti:2025gqj} that, for a quark:
+\underline{\textbf{DIS}}: The structure functions are obtained from the partonic tensor by projection of the partonic tensors with the usual projectors, $F_{a\mathfrak{q}}=\mathrm{P}_a^{\mu\nu}(W_{\mathfrak{q}})_{\mu\nu}$. The calculation gives, for a quark:
 \begin{align}
 \frac{F_{2q}^{\text{LU},(1)}}{e_q^2C_F x}
 &= 
-\tilde{P}_{qq}^{(0)}(x)L_x+\frac{2\pi^2+3}{3}\delta(1-x)
+-\tilde{P}_{qq}^{(0)}(x)L_x-\frac{2\pi^2+3}{3}\delta(1-x)
 \nonumber\\
 &\hspace{1cm}
-+\frac{6x^2-4x+1}{2(1-x)_+}
+-\frac{6x^2-4x+1}{2(1-x)_+}
 +\mathcal{O}\left(\Lambda^2\right),
 \\
 \frac{F_{Lq}^{\text{LU},(1)}}{e_q^2C_F x}
@@ -297,33 +297,29 @@ We now compute the NLO DIS and DY cross sections in the LU scheme using Reverse 
 \end{align}
 while for a gluon:
 \begin{align}
-\frac{F_{2g}^{\text{LU},(1)}}{e_q^2 T_F x}&= \tilde{P}_{gq}^{(0)}(x)\left(1\hspace{-0.025cm}+\hspace{-0.025cm}L_x\right)+2x (1-x)+\mathcal{O}\left(\Lambda^2\right), \\
+\frac{F_{2g}^{\text{LU},(1)}}{e_q^2 T_F x}&= -\tilde{P}_{gq}^{(0)}(x)L_x+6x(1-x)-2+\mathcal{O}\left(\Lambda^2\right), \\
 \frac{F_{Lg}^{\text{LU},(1)}}{e_q^2 T_F x}&=4  x(1-x)+\mathcal{O}\left(\Lambda^2\right),
 \end{align}
-where $L_x=\log\left(\tfrac{\Lambda^2 x^2}{Q^2}\right)$ and $\mathcal{O}(\Lambda^2)$ absorbs all terms suppressed in ratios of $\Lambda^2$ over $Q^2$ and $(p+q)^2$. $\tilde{P}^{(0)}_{\mathfrak{q}\mathfrak{q}'}$ is the regularised Altarelli-Parisi splitting kernel, eqs.~(C.6)-(C.9) of ref.~\cite{Catani_1997}, stripped of colour factors.
+where $L_x=\log\left(\tfrac{\Lambda^2 x^2}{Q^2}\right)$ and $\mathcal{O}(\Lambda^2)$ absorbs all terms suppressed in ratios of $\Lambda^2$ over $Q^2$ and $(p+q)^2$. $\tilde{P}^{(0)}_{\mathfrak{q}\mathfrak{q}'}$ is the regularised Altarelli-Parisi splitting kernel, eqs.~(C.6)-(C.9) of ref.~\cite{Catani_1997}, stripped of colour factors. Each displayed gluon expression is one $q$-or-$\bar q$ summand; the complete one-flavour $\gamma^*g$ result is twice the displayed expression.
 The result is IR finite, owing to the KLN mechanism, and the scale evolution and longitudinal structure functions take the same form as in the $\overline{\text{MS}}$ parton model. Hence, structure functions can be cast in the $\overline{\text{MS}}$-scheme by a scheme redefinition. More precisely, we find that
 \begin{equation}
-F_{2\mathfrak{q}}^{\overline{\text{MS}}}=\sum_{\mathfrak{q}'}D_{\mathfrak{q} \mathfrak{q}'}\otimes F_{2\mathfrak{q}'}^{\text{LU}}+\mathcal{O}(\alpha_s,\Lambda^2).
+F_{2\mathfrak{q}}^{\overline{\text{MS}}}=\sum_{\mathfrak{q}'}(D^{-1})_{\mathfrak{q}\mathfrak{q}'}\otimes F_{2\mathfrak{q}'}^{\text{LU}}+\mathcal{O}(a_s^2,\Lambda^2).
 \end{equation}
 where the $D_{\mathfrak{q} \mathfrak{q}'}$ functions are precisely those of eq.~\eqref{eq:splitting_cts_nlo}, with the Feynman gauge boundary terms, and the $\overline{\text{MS}}$ result is given in refs.~\cite{Bardeen:1978yd}. %The Reverse Unitarity computation naturally captures boundary terms, and provides an independent cross-check of the direct splitting counter-term computation. 
 
 
-\underline{\textbf{DY}}: We can compute the NLO DY cross-section in the same formalism. The Reverse Unitarity computation gives, using $q^2=z s$, 
+\underline{\textbf{DY}}: We can compute the NLO DY cross-section in the same formalism. The Reverse Unitarity computation gives, using $q^2=z s$ with $s\equiv\hat{s}=(p_1+p_2)^2$, 
 \begin{align}
-&\frac{\mathrm{d}\sigma_{q\bar{q}}^{\text{LU},(1)}}{\mathrm{d}q^2}= e_q^2C_F \! \Bigg[ \tilde{P}_{qq}^{(0)}(z)L_z\!+2(1+z^2)\! \left[\frac{\log(1\!-\! z)}{1\!-\!z}\right]_+ \nonumber \\
-&\hspace{0.4cm}+(1-3\pi^2)\delta(1-z)+\frac{1+3z-z^2}{z} \Bigg] \!  +\mathcal{O}\left(\Lambda^2\right), \label{eq:qq_DY}\\
+&\frac{\mathrm{d}\sigma_{q\bar{q}}^{\text{LU},(1)}}{\mathrm{d}q^2}= e_q^2C_F \! \Bigg[ -2\tilde{P}_{qq}^{(0)}(z)L_z\!+2(1+z^2)\! \left[\frac{\log(1\!-\! z)}{1\!-\!z}\right]_+ \nonumber \\
+&\hspace{0.4cm}-\delta(1-z)+2z-4 \Bigg] \!  +\mathcal{O}\left(\Lambda^2\right), \label{eq:qq_DY}\\
 &\frac{\mathrm{d}\sigma_{qg}^{\text{LU},(1)}}{\mathrm{d}q^2}=\frac{e_q^2T_F}{2z }\Bigg[
-1+z^3+z^2-2z \nonumber
+-2z\tilde{P}_{gq}^{(0)}(z)\left(L_z-\log(1-z)\right) \nonumber
  \\
- &+z\tilde{P}_{gq}^{(0)}(z)
-\left(
-1
-+2 (L_z-\log(1-z))
-\right)\Bigg] +\mathcal{O}\left(\Lambda^2\right), \label{eq:qg_DY}
+ &-z(1-2z+3z^2)\Bigg] +\mathcal{O}\left(\Lambda^2\right), \label{eq:qg_DY}
 \end{align}
-where $\mathcal{O}\left(\Lambda^2\right)$ includes all terms suppressed by ratios of $\Lambda^2$ with $s$ and $q^2$. Eqs.~\eqref{eq:qq_DY} and \eqref{eq:qg_DY} are related to the $\overline{\text{MS}}$ results~\cite{Altarelli:1979ub} by 
+where $L_z=\log(\Lambda^2z/s)=\log(\Lambda^2z^2/q^2)$ and $\mathcal{O}\left(\Lambda^2\right)$ includes all terms suppressed by ratios of $\Lambda^2$ with $s$ and $q^2$. The displayed cross-sections are reduced coefficients: the common factor $4\pi\alpha_{\mathrm{em}}^2/(3N_cq^2s)$ is suppressed, while $e_q^2$ is retained. With the common cutoff, the $qg$, $gq$, and charge-conjugate Compton coefficients coincide. Eqs.~\eqref{eq:qq_DY} and \eqref{eq:qg_DY} are related to the $\overline{\text{MS}}$ results~\cite{Altarelli:1979ub} by 
 \begin{align}
-\frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\overline{\text{MS}}}}{\mathrm{d}q^2}=\sum_{\mathfrak{q}_1,\mathfrak{q}_2}D_{ \mathfrak{q}\mathfrak{q}_1}\otimes\frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}^{\text{LU}}}{\mathrm{d}q^2}\otimes D_{\mathfrak{q}_2 \mathfrak{q}'},
+\frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\overline{\text{MS}}}}{\mathrm{d}q^2}=\sum_{\mathfrak{q}_1,\mathfrak{q}_2}(D^{-1})_{\mathfrak{q}\mathfrak{q}_1}\otimes\frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}^{\text{LU}}}{\mathrm{d}q^2}\otimes(D^{-1})_{\mathfrak{q}'\mathfrak{q}_2}+\mathcal{O}(a_s^2,\Lambda^2),
 \end{align}
 which uses $D_{qq}$ and $D_{gq}$ as defined by eq.~\eqref{eq:splitting_cts_nlo}. 
 
@@ -331,10 +327,10 @@ These computations confirm that, at NLO, LU and $\overline{\text{MS}}$ cross-sec
 
 \section{\label{sec:level2}Local Unitarity computation}
 
-We exploit the IR finiteness of $\text{LU}$-scheme hadronic cross-sections to compute them in $d=4$ using Monte Carlo methods. The universal finite parts of eq.~\eqref{eq:splitting_cts_nlo} are added to the LU result to match the $\overline{\text{MS}}$-scheme. For DY, one computes the bin contribution
+We exploit the IR finiteness of $\text{LU}$-scheme hadronic cross-sections to compute them in $d=4$ using Monte Carlo methods. The finite hard shifts generated by $D^{-1}$, equivalently minus the finite parts of eq.~\eqref{eq:splitting_cts_nlo}, are added to the LU result to match the $\overline{\text{MS}}$-scheme. For DY, one computes the bin contribution
 \begin{equation}
 %\Delta_{ab}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}=
-\int_a^b \mathrm{d}z\frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}}{\mathrm{d}z}=\sum_{G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}}\frac{\Delta_{ab}^G}{\langle\mathfrak{q}\rangle \langle\mathfrak{q}'\rangle},
+\int_a^b \mathrm{d}z\frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}}{\mathrm{d}z}=\sum_{G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}}\frac{\Delta_{ab}^G}{4\pi\langle\mathfrak{q}\rangle \langle\mathfrak{q}'\rangle},
 \end{equation}
 where
 \begin{equation}
@@ -347,7 +343,7 @@ Writing discontinuities in terms of cut Feynman diagrams, and performing the res
 \end{equation}
 where
 \begin{equation}
-\mathrm{d}\Pi_k=\left[\prod_{i=1}^2\frac{\mathrm{d}p_i^2}{2\pi}\Theta(\Lambda^2-p_i^2)\right]\frac{\mathrm{d}^4 k}{(2\pi)^d},
+\mathrm{d}\Pi_k=\left[\prod_{i=1}^2\frac{\mathrm{d}p_i^2}{2\pi}\Theta(\Lambda^2-p_i^2)\right]\frac{\mathrm{d}^4 k}{(2\pi)^4},
 \end{equation}
 and $N_{\mathfrak{q}\mathfrak{q}'}$ is the numerator, a polynomial in $k, p_1, p_2$, $D_j=q_j^2-m_j^2$. The sum runs over all tuples $C_\sigma=(\sigma,C)\in\mathcal{C}_G$ of cut sets $C\subset E$ and signs $\sigma\in\{\pm 1\}^{|C|}$, compatible with the energy integration and the expansion of the discontinuity in terms of cut diagrams. Each contribution now has, for DY, $|C|=4$ (for $t\bar{t}$, $|C|=5$).
 
