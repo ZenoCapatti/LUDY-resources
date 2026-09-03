@@ -6,8 +6,16 @@
 __marimo__/
 __pycache__/
 *.py[cod]
+calculations/splitting/notebooks/*.html
 *.log
 !calculations/dy/mathematica/tools/trace_form.log
+/paper/*.aux
+/paper/*.bbl
+/paper/*.blg
+/paper/*.fdb_latexmk
+/paper/*.fls
+/paper/*.out
+/paper/*.pdf
 /runs/
 /test_expression.cpp
 /test_expression.so
