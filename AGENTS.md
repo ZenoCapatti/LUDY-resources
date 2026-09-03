@@ -33,13 +33,11 @@ provenance and need not be executable.
 
 ## Migration and manuscript boundary
 
-The integration sequence intentionally establishes the organized repository,
-portable dependency graph, and fully validated native code before correcting
-the paper. In the current integration stack, do not fold corrected DIS/DY
-manuscript formulas into a migration, organization, environment, or code
-commit. Apply those changes in the subsequent isolated paper commit, after the
-code-validation gate passes. The native calculations are the scientific source
-of truth during this interval.
+The migration history establishes the organized repository, portable dependency
+graph, and fully validated native code before the subsequent paper-only
+correction. Preserve that review boundary when rewriting or moving the history.
+Keep future calculation changes and manuscript transcriptions independently
+reviewable, and treat the native calculations as the scientific source of truth.
 
 ## Version control
 

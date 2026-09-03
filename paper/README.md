@@ -17,12 +17,12 @@ $ latexmk -pdf main.tex
 Generated TeX products and PDFs are not repository sources and must remain
 untracked.
 
-## Integration status
+## Scientific source
 
-The repository migration deliberately lands and validates the organized native
-calculations before updating the paper. At this point in the integration stack,
-`main.tex` still represents the pre-correction manuscript. The corrected DIS
-and Drell--Yan coefficients are produced and audited by the native notebooks;
-their manuscript transcription belongs to the subsequent isolated paper-only
-commit. This sequencing keeps repository migration, executable evidence, and
-scientific prose independently reviewable.
+The regularised DIS and Drell--Yan coefficients in `main.tex` are generated and
+audited by the native notebooks under `calculations/dis/` and
+`calculations/dy/`. Those calculations, their graph and cut records, and their
+literature comparisons are the executable source of truth for the manuscript
+formulas. The repository history keeps the manuscript transcription separate
+from the preceding migration and code changes so that both layers remain
+independently reviewable.

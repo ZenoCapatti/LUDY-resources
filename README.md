@@ -53,12 +53,6 @@ audits are recorded in
 [`calculations/dis/README.md`](calculations/dis/README.md) and
 [`calculations/dy/README.md`](calculations/dy/README.md).
 
-> **Migration status.** This integration stack deliberately lands the
-> organized and validated code before changing the manuscript formulas. The
-> corresponding paper corrections belong to a subsequent paper-only commit;
-> until that commit is applied, the native notebook results are the source of
-> truth for the corrected DIS and Drell--Yan coefficients.
-
 ## Reproducible root environment
 
 The root lock uses exact public Git revisions of GammaLoop and Symbolica
@@ -166,6 +160,6 @@ external `FIRE_ROOT`; neither is required by the native Python/Kira path.
 ## Manuscript
 
 The manuscript and its local inputs live under [`paper/`](paper/). See
-[`paper/README.md`](paper/README.md) for the build boundary and the current
-migration status. Source references used for external validation are catalogued
+[`paper/README.md`](paper/README.md) for build instructions and the scientific
+source boundary. Source references used for external validation are catalogued
 under [`references/`](references/).
