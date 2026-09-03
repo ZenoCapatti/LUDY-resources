@@ -6,13 +6,14 @@ Dirac chains to exact scalar polynomials before passing them into this assembly
 module. Kira objects are derived only at the reduction boundary; they are not
 graph inputs.
 
-The retained Mathematica notebook and the manuscript do not agree in their
-last presentation cells.  The data model therefore keeps three different
-objects explicit:
+The retained Mathematica notebook and the pre-correction manuscript snapshot
+do not agree in their last presentation cells.  The data model therefore keeps
+the independently normalised objects explicit:
 
-* the consistently transverse native result;
-* the presentation transcribed from saved Mathematica output cells;
-* the manuscript formula.
+* the native ``MP - PM,bare`` graph selection;
+* the paper-facing physical handoff obtained by adding the independently
+  validated parton-model branch;
+* the raw closed-form, saved Mathematica, and historical manuscript ledgers.
 
 No residual is silently set to zero.
 """
@@ -23,7 +24,7 @@ from dataclasses import dataclass, replace as dataclass_replace
 from itertools import combinations, product
 from math import prod
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Mapping, Sequence
+from typing import TYPE_CHECKING, Callable, Literal, Mapping, Sequence
 
 from symbolica import E, Expression
 
@@ -75,23 +76,67 @@ class DYContext:
     pi: Expression
 
 
+DYPrescription = Literal["pm_bare", "mp"]
+DYSelection = Literal["pm_bare", "mp", "mp_minus_pm"]
+DYEndpointSupport = Literal["delta", "regular", "plus"]
+DYLegRoute = Literal["none", "p1", "p2", "both"]
+DYNormalizer = Literal["qq_virtual", "qq_real", "qg_real"]
+PaperDYChannel = Literal["qqbar", "q1g2", "g1q2", "qg_average"]
+
+
+@dataclass(frozen=True, slots=True)
+class CutMembership:
+    """Unsigned membership of one graph cut in the two prescriptions.
+
+    This deliberately says only whether a cut belongs to a prescription.  It
+    does not carry a Cutkosky, graph, or observable phase; those are explicit
+    weights on :class:`NativeDYContribution`.  Consequently a cut common to
+    the two prescriptions has ``pm_bare=mp=True`` even when a complementary
+    MP--PM term from the same graph carries a nontrivial observable phase.
+    """
+
+    pm_bare: bool
+    mp: bool
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.pm_bare, bool) or not isinstance(self.mp, bool):
+            raise TypeError("Cut memberships must be bool values")
+        if not self.mp:
+            raise ValueError(
+                "Every routed DY cut belongs to MP, with PM-bare as its subset"
+            )
+
+    def coefficient(self, prescription: DYPrescription) -> Expression:
+        """Return the unsigned selector for one prescription."""
+
+        if prescription == "pm_bare":
+            return E(str(int(self.pm_bare)))
+        if prescription == "mp":
+            return E(str(int(self.mp)))
+        raise ValueError(f"Unknown DY prescription {prescription!r}")
+
+    @property
+    def mp_minus_pm(self) -> Expression:
+        """Return the unsigned set difference ``1_MP - 1_PM``."""
+
+        return E(str(int(self.mp) - int(self.pm_bare)))
+
+
 @dataclass(slots=True)
 class DYGraphSpec:
     """Editable physical graph data, independent of Kira model objects.
 
     ``cut_weights`` contains the cut sign and multiplicity *relative to the
     analytic-master convention in masters.py*.  ``scheme_observable_phase``
-    is the independent physical graph/process phase in the DY ``MP - PM``
-    observable.  Keeping those two factors separate prevents a cut's scheme
-    membership from silently carrying a physical sign.
+    is the independent physical graph/process phase of a complementary
+    ``MP - PM`` term.  Keeping those factors separate prevents a cut's scheme
+    membership from silently carrying a physical sign.  In particular, this
+    transition-only phase is not applied to common PM/MP all-cut terms.
 
     The retained Mathematica objects can display the opposite sign because
     they absorb a historical Cutkosky phase into the cut master itself.
-    ``mp_only_cuts`` and ``pm_only_cuts`` are unsigned membership data.  Their
-    difference coefficient is exactly ``1_MP - 1_PM``; cuts absent from both
-    tuples are common to the two prescriptions and cancel.  In the present DY
-    graph input every complementary cut is MP-only and therefore has
-    membership coefficient ``+1``.
+    ``cut_memberships`` gives the two unsigned graph selections explicitly.
+    The difference coefficient is exactly ``1_MP - 1_PM``.
     """
 
     name: str
@@ -101,9 +146,8 @@ class DYGraphSpec:
     numerator_divisor: Expression
     cut_weights: Mapping[str, Expression]
     scheme_observable_phase: Expression
+    cut_memberships: Mapping[str, CutMembership]
     analytic_cuts: tuple[str, ...] = ()
-    mp_only_cuts: tuple[str, ...] = ()
-    pm_only_cuts: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         """Reject graph inputs whose physical and projected data cannot agree."""
@@ -139,36 +183,43 @@ class DYGraphSpec:
                 f"{self.name}: cut weights must cover exactly the cut masks; "
                 f"missing={missing}, unknown={unknown}"
             )
-        if len(set(self.mp_only_cuts)) != len(self.mp_only_cuts):
-            raise ValueError(f"{self.name}: duplicate MP-only cut membership")
-        if len(set(self.pm_only_cuts)) != len(self.pm_only_cuts):
-            raise ValueError(f"{self.name}: duplicate PM-only cut membership")
-        overlap = set(self.mp_only_cuts) & set(self.pm_only_cuts)
-        if overlap:
+        declared_memberships = set(self.cut_memberships)
+        if declared_memberships != expected_cut_weights:
+            missing = sorted(expected_cut_weights - declared_memberships)
+            unknown = sorted(declared_memberships - expected_cut_weights)
             raise ValueError(
-                f"{self.name}: cuts cannot be both MP-only and PM-only: "
-                f"{sorted(overlap)}"
+                f"{self.name}: cut memberships must cover exactly the cut "
+                f"masks; missing={missing}, unknown={unknown}"
             )
-        unknown_scheme_cuts = (
-            set(self.mp_only_cuts) | set(self.pm_only_cuts)
-        ) - self.cutsets.keys()
-        if unknown_scheme_cuts:
-            raise ValueError(
-                f"{self.name}: unknown MP-PM cuts "
-                f"{sorted(unknown_scheme_cuts)}"
-            )
+        for cut_name, membership in self.cut_memberships.items():
+            if not isinstance(membership, CutMembership):
+                raise TypeError(
+                    f"{self.name}/{cut_name}: expected CutMembership, got "
+                    f"{type(membership).__name__}"
+                )
+
+    def cut_membership(self, cut_name: str) -> CutMembership:
+        """Return explicit PM-bare/MP membership for one declared cut."""
+
+        if cut_name not in self.cutsets:
+            raise KeyError(f"{self.name}: unknown cut {cut_name!r}")
+        return self.cut_memberships[cut_name]
+
+    @property
+    def resolved_cut_memberships(self) -> Mapping[str, CutMembership]:
+        """Return every cut's resolved membership, including common sectors."""
+
+        return MappingProxyType(
+            {
+                cut_name: self.cut_membership(cut_name)
+                for cut_name in self.cutsets
+            }
+        )
 
     def scheme_membership_coefficient(self, cut_name: str) -> Expression:
         """Return the unsigned-set coefficient ``1_MP - 1_PM`` for a cut."""
 
-        if cut_name not in self.cutsets:
-            raise KeyError(f"{self.name}: unknown cut {cut_name!r}")
-        return E(
-            str(
-                int(cut_name in self.mp_only_cuts)
-                - int(cut_name in self.pm_only_cuts)
-            )
-        )
+        return self.cut_membership(cut_name).mp_minus_pm
 
     @property
     def loop_propagator_indices(self) -> tuple[int, ...]:
@@ -1128,23 +1179,255 @@ class MasterInsertion:
 
 
 @dataclass(frozen=True, slots=True)
+class EndpointRoute:
+    """Distributional routing of one native master contribution.
+
+    ``plus`` routes carry the integer multiplying ``epsilon`` in the singular
+    factor ``(1-z)^(-1-exponent_multiple*epsilon)``.  Delta and regular routes
+    have no such exponent.  This is metadata for the explicit endpoint layer;
+    no factorization kernel is chosen here.
+    """
+
+    support: DYEndpointSupport
+    exponent_multiple: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.support == "plus":
+            if self.exponent_multiple is None or self.exponent_multiple <= 0:
+                raise ValueError(
+                    "A plus-distribution endpoint route needs a positive "
+                    "epsilon exponent multiple"
+                )
+        elif self.exponent_multiple is not None:
+            raise ValueError(
+                "Only a plus-distribution endpoint route may carry an "
+                "epsilon exponent multiple"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class NativeDYContribution:
+    """One graph/cut master record shared by PM-bare and MP selections.
+
+    The embedded insertion has only the master-convention cut weight (and a
+    mirror factor where needed).  ``pm_bare_multiplier`` and ``mp_multiplier``
+    carry the prescription-specific physical selection.  Thus common terms
+    retain their independently audited AEM master weight in both selections,
+    while a complementary term can carry the transition observable phase
+    without imposing it on a common cut from the same graph.
+    """
+
+    key: str
+    insertion: MasterInsertion
+    membership: CutMembership
+    endpoint_route: EndpointRoute
+    normalizer: DYNormalizer
+    incoming_leg: DYLegRoute
+    pm_bare_multiplier: Expression
+    mp_multiplier: Expression
+
+    def __post_init__(self) -> None:
+        if not self.membership.pm_bare and self.pm_bare_multiplier != E("0"):
+            raise ValueError(
+                f"{self.key}: a PM-absent contribution must have zero PM "
+                "selection multiplier"
+            )
+        if not self.membership.mp and self.mp_multiplier != E("0"):
+            raise ValueError(
+                f"{self.key}: an MP-absent contribution must have zero MP "
+                "selection multiplier"
+            )
+
+    @property
+    def raw_master_value(self) -> Expression:
+        """Return the cut-weighted master before prescription selection."""
+
+        return self.insertion.value
+
+    def multiplier(self, selection: DYSelection) -> Expression:
+        """Return this record's explicit prescription multiplier."""
+
+        if selection == "pm_bare":
+            return self.pm_bare_multiplier
+        if selection == "mp":
+            return self.mp_multiplier
+        if selection == "mp_minus_pm":
+            return (self.mp_multiplier - self.pm_bare_multiplier).expand()
+        raise ValueError(f"Unknown DY selection {selection!r}")
+
+    def selected_value(self, selection: DYSelection) -> Expression:
+        """Return the raw master multiplied by the requested selector."""
+
+        return (self.multiplier(selection) * self.raw_master_value).expand()
+
+
+@dataclass(frozen=True, slots=True)
+class NativeDYMasterSelection:
+    """One explicit selection of the shared native graph/master ledger."""
+
+    selection: DYSelection
+    term_multipliers: Mapping[str, Expression]
+    term_values: Mapping[str, Expression]
+    channel_sums: Mapping[str, Expression]
+    normalizer_sums: Mapping[str, Expression]
+
+
+@dataclass(frozen=True, slots=True)
+class NativeDYMasterAssemblies:
+    """Raw master ledger plus PM-bare, MP, and derived difference selections.
+
+    This is intentionally an *unfactorized* boundary.  Its normalizer and
+    endpoint metadata identify the inputs to a later convention-specific
+    factorization layer, while no DIS, MSbar, or source-transcribed kernel is
+    imported or selected here.
+    """
+
+    contributions: Mapping[str, NativeDYContribution]
+    raw_term_values: Mapping[str, Expression]
+    pm_bare: NativeDYMasterSelection
+    mp: NativeDYMasterSelection
+    mp_minus_pm: NativeDYMasterSelection
+
+    def componentwise_exact(self) -> bool:
+        """Check that the difference was derived from the two selections."""
+
+        expected_keys = set(self.contributions)
+        selections = (self.pm_bare, self.mp, self.mp_minus_pm)
+        if any(
+            set(selection.term_values) != expected_keys
+            or set(selection.term_multipliers) != expected_keys
+            for selection in selections
+        ):
+            return False
+        for key in expected_keys:
+            value_residual = (
+                self.mp.term_values[key]
+                - self.pm_bare.term_values[key]
+                - self.mp_minus_pm.term_values[key]
+            ).expand()
+            multiplier_residual = (
+                self.mp.term_multipliers[key]
+                - self.pm_bare.term_multipliers[key]
+                - self.mp_minus_pm.term_multipliers[key]
+            ).expand()
+            if value_residual != E("0") or multiplier_residual != E("0"):
+                return False
+        for attribute in ("channel_sums", "normalizer_sums"):
+            pm_values = getattr(self.pm_bare, attribute)
+            mp_values = getattr(self.mp, attribute)
+            difference_values = getattr(self.mp_minus_pm, attribute)
+            if set(pm_values) != set(mp_values) or set(pm_values) != set(
+                difference_values
+            ):
+                return False
+            if any(
+                (mp_values[key] - pm_values[key] - difference_values[key]).expand()
+                != E("0")
+                for key in pm_values
+            ):
+                return False
+        return True
+
+
+@dataclass(frozen=True, slots=True)
+class NativeDYCoefficientSelection:
+    """One Born-normalized coefficient assembled from a ledger selection.
+
+    ``qg_common`` is the all-cut component shared by the two beam orderings;
+    the two ordered records add the appropriate one-leg virtuality route.
+    ``qg_beam_exchange_average`` is their half-sum and is the compatibility
+    convention used by the legacy two-beam qg transition field.
+    """
+
+    selection: DYSelection
+    qq_virtual: EndpointCoefficient
+    qq_real: EndpointCoefficient
+    qq_total: EndpointCoefficient
+    qg_common: Expression
+    qg_ordered_q1g2: Expression
+    qg_ordered_g1q2: Expression
+    qg_beam_exchange_average: Expression
+
+    def internally_consistent(self, variable: Expression) -> bool:
+        """Check the channel and beam-average identities of one selection."""
+
+        qq_residual = (
+            self.qq_virtual + self.qq_real - self.qq_total
+        ).canonical(variable)
+        qg_average_residual = normalize_rational(
+            (self.qg_ordered_q1g2 + self.qg_ordered_g1q2) / 2
+            - self.qg_beam_exchange_average
+        )
+        return (
+            qq_residual.is_zero_for(variable)
+            and qg_average_residual == E("0")
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class NativeDYCoefficientSelections:
+    """PM-bare, MP, and componentwise-derived coefficient selections."""
+
+    pm_bare: NativeDYCoefficientSelection
+    mp: NativeDYCoefficientSelection
+    mp_minus_pm: NativeDYCoefficientSelection
+
+    def componentwise_exact(self, variable: Expression) -> bool:
+        """Check that all coefficient components inherit ledger subtraction."""
+
+        selections = (self.pm_bare, self.mp, self.mp_minus_pm)
+        if not all(
+            selection.internally_consistent(variable)
+            for selection in selections
+        ):
+            return False
+        for attribute in ("qq_virtual", "qq_real", "qq_total"):
+            residual = (
+                getattr(self.mp, attribute)
+                - getattr(self.pm_bare, attribute)
+                - getattr(self.mp_minus_pm, attribute)
+            ).canonical(variable)
+            if not residual.is_zero_for(variable):
+                return False
+        for attribute in (
+            "qg_common",
+            "qg_ordered_q1g2",
+            "qg_ordered_g1q2",
+            "qg_beam_exchange_average",
+        ):
+            residual = normalize_rational(
+                getattr(self.mp, attribute)
+                - getattr(self.pm_bare, attribute)
+                - getattr(self.mp_minus_pm, attribute)
+            )
+            if residual != E("0"):
+                return False
+        return True
+
+
+@dataclass(frozen=True, slots=True)
 class NativeDYSchemeChange:
     """DY ``MP - PM`` difference assembled only from native graph sectors.
 
-    The common parton-model cuts are absent by construction.  The retained
-    insertion names identify the complementary initial-state and all-cut
-    sectors whose analytic masters form the difference.  The physical quark
-    result uses the AEM/convolution normalization.  A separate field retains
-    the exact smooth multiplication by ``z`` used only to compare with the
-    historical scheme-cell normalization.
+    ``assemblies`` retains every graph/cut contribution and its PM-bare and
+    MP selection.  The compatibility ``insertions`` map retains the
+    complementary sectors used by the historical public difference API.  The
+    physical quark result uses the AEM/convolution normalization.  A separate
+    field retains the exact smooth multiplication by ``z`` used only to
+    compare with the historical scheme-cell normalization.
     """
 
+    assemblies: NativeDYMasterAssemblies
+    coefficients: NativeDYCoefficientSelections
     insertions: Mapping[str, MasterInsertion]
     insertion_names: Mapping[str, tuple[str, ...]]
     cut_membership_coefficients: Mapping[str, Expression]
     observable_phases: Mapping[str, Expression]
     qg_pieces: Mapping[str, Expression]
     qg_mp_minus_pm: Expression
+    qg_ordered_q1g2: Expression
+    qg_ordered_g1q2: Expression
+    qg_beam_exchange_average: Expression
     qg_double_pole_coefficient: Expression
     qg_single_pole_coefficient: Expression
     qq_virtual_triangle: EndpointCoefficient
@@ -1172,11 +1455,111 @@ class NativeDYSchemeChange:
             - self.qq_historical_z_normalization
         )
         return (
-            qg_sum == E("0")
+            self.assemblies.componentwise_exact()
+            and self.coefficients.componentwise_exact(variable)
+            and qg_sum == E("0")
+            and normalize_rational(
+                self.qg_beam_exchange_average - self.qg_mp_minus_pm
+            )
+            == E("0")
+            and normalize_rational(
+                self.coefficients.mp_minus_pm.qg_beam_exchange_average
+                - self.qg_mp_minus_pm
+            )
+            == E("0")
+            and normalize_rational(
+                (self.qg_ordered_q1g2 + self.qg_ordered_g1q2) / 2
+                - self.qg_beam_exchange_average
+            )
+            == E("0")
+            and (
+                self.coefficients.mp_minus_pm.qq_total - self.qq_mp_minus_pm
+            ).is_zero_for(variable)
             and qq_sum.is_zero_for(variable)
             and historical_normalization_residual.is_zero_for(variable)
             and self.qg_double_pole_coefficient == E("0")
             and self.qq_double_pole_coefficient.is_zero_for(variable)
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PaperDYPhysicalPoleRecord:
+    """One Laurent-pole cancellation in the paper-facing DY convention."""
+
+    channel: PaperDYChannel
+    power: Literal[-2, -1]
+    pm_bare: EndpointCoefficient
+    mp_minus_pm: EndpointCoefficient
+    physical_sum: EndpointCoefficient
+
+    def cancels(self, variable: Expression) -> bool:
+        """Return whether the PM and transition residues cancel exactly."""
+
+        return self.physical_sum.is_zero_for(variable)
+
+
+@dataclass(frozen=True, slots=True)
+class PaperDYPhysicalHandoff:
+    """Finite full-DY coefficient assembled downstream of native cuts.
+
+    The native graph calculation fixes ``mp_minus_pm``.  The ``pm_bare``
+    input is independently normalised to the positive AEM phase-space and
+    multiplied by the common AEM dimensional factor using the stated scale
+    map.  Keeping this handoff distinct from :class:`NativeDYSchemeChange`
+    prevents a literature coefficient from becoming an input to graph or cut
+    selection.
+    """
+
+    aem_dimensional_factor: Expression
+    aem_scale_map: str
+    normalization_convention: str
+    provenance: tuple[str, ...]
+    pm_bare_physical: Mapping[PaperDYChannel, EndpointCoefficient]
+    mp_minus_pm: Mapping[PaperDYChannel, EndpointCoefficient]
+    full_laurent: Mapping[PaperDYChannel, EndpointCoefficient]
+    qqbar_finite: EndpointCoefficient
+    qg_ordered_q1g2_finite: Expression
+    qg_ordered_g1q2_finite: Expression
+    qg_beam_exchange_average_finite: Expression
+    pole_records: tuple[PaperDYPhysicalPoleRecord, ...]
+    compact_targets: Mapping[PaperDYChannel, EndpointCoefficient]
+    compact_residuals: Mapping[PaperDYChannel, EndpointCoefficient]
+
+    def internally_consistent(
+        self,
+        variable: Expression,
+        regulator: Expression,
+    ) -> bool:
+        """Check pole cancellation, compact forms, and beam ordering."""
+
+        finite_coefficients = (
+            self.qqbar_finite,
+            EndpointCoefficient(regular=self.qg_ordered_q1g2_finite),
+            EndpointCoefficient(regular=self.qg_ordered_g1q2_finite),
+            EndpointCoefficient(
+                regular=self.qg_beam_exchange_average_finite
+            ),
+        )
+        beam_average_residual = normalize_rational(
+            self.qg_beam_exchange_average_finite
+            - (
+                self.qg_ordered_q1g2_finite
+                + self.qg_ordered_g1q2_finite
+            )
+            / 2
+        )
+        return (
+            all(record.cancels(variable) for record in self.pole_records)
+            and all(
+                residual.is_zero_for(variable)
+                for residual in self.compact_residuals.values()
+            )
+            and all(
+                not component.contains(regulator)
+                for coefficient in finite_coefficients
+                for component in coefficient.residuals()
+            )
+            and bool(beam_average_residual == E("0"))
         )
 
 
@@ -1286,7 +1669,12 @@ class AnalyticMasterHandoff:
 
 @dataclass(frozen=True, slots=True)
 class FullDYCoefficient:
-    """All NLO DY channels plus explicit source-comparison residuals."""
+    """Historical DY ledgers plus explicit source-comparison residuals.
+
+    The fields containing ``manuscript`` in their names are retained for API
+    compatibility.  They are a pre-correction LaTeX snapshot, not the current
+    paper coefficient.  The latter is :class:`PaperDYPhysicalHandoff`.
+    """
 
     ordinary_virtual: EndpointCoefficient
     local_all_cut_virtual: EndpointCoefficient
@@ -1301,6 +1689,42 @@ class FullDYCoefficient:
     qg_manuscript: EndpointCoefficient
     qg_transverse_minus_manuscript: EndpointCoefficient
     master_handoff: AnalyticMasterHandoff | None = None
+
+    @property
+    def qq_historical_manuscript(self) -> EndpointCoefficient:
+        """Return the pre-correction qqbar LaTeX snapshot."""
+
+        return self.qq_manuscript
+
+    @property
+    def qq_transverse_minus_historical_manuscript(
+        self,
+    ) -> EndpointCoefficient:
+        """Return raw qqbar ledger minus the pre-correction snapshot."""
+
+        return self.qq_transverse_minus_manuscript
+
+    @property
+    def qq_recorded_mathematica_minus_historical_manuscript(
+        self,
+    ) -> EndpointCoefficient:
+        """Return saved Mathematica minus the pre-correction snapshot."""
+
+        return self.qq_recorded_mathematica_minus_manuscript
+
+    @property
+    def qg_historical_manuscript(self) -> EndpointCoefficient:
+        """Return the pre-correction qg LaTeX snapshot."""
+
+        return self.qg_manuscript
+
+    @property
+    def qg_transverse_minus_historical_manuscript(
+        self,
+    ) -> EndpointCoefficient:
+        """Return raw qg ledger minus the pre-correction snapshot."""
+
+        return self.qg_transverse_minus_manuscript
 
 
 def _positive_branch_log_rules(
@@ -1320,6 +1744,29 @@ def _positive_branch_log_rules(
         (
             (gamma_e.exp() * mu_r_squared).log(),
             gamma_e + mu_r_squared.log(),
+        ),
+        (
+            (2 * pi).log(),
+            log_two + pi.log(),
+        ),
+        (
+            (gamma_e.exp() * mu_r_squared / (4 * pi)).log(),
+            gamma_e
+            + mu_r_squared.log()
+            - 2 * log_two
+            - pi.log(),
+        ),
+        (
+            (mu_r_squared / s).log(),
+            mu_r_squared.log() - s.log(),
+        ),
+        (
+            (gamma_e.exp() * mu_r_squared / (s * z)).log(),
+            gamma_e + mu_r_squared.log() - s.log() - z.log(),
+        ),
+        (
+            (gamma_e.exp() * mu_r_squared / s).log(),
+            gamma_e + mu_r_squared.log() - s.log(),
         ),
         (
             (s * z * (s - s * z)).log(),
@@ -1369,6 +1816,26 @@ def _positive_branch_log_rules(
             + lambda2_squared.log()
             + 2 * z.log()
             - 2 * s.log(),
+        ),
+        (
+            (lambda1_squared * lambda2_squared / s**2).log(),
+            lambda1_squared.log()
+            + lambda2_squared.log()
+            - 2 * s.log(),
+        ),
+        (
+            (s * (1 - z) / (lambda1_squared * z)).log(),
+            s.log()
+            + (1 - z).log()
+            - lambda1_squared.log()
+            - z.log(),
+        ),
+        (
+            (s * (1 - z) / (lambda2_squared * z)).log(),
+            s.log()
+            + (1 - z).log()
+            - lambda2_squared.log()
+            - z.log(),
         ),
         (
             (lambda1_squared / s).log(),
@@ -1479,6 +1946,468 @@ def _endpoint_through_finite(
     ).canonical(context.z)
 
 
+def build_paper_dy_physical_handoff(
+    scheme_change: NativeDYSchemeChange,
+    context: DYContext,
+    *,
+    aem_pm_bare: Mapping[str, EndpointCoefficient],
+    provenance: Sequence[str],
+) -> PaperDYPhysicalHandoff:
+    """Build the finite, paper-facing full-DY coefficient.
+
+    ``aem_pm_bare`` contains the independently assembled, Born-normalised
+    AEM parton-model Laurent coefficients after stripping their common
+    dimensional factor.  The required keys are ``qqbar``, ``qg``, and ``gq``;
+    the latter two remain ordered even when their PM expressions coincide.
+
+    The AEM factor is restored with
+
+    ``mu_R^2 = 4*pi*exp(-gamma_E)*mu_AEM^2``
+
+    and is multiplied as a smooth function of ``z`` before endpoint
+    canonicalisation.  The result is then added to the independently native
+    ``MP - PM,bare`` selection.  This function is deliberately downstream of
+    :func:`build_native_dy_scheme_change` and has no role in graph selection.
+    """
+
+    expected_channels = {"qqbar", "qg", "gq"}
+    if set(aem_pm_bare) != expected_channels:
+        raise ValueError(
+            "The physical DY handoff requires the ordered AEM PM-bare "
+            f"channels {sorted(expected_channels)}"
+        )
+    provenance_tuple = tuple(provenance)
+    if not provenance_tuple:
+        raise ValueError("The physical DY handoff requires source provenance")
+    if not scheme_change.internally_consistent(context.z):
+        raise ValueError("The native DY transition is internally inconsistent")
+
+    epsilon = context.epsilon
+    z = context.z
+    pi = context.pi
+    gamma_e = Expression.EULER_GAMMA
+    a_s = context.alpha_s / (2 * pi)
+    qq_normalization = a_s * context.color_f
+    qg_normalization = a_s * context.color_t
+    paper_channels: tuple[PaperDYChannel, ...] = (
+        "qqbar",
+        "q1g2",
+        "g1q2",
+        "qg_average",
+    )
+    pole_powers: tuple[Literal[-2, -1], ...] = (-2, -1)
+
+    # AEM writes (4*pi*mu_AEM^2/Q^2)^epsilon.  Applying the stated scale map
+    # and Q^2=z*s gives the exact common factor below.
+    aem_dimensional_factor = (
+        (gamma_e.exp() * context.mu_r_squared / (z * context.s)) ** epsilon
+        * (1 - epsilon).gamma()
+        / (1 - 2 * epsilon).gamma()
+    )
+
+    def positive_endpoint(
+        coefficient: EndpointCoefficient,
+    ) -> EndpointCoefficient:
+        canonical = coefficient.canonical(z)
+        expanded = EndpointCoefficient(
+            delta=_expand_positive_branch_logs(canonical.delta, context),
+            d0_prefactor=_expand_positive_branch_logs(
+                canonical.d0_prefactor,
+                context,
+            ),
+            d1_prefactor=_expand_positive_branch_logs(
+                canonical.d1_prefactor,
+                context,
+            ),
+            regular=_expand_positive_branch_logs(canonical.regular, context),
+        ).canonical(z)
+        return EndpointCoefficient(
+            delta=_expand_positive_branch_logs(expanded.delta, context),
+            d0_prefactor=_expand_positive_branch_logs(
+                expanded.d0_prefactor,
+                context,
+            ),
+            d1_prefactor=_expand_positive_branch_logs(
+                expanded.d1_prefactor,
+                context,
+            ),
+            regular=_expand_positive_branch_logs(expanded.regular, context),
+        ).canonical(z)
+
+    def restore_aem_factor(
+        coefficient: EndpointCoefficient,
+    ) -> EndpointCoefficient:
+        # ``multiply_smooth`` evaluates the factor at z=1 on delta support
+        # and retains its z dependence on plus/ordinary support.
+        return positive_endpoint(
+            _endpoint_through_finite(
+                coefficient.multiply_smooth(aem_dimensional_factor, z),
+                context,
+            )
+        )
+
+    pm_qqbar = restore_aem_factor(aem_pm_bare["qqbar"])
+    pm_q1g2 = restore_aem_factor(aem_pm_bare["qg"])
+    pm_g1q2 = restore_aem_factor(aem_pm_bare["gq"])
+    pm_average = positive_endpoint(
+        (pm_q1g2 + pm_g1q2).scaled(E("1/2"))
+    )
+    pm_physical_values: dict[PaperDYChannel, EndpointCoefficient] = {
+        "qqbar": pm_qqbar,
+        "q1g2": pm_q1g2,
+        "g1q2": pm_g1q2,
+        "qg_average": pm_average,
+    }
+    pm_physical = MappingProxyType(pm_physical_values)
+
+    transition_values: dict[PaperDYChannel, EndpointCoefficient] = {
+        "qqbar": scheme_change.qq_mp_minus_pm.canonical(z),
+        "q1g2": EndpointCoefficient(
+            regular=scheme_change.qg_ordered_q1g2
+        ),
+        "g1q2": EndpointCoefficient(
+            regular=scheme_change.qg_ordered_g1q2
+        ),
+        "qg_average": EndpointCoefficient(
+            regular=scheme_change.qg_beam_exchange_average
+        ),
+    }
+    transition = MappingProxyType(transition_values)
+    full_laurent_values: dict[PaperDYChannel, EndpointCoefficient] = {
+        channel: positive_endpoint(
+            pm_physical[channel] + transition[channel]
+        )
+        for channel in paper_channels
+    }
+    full_laurent = MappingProxyType(full_laurent_values)
+
+    pole_records = tuple(
+        PaperDYPhysicalPoleRecord(
+            channel=channel,
+            power=power,
+            pm_bare=positive_endpoint(
+                _endpoint_laurent_coefficient(
+                    pm_physical[channel],
+                    power,
+                    context,
+                )
+            ),
+            mp_minus_pm=positive_endpoint(
+                _endpoint_laurent_coefficient(
+                    transition[channel],
+                    power,
+                    context,
+                )
+            ),
+            physical_sum=positive_endpoint(
+                _endpoint_laurent_coefficient(
+                    full_laurent[channel],
+                    power,
+                    context,
+                )
+            ),
+        )
+        for channel in paper_channels
+        for power in pole_powers
+    )
+
+    finite_values: dict[PaperDYChannel, EndpointCoefficient] = {
+        channel: positive_endpoint(
+            _endpoint_laurent_coefficient(
+                full_laurent[channel],
+                0,
+                context,
+            )
+        )
+        for channel in paper_channels
+    }
+    finite = MappingProxyType(finite_values)
+
+    pqq = EndpointCoefficient(
+        delta=E("3/2"),
+        d0_prefactor=E("2"),
+        regular=-(1 + z),
+    )
+    pqg = z**2 + (1 - z) ** 2
+    cutoff_log = (
+        context.lambda1_squared
+        * context.lambda2_squared
+        * z**2
+        / context.s**2
+    ).log()
+    qqbar_target = positive_endpoint(
+        pqq.multiply_smooth(cutoff_log, z).scaled(-qq_normalization)
+        + EndpointCoefficient(
+            delta=-qq_normalization,
+            d1_prefactor=2 * qq_normalization * (1 + z**2),
+            regular=qq_normalization * (2 * z - 4),
+        )
+    )
+
+    def qg_target(cutoff_squared: Expression) -> EndpointCoefficient:
+        leg_log = (
+            context.s * (1 - z) / (cutoff_squared * z)
+        ).log()
+        return positive_endpoint(
+            EndpointCoefficient(
+                regular=qg_normalization
+                * (
+                    pqg * leg_log
+                    - (1 - 2 * z + 3 * z**2) / 2
+                )
+            )
+        )
+
+    q1g2_target = qg_target(context.lambda2_squared)
+    g1q2_target = qg_target(context.lambda1_squared)
+    qg_average_target = positive_endpoint(
+        (q1g2_target + g1q2_target).scaled(E("1/2"))
+    )
+    compact_target_values: dict[PaperDYChannel, EndpointCoefficient] = {
+        "qqbar": qqbar_target,
+        "q1g2": q1g2_target,
+        "g1q2": g1q2_target,
+        "qg_average": qg_average_target,
+    }
+    compact_targets = MappingProxyType(compact_target_values)
+    compact_residual_values: dict[PaperDYChannel, EndpointCoefficient] = {
+        channel: positive_endpoint(
+            finite[channel] - compact_targets[channel]
+        )
+        for channel in paper_channels
+    }
+    compact_residuals = MappingProxyType(compact_residual_values)
+
+    result = PaperDYPhysicalHandoff(
+        aem_dimensional_factor=aem_dimensional_factor,
+        aem_scale_map=(
+            "mu_R^2 = 4*pi*exp(-gamma_E)*mu_AEM^2; Q^2 = z*s"
+        ),
+        normalization_convention=(
+            "Born-normalized convolution coefficient, d=4-2*epsilon, "
+            "a_s=alpha_s/(2*pi)"
+        ),
+        provenance=(
+            "native DY graph/master MP-PM-bare selection",
+            *provenance_tuple,
+        ),
+        pm_bare_physical=pm_physical,
+        mp_minus_pm=transition,
+        full_laurent=full_laurent,
+        qqbar_finite=finite["qqbar"],
+        qg_ordered_q1g2_finite=finite["q1g2"].regular,
+        qg_ordered_g1q2_finite=finite["g1q2"].regular,
+        qg_beam_exchange_average_finite=finite["qg_average"].regular,
+        pole_records=pole_records,
+        compact_targets=compact_targets,
+        compact_residuals=compact_residuals,
+    )
+    if not result.internally_consistent(z, epsilon):
+        failed_poles = tuple(
+            (record.channel, record.power)
+            for record in result.pole_records
+            if not record.cancels(z)
+        )
+        failed_compact = tuple(
+            channel
+            for channel, residual in result.compact_residuals.items()
+            if not residual.is_zero_for(z)
+        )
+        failed_compact_values = {
+            channel: residual.residuals()
+            for channel, residual in result.compact_residuals.items()
+            if not residual.is_zero_for(z)
+        }
+        raise ValueError(
+            "The paper-facing physical DY handoff failed an exact invariant: "
+            f"poles={failed_poles}, compact={failed_compact}, "
+            f"values={failed_compact_values}"
+        )
+    return result
+
+
+def normalize_native_dy_master_selection(
+    selection: NativeDYMasterSelection,
+    *,
+    contributions: Mapping[str, NativeDYContribution],
+    context: DYContext,
+) -> NativeDYCoefficientSelection:
+    """Normalize one native master selection into physical coefficients.
+
+    The input is a selection from the shared ledger rather than a reference
+    formula.  The contribution metadata determines its virtual, qq-real, and
+    qg-real routing; the endpoint route supplies the only distributional
+    expansion.  The result stays regularised through ``epsilon^0`` and does
+    not apply a PDF factorization kernel.
+    """
+
+    expected_keys = set(contributions)
+    if set(selection.term_values) != expected_keys:
+        raise ValueError(
+            "A native DY coefficient selection must cover every contribution"
+        )
+    if set(selection.term_multipliers) != expected_keys:
+        raise ValueError(
+            "A native DY coefficient selection is missing term multipliers"
+        )
+
+    from calculations.dy.python.masters import (
+        apply_endpoint_expansion,
+        endpoint_distribution_expansion,
+    )
+
+    epsilon = context.epsilon
+    z = context.z
+    alpha_s = context.alpha_s
+    color_f = context.color_f
+    color_t = context.color_t
+    pi = context.pi
+
+    def selected_sum(
+        predicate: Callable[[NativeDYContribution], bool],
+    ) -> Expression:
+        return sum(
+            (
+                selection.term_values[key]
+                for key, term in contributions.items()
+                if predicate(term)
+            ),
+            E("0"),
+        )
+
+    def scalar_through_finite(value: Expression) -> Expression:
+        expanded = _positive_branch_before_series(value, context).series(
+            epsilon,
+            0,
+            0,
+        ).to_expression()
+        return _expand_positive_branch_logs(expanded, context)
+
+    # The virtual trace has the colour normalization T_F=1, whereas the
+    # real qqbar terms reduce to C_F after T_F=1/2.  Writing the two resulting
+    # Born-normalized prefactors explicitly makes this distinction visible and
+    # avoids attaching a transition phase to common all-cut records.
+    qq_virtual_prefactor = 2 * pi * alpha_s * color_f / (
+        context.s * (1 - epsilon)
+    )
+    qq_virtual = _endpoint_through_finite(
+        EndpointCoefficient(
+            delta=(
+                qq_virtual_prefactor
+                * selected_sum(
+                    lambda term: term.normalizer == "qq_virtual"
+                )
+            )
+        ),
+        context,
+    )
+
+    qq_real_prefactor = alpha_s * color_f / (1 - epsilon)
+    qq_real_raw = EndpointCoefficient()
+    for key, term in contributions.items():
+        if term.normalizer != "qq_real":
+            continue
+        normalized_value = qq_real_prefactor * selection.term_values[key]
+        route = term.endpoint_route
+        if route.support == "regular":
+            qq_real_raw = qq_real_raw + EndpointCoefficient(
+                regular=normalized_value
+            )
+        elif route.support == "delta":
+            qq_real_raw = qq_real_raw + EndpointCoefficient(
+                delta=normalized_value
+            )
+        elif route.support == "plus":
+            assert route.exponent_multiple is not None
+            smooth = normalize_rational(
+                normalized_value
+                * (1 - z) ** (1 + route.exponent_multiple * epsilon)
+            )
+            distribution = apply_endpoint_expansion(
+                endpoint_distribution_expansion(
+                    route.exponent_multiple,
+                    epsilon,
+                    order=1,
+                ),
+                smooth,
+                z,
+            )
+            qq_real_raw = qq_real_raw + EndpointCoefficient(
+                delta=distribution.delta_coefficient,
+                d0_prefactor=distribution.plus_coefficients[0],
+                d1_prefactor=distribution.plus_coefficients[1],
+                regular=distribution.regular_part,
+            )
+        else:  # pragma: no cover - EndpointRoute rejects unknown supports.
+            raise ValueError(f"Unknown endpoint route {route.support!r}")
+    qq_real = _endpoint_through_finite(qq_real_raw, context)
+    qq_total = (qq_virtual + qq_real).canonical(z)
+
+    qg_prefactor = alpha_s * color_t / (2 * (1 - epsilon))
+
+    def qg_component(incoming_leg: DYLegRoute) -> Expression:
+        return scalar_through_finite(
+            qg_prefactor
+            * selected_sum(
+                lambda term: term.normalizer == "qg_real"
+                and term.incoming_leg == incoming_leg
+            )
+        )
+
+    qg_common = qg_component("none")
+    qg_p1 = qg_component("p1")
+    qg_p2 = qg_component("p2")
+    qg_ordered_q1g2 = normalize_rational(qg_common + 2 * qg_p2)
+    qg_ordered_g1q2 = normalize_rational(qg_common + 2 * qg_p1)
+    qg_beam_exchange_average = normalize_rational(qg_common + qg_p1 + qg_p2)
+    result = NativeDYCoefficientSelection(
+        selection=selection.selection,
+        qq_virtual=qq_virtual,
+        qq_real=qq_real,
+        qq_total=qq_total,
+        qg_common=qg_common,
+        qg_ordered_q1g2=qg_ordered_q1g2,
+        qg_ordered_g1q2=qg_ordered_g1q2,
+        qg_beam_exchange_average=qg_beam_exchange_average,
+    )
+    if not result.internally_consistent(z):
+        raise ValueError(
+            f"Native DY coefficient selection {selection.selection!r} is "
+            "internally inconsistent"
+        )
+    return result
+
+
+def build_native_dy_coefficient_selections(
+    assemblies: NativeDYMasterAssemblies,
+    context: DYContext,
+) -> NativeDYCoefficientSelections:
+    """Normalize the PM-bare, MP, and derived difference ledger selections."""
+
+    coefficients = NativeDYCoefficientSelections(
+        pm_bare=normalize_native_dy_master_selection(
+            assemblies.pm_bare,
+            contributions=assemblies.contributions,
+            context=context,
+        ),
+        mp=normalize_native_dy_master_selection(
+            assemblies.mp,
+            contributions=assemblies.contributions,
+            context=context,
+        ),
+        mp_minus_pm=normalize_native_dy_master_selection(
+            assemblies.mp_minus_pm,
+            contributions=assemblies.contributions,
+            context=context,
+        ),
+    )
+    if not coefficients.componentwise_exact(context.z):
+        raise ValueError(
+            "Native DY coefficient selections are not componentwise exact"
+        )
+    return coefficients
+
+
 def derive_external_bubble_scheme_correction(
     context: DYContext,
     *,
@@ -1560,24 +2489,35 @@ def derive_external_bubble_scheme_correction(
     )
 
 
-def _native_scheme_master_insertions(
+def build_native_dy_master_assemblies(
     audit: ReductionAudit,
     context: DYContext,
     graphs: Mapping[str, DYGraphSpec],
-) -> Mapping[str, MasterInsertion]:
-    """Build only the analytic-master insertions needed by ``MP - PM``.
+) -> NativeDYMasterAssemblies:
+    """Build the shared native PM-bare/MP graph and master ledger.
 
-    Every coefficient comes from ``audit``.  Master functions are imported
-    from the application-local analytic-master notebook.  The master-
-    convention cut weight and the physical observable phase are independent
-    notebook-owned graph inputs.
+    Every record is sourced from an audited reduction and an analytic master.
+    Its embedded :class:`MasterInsertion` contains the master-convention cut
+    weight only.  The two prescription multipliers then select the same
+    record for PM-bare and MP, and the third selection is formed by exact
+    componentwise subtraction.  This keeps the independently normalised
+    all-cut PM real sectors available without allowing their signs to be
+    inferred from a complementary ``MP - PM`` observable phase.
     """
 
+    if not audit.native_complete:
+        raise ValueError(
+            "Native DY master assemblies require complete graph reductions "
+            "and exact intrinsic reconstruction identities"
+        )
+
     from calculations.dy.python.masters import (
+        massive_cut_bubble,
         massive_cut_triangle,
         massless_cut_bubble,
         massless_cut_triangle,
         maximal_cross_box_cut_master,
+        uncut_bubble,
         virtuality_integral_factor,
     )
 
@@ -1591,6 +2531,7 @@ def _native_scheme_master_insertions(
         "mu_squared": context.mu_r_squared,
         "euler_gamma": Expression.EULER_GAMMA,
     }
+    massive_bubble = massive_cut_bubble(s, z * s, **master_arguments)
     massive_triangle_raw = massive_cut_triangle(
         E("1"),
         s,
@@ -1598,9 +2539,10 @@ def _native_scheme_master_insertions(
         **master_arguments,
     )
     massive_gram = s**2 * z * (1 - z)
-    # Resolve the supported 0<z<1, s>0 branch before endpoint algebra so the
-    # (1-z)^(-epsilon) factor is explicit rather than hidden in a composite
-    # fractional power.
+    # Resolve the same declared positive branch used by the legacy MP-PM
+    # assembly before endpoint algebra.  The all-cut records retain that
+    # analytic form too, so a term never changes master representation when
+    # selected by a different prescription.
     massive_triangle = normalize_rational(
         massive_triangle_raw
         * massive_gram**epsilon
@@ -1613,7 +2555,6 @@ def _native_scheme_master_insertions(
         -s,
         **master_arguments,
     )
-    # Choose the declared positive-s branch before any Laurent expansion.
     massless_triangle = normalize_rational(
         massless_triangle_raw
         * (s**2) ** (E("1/2") - epsilon)
@@ -1628,23 +2569,46 @@ def _native_scheme_master_insertions(
         * (s**2) ** (E("1/2") - epsilon)
         / s ** (1 - 2 * epsilon)
     )
+    # The cross section contains the real interference of the two timelike
+    # boundary values.  Their conjugate average is the positive-spacelike
+    # bubble times cos(pi*epsilon); keeping this projection local preserves
+    # the phase information that would be lost by a global log(-s) rewrite.
+    ordinary_bubble = (
+        uncut_bubble(-s, **master_arguments)
+        * (context.pi * epsilon).cos()
+    )
     j1 = virtuality_integral_factor(context.lambda1_squared, epsilon)
     j2 = virtuality_integral_factor(context.lambda2_squared, epsilon)
 
-    def weight(
+    def base_weight(
         graph_name: str,
         cut_name: str,
         *,
         mirror_count: int = 1,
     ) -> Expression:
-        graph = graphs[graph_name]
-        return (
-            graph.scheme_observable_phase
-            * graph.cut_weights[cut_name]
-            / mirror_count
-        )
+        """Return a master-convention cut weight, without transition phase."""
+
+        return graphs[graph_name].cut_weights[cut_name] / mirror_count
+
+    def selection_multipliers(
+        graph: DYGraphSpec,
+        membership: CutMembership,
+    ) -> tuple[Expression, Expression]:
+        """Return explicit PM-bare and MP multipliers for one record.
+
+        Common sectors use the cut-master convention directly in both
+        prescriptions.  For a complementary sector, the historical
+        transition phase is applied only to the selected side; this makes
+        ``MP - PM`` exactly the pre-ledger native observable.  The graph input
+        enforces PM-bare as a subset of MP.
+        """
+
+        if membership.pm_bare:
+            return E("1"), E("1")
+        return E("0"), graph.scheme_observable_phase
 
     def make(
+        key: str,
         graph_name: str,
         cut_name: str,
         channel: str,
@@ -1653,193 +2617,494 @@ def _native_scheme_master_insertions(
         coefficient: Expression,
         master: Expression,
         *,
+        endpoint_route: EndpointRoute,
+        normalizer: DYNormalizer,
+        incoming_leg: DYLegRoute,
         virtuality_factor: Expression = E("1"),
         mirror_count: int = 1,
-    ) -> MasterInsertion:
-        return MasterInsertion(
-            graph_name=graph_name,
-            cut_name=cut_name,
-            channel=channel,
-            sector=sector,
-            projects=projects,
-            ibp_coefficient=coefficient,
-            analytic_master=master,
-            virtuality_factor=virtuality_factor,
-            relative_weight=weight(
-                graph_name,
-                cut_name,
-                mirror_count=mirror_count,
+    ) -> NativeDYContribution:
+        graph = graphs[graph_name]
+        membership = graph.cut_membership(cut_name)
+        pm_bare_multiplier, mp_multiplier = selection_multipliers(
+            graph,
+            membership,
+        )
+        return NativeDYContribution(
+            key=key,
+            insertion=MasterInsertion(
+                graph_name=graph_name,
+                cut_name=cut_name,
+                channel=channel,
+                sector=sector,
+                projects=projects,
+                ibp_coefficient=coefficient,
+                analytic_master=master,
+                virtuality_factor=virtuality_factor,
+                relative_weight=base_weight(
+                    graph_name,
+                    cut_name,
+                    mirror_count=mirror_count,
+                ),
             ),
+            membership=membership,
+            endpoint_route=endpoint_route,
+            normalizer=normalizer,
+            incoming_leg=incoming_leg,
+            pm_bare_multiplier=pm_bare_multiplier,
+            mp_multiplier=mp_multiplier,
         )
 
     dimension_rule = ((context.d, dimension),)
-    return MappingProxyType(
+    terms: dict[str, NativeDYContribution] = {
+        "virtual 0-cut": make(
+            "virtual 0-cut",
+            "virtual triangle 1",
+            "11",
+            "virtual",
+            "0-cut triangle",
+            ("virtual triangle 1/11",),
+            replace_all(
+                audit.virtual_coefficients["virtual triangle 1/11"],
+                dimension_rule,
+            ),
+            ordinary_bubble,
+            endpoint_route=EndpointRoute("delta"),
+            normalizer="qq_virtual",
+            incoming_leg="none",
+        ),
+        "virtual p2-cut": make(
+            "virtual p2-cut",
+            "virtual triangle 1",
+            "10",
+            "virtual",
+            "p2-cut triangle",
+            ("virtual triangle 1/10",),
+            replace_all(
+                audit.virtual_coefficients["virtual triangle 1/10"],
+                dimension_rule,
+            ),
+            massless_bubble,
+            endpoint_route=EndpointRoute("delta"),
+            normalizer="qq_virtual",
+            incoming_leg="p2",
+            virtuality_factor=j2,
+        ),
+        "virtual p1-cut": make(
+            "virtual p1-cut",
+            "virtual triangle 1",
+            "01",
+            "virtual",
+            "p1-cut triangle",
+            ("virtual triangle 1/01",),
+            replace_all(
+                audit.virtual_coefficients["virtual triangle 1/01"],
+                dimension_rule,
+            ),
+            massless_bubble,
+            endpoint_route=EndpointRoute("delta"),
+            normalizer="qq_virtual",
+            incoming_leg="p1",
+            virtuality_factor=j1,
+        ),
+        "virtual double-cut": make(
+            "virtual double-cut",
+            "virtual triangle 2",
+            "00",
+            "virtual",
+            "double-cut triangle",
+            ("virtual triangle 2/00",),
+            replace_all(
+                audit.virtual_coefficients["virtual triangle 2/00"],
+                dimension_rule,
+            ),
+            massless_triangle,
+            endpoint_route=EndpointRoute("delta"),
+            normalizer="qq_virtual",
+            incoming_leg="both",
+            virtuality_factor=j1 * j2,
+        ),
+        "external bubble p1": make(
+            "external bubble p1",
+            "virtual bubble",
+            "10",
+            "virtual",
+            "external bubble p1",
+            ("virtual bubble/10",),
+            replace_all(
+                audit.virtual_coefficients["external bubble"],
+                dimension_rule,
+            ),
+            massless_bubble,
+            endpoint_route=EndpointRoute("delta"),
+            normalizer="qq_virtual",
+            incoming_leg="p1",
+            virtuality_factor=j1,
+            mirror_count=2,
+        ),
+        "external bubble p2": make(
+            "external bubble p2",
+            "virtual bubble",
+            "10",
+            "virtual",
+            "external bubble p2",
+            ("virtual bubble/10",),
+            replace_all(
+                audit.virtual_coefficients["external bubble"],
+                dimension_rule,
+            ),
+            massless_bubble,
+            endpoint_route=EndpointRoute("delta"),
+            normalizer="qq_virtual",
+            incoming_leg="p2",
+            virtuality_factor=j2,
+            mirror_count=2,
+        ),
+        "direct 00": make(
+            "direct 00",
+            "qq direct box",
+            "11",
+            "direct qqbar",
+            "00",
+            ("qq direct box/11",),
+            audit.direct_box_coefficients["11"],
+            massive_bubble,
+            endpoint_route=EndpointRoute("regular"),
+            normalizer="qq_real",
+            incoming_leg="none",
+        ),
+        "direct p1-cut": make(
+            "direct p1-cut",
+            "qq direct box",
+            "01",
+            "direct qqbar",
+            "p1-cut mirror",
+            ("qq direct box/01",),
+            audit.direct_box_coefficients["01"],
+            massive_triangle,
+            endpoint_route=EndpointRoute("regular"),
+            normalizer="qq_real",
+            incoming_leg="p1",
+            virtuality_factor=j1,
+            mirror_count=2,
+        ),
+        "direct p2-cut": make(
+            "direct p2-cut",
+            "qq direct box",
+            "01",
+            "direct qqbar",
+            "p2-cut mirror",
+            ("qq direct box/01",),
+            audit.direct_box_coefficients["01"],
+            massive_triangle,
+            endpoint_route=EndpointRoute("regular"),
+            normalizer="qq_real",
+            incoming_leg="p2",
+            virtuality_factor=j2,
+            mirror_count=2,
+        ),
+        "crossed 11": make(
+            "crossed 11",
+            "qq crossed box",
+            "11",
+            "crossed qqbar",
+            "11",
+            ("qq crossed box/11 (four apart children)",),
+            audit.crossed_box_coefficients["11"],
+            massive_bubble,
+            endpoint_route=EndpointRoute("plus", 2),
+            normalizer="qq_real",
+            incoming_leg="none",
+        ),
+        "crossed 10": make(
+            "crossed 10",
+            "qq crossed box",
+            "10",
+            "crossed qqbar",
+            "10",
+            ("qq crossed box/10 (four apart children)",),
+            audit.crossed_box_coefficients["10"],
+            massive_triangle,
+            endpoint_route=EndpointRoute("plus", 1),
+            normalizer="qq_real",
+            incoming_leg="p2",
+            virtuality_factor=j2,
+        ),
+        "crossed 01": make(
+            "crossed 01",
+            "qq crossed box",
+            "01",
+            "crossed qqbar",
+            "01",
+            ("qq crossed box/01 (four apart children)",),
+            audit.crossed_box_coefficients["01"],
+            massive_triangle,
+            endpoint_route=EndpointRoute("plus", 1),
+            normalizer="qq_real",
+            incoming_leg="p1",
+            virtuality_factor=j1,
+        ),
+        "crossed 00": make(
+            "crossed 00",
+            "qq crossed box",
+            "00",
+            "crossed qqbar",
+            "00",
+            (),
+            audit.crossed_box_coefficients["00"],
+            maximal_crossed,
+            endpoint_route=EndpointRoute("delta"),
+            normalizer="qq_real",
+            incoming_leg="both",
+            virtuality_factor=j1 * j2,
+        ),
+        "qg box 00": make(
+            "qg box 00",
+            "qg box",
+            "11",
+            "qg",
+            "box 00",
+            ("qg box/11",),
+            audit.qg_coefficients["11 box"],
+            massive_bubble,
+            endpoint_route=EndpointRoute("regular"),
+            normalizer="qg_real",
+            incoming_leg="none",
+        ),
+        "qg box p1-cut": make(
+            "qg box p1-cut",
+            "qg box",
+            "01",
+            "qg",
+            "box p1-cut mirror",
+            ("qg box/01",),
+            audit.qg_coefficients["01 box"],
+            massive_triangle,
+            endpoint_route=EndpointRoute("regular"),
+            normalizer="qg_real",
+            incoming_leg="p1",
+            virtuality_factor=j1,
+            mirror_count=2,
+        ),
+        "qg box p2-cut": make(
+            "qg box p2-cut",
+            "qg box",
+            "01",
+            "qg",
+            "box p2-cut mirror",
+            ("qg box/01",),
+            audit.qg_coefficients["01 box"],
+            massive_triangle,
+            endpoint_route=EndpointRoute("regular"),
+            normalizer="qg_real",
+            incoming_leg="p2",
+            virtuality_factor=j2,
+            mirror_count=2,
+        ),
+        "qg triangle 00": make(
+            "qg triangle 00",
+            "qg triangle",
+            "11",
+            "qg",
+            "triangle 00",
+            ("qg triangle/11",),
+            audit.qg_coefficients["11 triangle"],
+            massive_bubble,
+            endpoint_route=EndpointRoute("regular"),
+            normalizer="qg_real",
+            incoming_leg="none",
+        ),
+        "qg triangle p1-cut": make(
+            "qg triangle p1-cut",
+            "qg triangle",
+            "01",
+            "qg",
+            "triangle p1-cut mirror",
+            ("qg triangle/01",),
+            audit.qg_coefficients["01 triangle"],
+            massive_triangle,
+            endpoint_route=EndpointRoute("regular"),
+            normalizer="qg_real",
+            incoming_leg="p1",
+            virtuality_factor=j1,
+            mirror_count=2,
+        ),
+        "qg triangle p2-cut": make(
+            "qg triangle p2-cut",
+            "qg triangle",
+            "01",
+            "qg",
+            "triangle p2-cut mirror",
+            ("qg triangle/01",),
+            audit.qg_coefficients["01 triangle"],
+            massive_triangle,
+            endpoint_route=EndpointRoute("regular"),
+            normalizer="qg_real",
+            incoming_leg="p2",
+            virtuality_factor=j2,
+            mirror_count=2,
+        ),
+        "qg bubble 00": make(
+            "qg bubble 00",
+            "qg bubble",
+            "11",
+            "qg",
+            "bubble 00",
+            ("qg bubble/11",),
+            audit.qg_coefficients["11 bubble"],
+            massive_bubble,
+            endpoint_route=EndpointRoute("regular"),
+            normalizer="qg_real",
+            incoming_leg="none",
+        ),
+        # This route is exactly zero after native numerator reduction.  Keep
+        # it in the ledger nevertheless: an omitted zero cut can otherwise
+        # conceal a future change in the qg bubble reduction or membership.
+        "qg bubble zero 01": make(
+            "qg bubble zero 01",
+            "qg bubble",
+            "01",
+            "qg",
+            "bubble 01 (native zero)",
+            ("qg bubble/01",),
+            audit.qg_coefficients["01 bubble"],
+            massive_triangle,
+            endpoint_route=EndpointRoute("regular"),
+            normalizer="qg_real",
+            incoming_leg="p1",
+            virtuality_factor=j1,
+        ),
+    }
+
+    expected_graph_cuts = {
+        (graph_name, cut_name)
+        for graph_name, graph in graphs.items()
+        for cut_name in graph.cutsets
+    }
+    routed_graph_cuts = {
+        (term.insertion.graph_name, term.insertion.cut_name)
+        for term in terms.values()
+    }
+    if routed_graph_cuts != expected_graph_cuts:
+        missing = sorted(expected_graph_cuts - routed_graph_cuts)
+        extra = sorted(routed_graph_cuts - expected_graph_cuts)
+        raise ValueError(
+            "Native DY master ledger does not route every declared graph cut; "
+            f"missing={missing}, extra={extra}"
+        )
+    for term in terms.values():
+        graph = graphs[term.insertion.graph_name]
+        if term.membership != graph.cut_membership(term.insertion.cut_name):
+            raise ValueError(
+                f"{term.key}: contribution membership differs from graph input"
+            )
+
+    contribution_map = MappingProxyType(terms)
+    raw_term_values = MappingProxyType(
         {
-            "virtual p2-cut": make(
-                "virtual triangle 1",
-                "10",
-                "virtual",
-                "p2-cut triangle",
-                ("virtual triangle 1/10",),
-                replace_all(
-                    audit.virtual_coefficients["virtual triangle 1/10"],
-                    dimension_rule,
-                ),
-                massless_bubble,
-                virtuality_factor=j2,
-            ),
-            "virtual p1-cut": make(
-                "virtual triangle 1",
-                "01",
-                "virtual",
-                "p1-cut triangle",
-                ("virtual triangle 1/01",),
-                replace_all(
-                    audit.virtual_coefficients["virtual triangle 1/01"],
-                    dimension_rule,
-                ),
-                massless_bubble,
-                virtuality_factor=j1,
-            ),
-            "virtual double-cut": make(
-                "virtual triangle 2",
-                "00",
-                "virtual",
-                "double-cut triangle",
-                ("virtual triangle 2/00",),
-                replace_all(
-                    audit.virtual_coefficients["virtual triangle 2/00"],
-                    dimension_rule,
-                ),
-                massless_triangle,
-                virtuality_factor=j1 * j2,
-            ),
-            "external bubble p1": make(
-                "virtual bubble",
-                "10",
-                "virtual",
-                "external bubble p1",
-                ("virtual bubble/10",),
-                replace_all(
-                    audit.virtual_coefficients["external bubble"],
-                    dimension_rule,
-                ),
-                massless_bubble,
-                virtuality_factor=j1,
-                mirror_count=2,
-            ),
-            "external bubble p2": make(
-                "virtual bubble",
-                "10",
-                "virtual",
-                "external bubble p2",
-                ("virtual bubble/10",),
-                replace_all(
-                    audit.virtual_coefficients["external bubble"],
-                    dimension_rule,
-                ),
-                massless_bubble,
-                virtuality_factor=j2,
-                mirror_count=2,
-            ),
-            "direct p1-cut": make(
-                "qq direct box",
-                "01",
-                "direct qqbar",
-                "p1-cut mirror",
-                ("qq direct box/01",),
-                audit.direct_box_coefficients["01"],
-                massive_triangle,
-                virtuality_factor=j1,
-                mirror_count=2,
-            ),
-            "direct p2-cut": make(
-                "qq direct box",
-                "01",
-                "direct qqbar",
-                "p2-cut mirror",
-                ("qq direct box/01",),
-                audit.direct_box_coefficients["01"],
-                massive_triangle,
-                virtuality_factor=j2,
-                mirror_count=2,
-            ),
-            "crossed 10": make(
-                "qq crossed box",
-                "10",
-                "crossed qqbar",
-                "10",
-                ("qq crossed box/10 (four apart children)",),
-                audit.crossed_box_coefficients["10"],
-                massive_triangle,
-                virtuality_factor=j2,
-            ),
-            "crossed 01": make(
-                "qq crossed box",
-                "01",
-                "crossed qqbar",
-                "01",
-                ("qq crossed box/01 (four apart children)",),
-                audit.crossed_box_coefficients["01"],
-                massive_triangle,
-                virtuality_factor=j1,
-            ),
-            "crossed 00": make(
-                "qq crossed box",
-                "00",
-                "crossed qqbar",
-                "00",
-                (),
-                audit.crossed_box_coefficients["00"],
-                maximal_crossed,
-                virtuality_factor=j1 * j2,
-            ),
-            "qg box p1-cut": make(
-                "qg box",
-                "01",
-                "qg",
-                "box p1-cut mirror",
-                ("qg box/01",),
-                audit.qg_coefficients["01 box"],
-                massive_triangle,
-                virtuality_factor=j1,
-                mirror_count=2,
-            ),
-            "qg box p2-cut": make(
-                "qg box",
-                "01",
-                "qg",
-                "box p2-cut mirror",
-                ("qg box/01",),
-                audit.qg_coefficients["01 box"],
-                massive_triangle,
-                virtuality_factor=j2,
-                mirror_count=2,
-            ),
-            "qg triangle p1-cut": make(
-                "qg triangle",
-                "01",
-                "qg",
-                "triangle p1-cut mirror",
-                ("qg triangle/01",),
-                audit.qg_coefficients["01 triangle"],
-                massive_triangle,
-                virtuality_factor=j1,
-                mirror_count=2,
-            ),
-            "qg triangle p2-cut": make(
-                "qg triangle",
-                "01",
-                "qg",
-                "triangle p2-cut mirror",
-                ("qg triangle/01",),
-                audit.qg_coefficients["01 triangle"],
-                massive_triangle,
-                virtuality_factor=j2,
-                mirror_count=2,
-            ),
+            key: term.raw_master_value
+            for key, term in contribution_map.items()
         }
     )
+
+    def grouped_sums(
+        values: Mapping[str, Expression],
+        attribute: Literal["channel", "normalizer"],
+    ) -> Mapping[str, Expression]:
+        grouped: dict[str, Expression] = {}
+        for key, term in contribution_map.items():
+            group = (
+                term.insertion.channel
+                if attribute == "channel"
+                else term.normalizer
+            )
+            grouped[group] = (grouped.get(group, E("0")) + values[key]).expand()
+        return MappingProxyType(grouped)
+
+    def direct_selection(selection: DYPrescription) -> NativeDYMasterSelection:
+        multipliers = MappingProxyType(
+            {
+                key: term.multiplier(selection)
+                for key, term in contribution_map.items()
+            }
+        )
+        values = MappingProxyType(
+            {
+                key: (multipliers[key] * raw_term_values[key]).expand()
+                for key in contribution_map
+            }
+        )
+        return NativeDYMasterSelection(
+            selection=selection,
+            term_multipliers=multipliers,
+            term_values=values,
+            channel_sums=grouped_sums(values, "channel"),
+            normalizer_sums=grouped_sums(values, "normalizer"),
+        )
+
+    pm_bare = direct_selection("pm_bare")
+    mp = direct_selection("mp")
+    difference_multipliers = MappingProxyType(
+        {
+            key: (
+                mp.term_multipliers[key] - pm_bare.term_multipliers[key]
+            ).expand()
+            for key in contribution_map
+        }
+    )
+    difference_values = MappingProxyType(
+        {
+            key: (mp.term_values[key] - pm_bare.term_values[key]).expand()
+            for key in contribution_map
+        }
+    )
+    mp_minus_pm = NativeDYMasterSelection(
+        selection="mp_minus_pm",
+        term_multipliers=difference_multipliers,
+        term_values=difference_values,
+        channel_sums=MappingProxyType(
+            {
+                key: (
+                    mp.channel_sums[key] - pm_bare.channel_sums[key]
+                ).expand()
+                for key in pm_bare.channel_sums
+            }
+        ),
+        normalizer_sums=MappingProxyType(
+            {
+                key: (
+                    mp.normalizer_sums[key] - pm_bare.normalizer_sums[key]
+                ).expand()
+                for key in pm_bare.normalizer_sums
+            }
+        ),
+    )
+    assemblies = NativeDYMasterAssemblies(
+        contributions=contribution_map,
+        raw_term_values=raw_term_values,
+        pm_bare=pm_bare,
+        mp=mp,
+        mp_minus_pm=mp_minus_pm,
+    )
+    if not assemblies.componentwise_exact():
+        raise ValueError("Native DY master selections are not componentwise exact")
+
+    # The transition selection must retain the old signed observable exactly.
+    # This is deliberately checked against the graph-level formula rather than
+    # an external reference target.
+    for key, term in contribution_map.items():
+        graph = graphs[term.insertion.graph_name]
+        legacy_value = (
+            term.membership.mp_minus_pm
+            * graph.scheme_observable_phase
+            * raw_term_values[key]
+        ).expand()
+        residual = (mp_minus_pm.term_values[key] - legacy_value).expand()
+        if residual != E("0"):
+            raise ValueError(
+                f"{key}: PM/MP ledger difference does not reproduce the "
+                "legacy transition phase"
+            )
+    return assemblies
 
 
 def build_native_dy_scheme_change(
@@ -1872,7 +3137,35 @@ def build_native_dy_scheme_change(
     pi = context.pi
     alpha_s = context.alpha_s
     color_f = context.color_f
-    insertions = _native_scheme_master_insertions(audit, context, graphs)
+    assemblies = build_native_dy_master_assemblies(audit, context, graphs)
+    coefficients = build_native_dy_coefficient_selections(assemblies, context)
+    # Retain the former map as a public compatibility view.  The selection
+    # below comes from the shared ledger, and every compatibility value is
+    # checked against that derived difference before any channel normalisation.
+    insertions = MappingProxyType(
+        {
+            key: dataclass_replace(
+                term.insertion,
+                relative_weight=(
+                    term.insertion.relative_weight
+                    * term.multiplier("mp_minus_pm")
+                ).expand(),
+            )
+            for key, term in assemblies.contributions.items()
+            if key != "qg bubble zero 01"
+            and term.membership.mp_minus_pm.format_plain() != "0"
+        }
+    )
+    for name, item in insertions.items():
+        legacy_value = item.value
+        residual = (
+            assemblies.mp_minus_pm.term_values[name] - legacy_value
+        ).expand()
+        if residual != E("0"):
+            raise ValueError(
+                f"{name}: shared MP-PM selection differs from the legacy "
+                "native insertion"
+            )
     insertion_names = MappingProxyType(
         {
             graph_name: tuple(
@@ -1883,7 +3176,10 @@ def build_native_dy_scheme_change(
                 != E("0")
             )
             for graph_name, graph in graphs.items()
-            if graph.mp_only_cuts or graph.pm_only_cuts
+            if any(
+                graph.scheme_membership_coefficient(cut_name) != E("0")
+                for cut_name in graph.cutsets
+            )
         }
     )
     cut_membership_coefficients = MappingProxyType(
@@ -1892,23 +3188,22 @@ def build_native_dy_scheme_change(
                 cut_name
             )
             for graph_name, graph in graphs.items()
-            for cut_name in graph.mp_only_cuts + graph.pm_only_cuts
+            for cut_name in graph.cutsets
         }
     )
     observable_phases = MappingProxyType(
         {
             graph_name: graph.scheme_observable_phase
             for graph_name, graph in graphs.items()
-            if graph.mp_only_cuts or graph.pm_only_cuts
+            if any(
+                graph.scheme_membership_coefficient(cut_name) != E("0")
+                for cut_name in graph.cutsets
+            )
         }
     )
 
     def selected_value(name: str) -> Expression:
-        item = insertions[name]
-        return (
-            graphs[item.graph_name].scheme_membership_coefficient(item.cut_name)
-            * item.value
-        )
+        return assemblies.mp_minus_pm.term_values[name]
 
     def scalar_through_finite(value: Expression) -> Expression:
         expanded = _positive_branch_before_series(value, context).series(
@@ -1938,6 +3233,14 @@ def build_native_dy_scheme_change(
         )
         qg_pieces[graph_name] = scalar_through_finite(normalized)
     qg_total = normalize_rational(sum(qg_pieces.values(), E("0")))
+
+    # The coefficient-level normalizer keeps the ordered qg orientations
+    # distinct at unequal cutoffs.  The legacy field remains their average.
+    qg_ordered_q1g2 = coefficients.mp_minus_pm.qg_ordered_q1g2
+    qg_ordered_g1q2 = coefficients.mp_minus_pm.qg_ordered_g1q2
+    qg_beam_exchange_average = (
+        coefficients.mp_minus_pm.qg_beam_exchange_average
+    )
 
     def scalar_laurent_coefficient(
         value: Expression,
@@ -2086,12 +3389,17 @@ def build_native_dy_scheme_change(
     qq_double_pole = _endpoint_laurent_coefficient(qq_total, -2, context)
     qq_single_pole = _endpoint_laurent_coefficient(qq_total, -1, context)
     result = NativeDYSchemeChange(
+        assemblies=assemblies,
+        coefficients=coefficients,
         insertions=insertions,
         insertion_names=insertion_names,
         cut_membership_coefficients=cut_membership_coefficients,
         observable_phases=observable_phases,
         qg_pieces=MappingProxyType(qg_pieces),
         qg_mp_minus_pm=qg_total,
+        qg_ordered_q1g2=qg_ordered_q1g2,
+        qg_ordered_g1q2=qg_ordered_g1q2,
+        qg_beam_exchange_average=qg_beam_exchange_average,
         qg_double_pole_coefficient=qg_double_pole,
         qg_single_pole_coefficient=qg_single_pole,
         qq_virtual_triangle=qq_virtual_triangle,
@@ -2112,22 +3420,14 @@ def build_analytic_master_handoff(
     audit: ReductionAudit,
     coefficient: FullDYCoefficient,
     context: DYContext,
-    graphs: Mapping[str, DYGraphSpec],
     *,
     scheme_change: NativeDYSchemeChange,
 ) -> AnalyticMasterHandoff:
-    """Insert the audited coefficients into the application-local masters."""
+    """Validate the native master ledger against the closed-form channels."""
 
     from calculations.dy.python.masters import (
         apply_endpoint_expansion,
         endpoint_distribution_expansion,
-        massive_cut_bubble,
-        massive_cut_triangle,
-        massless_cut_bubble,
-        massless_cut_triangle,
-        maximal_cross_box_cut_master,
-        uncut_bubble,
-        virtuality_integral_factor,
     )
 
     epsilon = context.epsilon
@@ -2143,344 +3443,19 @@ def build_analytic_master_handoff(
     lambda2_squared = context.lambda2_squared
     mu_r_squared = context.mu_r_squared
     pi = context.pi
-    dimension = 4 - 2 * epsilon
     gamma_e = Expression.EULER_GAMMA
-    master_arguments = {
-        "dimension": dimension,
-        "epsilon": epsilon,
-        "mu_squared": mu_r_squared,
-        "euler_gamma": gamma_e,
-    }
-    massive_bubble = massive_cut_bubble(
-        s,
-        z * s,
-        **master_arguments,
+    contributions = scheme_change.assemblies.contributions
+    insertion_map = MappingProxyType(
+        {
+            key: contribution.insertion
+            for key, contribution in contributions.items()
+        }
     )
-    # Setting the external virtuality to one strips precisely its
-    # (p_i^2)^(-epsilon) leading-power factor.  The physical integral is then
-    # supplied by J_i below.
-    massive_triangle_stripped = massive_cut_triangle(
-        E("1"),
-        s,
-        z * s,
-        **master_arguments,
-    )
-    massless_bubble_stripped = massless_cut_bubble(
-        E("1"),
-        **master_arguments,
-    )
-    massless_triangle_stripped_raw = massless_cut_triangle(
-        E("1"),
-        E("1"),
-        -s,
-        **master_arguments,
-    )
-    # In the declared physical region s>0, the triangle Gram factor obeys
-    # (s^2)^(1/2-epsilon)=s^(1-2 epsilon).  Make that branch choice before the
-    # Laurent expansion; an exact atom replacement cannot see a fractional
-    # power after Symbolica has moved it into a rational denominator.
-    massless_triangle_stripped = normalize_rational(
-        massless_triangle_stripped_raw
-        * (s**2) ** (E("1/2") - epsilon)
-        / s ** (1 - 2 * epsilon)
-    )
-    ordinary_bubble = uncut_bubble(s, **master_arguments)
-    maximal_crossed = maximal_cross_box_cut_master(
-        s,
-        **master_arguments,
-    )
-    j1 = virtuality_integral_factor(lambda1_squared, epsilon)
-    j2 = virtuality_integral_factor(lambda2_squared, epsilon)
-
-    def insertion(
-        graph_name: str,
-        cut_name: str,
-        channel: str,
-        sector: str,
-        projects: tuple[str, ...],
-        ibp_coefficient: Expression,
-        analytic_master: Expression,
-        *,
-        virtuality_factor: Expression = E("1"),
-        relative_weight: Expression = E("1"),
-    ) -> MasterInsertion:
-        return MasterInsertion(
-            graph_name=graph_name,
-            cut_name=cut_name,
-            channel=channel,
-            sector=sector,
-            projects=projects,
-            ibp_coefficient=ibp_coefficient,
-            analytic_master=analytic_master,
-            virtuality_factor=virtuality_factor,
-            relative_weight=relative_weight,
-        )
-
-    def graph_cut_weight(
-        graph_name: str,
-        cut_name: str,
-        *,
-        mirror_count: int = 1,
-    ) -> Expression:
-        """Return a notebook-declared graph weight for one master insertion."""
-
-        return graphs[graph_name].cut_weights[cut_name] / mirror_count
-
-    insertions = {
-        "virtual 0-cut": insertion(
-            "virtual triangle 1",
-            "11",
-            "virtual",
-            "0-cut triangle",
-            ("virtual triangle 1/11",),
-            replace_all(
-                audit.virtual_coefficients["virtual triangle 1/11"],
-                ((context.d, dimension),),
-            ),
-            ordinary_bubble,
-            relative_weight=graph_cut_weight("virtual triangle 1", "11"),
-        ),
-        "virtual p2-cut": insertion(
-            "virtual triangle 1",
-            "10",
-            "virtual",
-            "p2-cut triangle",
-            ("virtual triangle 1/10",),
-            replace_all(
-                audit.virtual_coefficients["virtual triangle 1/10"],
-                ((context.d, dimension),),
-            ),
-            massless_bubble_stripped,
-            virtuality_factor=j2,
-            relative_weight=graph_cut_weight("virtual triangle 1", "10"),
-        ),
-        "virtual p1-cut": insertion(
-            "virtual triangle 1",
-            "01",
-            "virtual",
-            "p1-cut triangle",
-            ("virtual triangle 1/01",),
-            replace_all(
-                audit.virtual_coefficients["virtual triangle 1/01"],
-                ((context.d, dimension),),
-            ),
-            massless_bubble_stripped,
-            virtuality_factor=j1,
-            relative_weight=graph_cut_weight("virtual triangle 1", "01"),
-        ),
-        "virtual double-cut": insertion(
-            "virtual triangle 2",
-            "00",
-            "virtual",
-            "double-cut triangle",
-            ("virtual triangle 2/00",),
-            replace_all(
-                audit.virtual_coefficients["virtual triangle 2/00"],
-                ((context.d, dimension),),
-            ),
-            massless_triangle_stripped,
-            virtuality_factor=j1 * j2,
-            relative_weight=graph_cut_weight("virtual triangle 2", "00"),
-        ),
-        "external bubble p1": insertion(
-            "virtual bubble",
-            "10",
-            "virtual",
-            "external bubble p1",
-            ("virtual bubble/10",),
-            replace_all(
-                audit.virtual_coefficients["external bubble"],
-                ((context.d, dimension),),
-            ),
-            massless_bubble_stripped,
-            virtuality_factor=j1,
-            relative_weight=graph_cut_weight(
-                "virtual bubble", "10", mirror_count=2
-            ),
-        ),
-        "external bubble p2": insertion(
-            "virtual bubble",
-            "10",
-            "virtual",
-            "external bubble p2",
-            ("virtual bubble/10",),
-            replace_all(
-                audit.virtual_coefficients["external bubble"],
-                ((context.d, dimension),),
-            ),
-            massless_bubble_stripped,
-            virtuality_factor=j2,
-            relative_weight=graph_cut_weight(
-                "virtual bubble", "10", mirror_count=2
-            ),
-        ),
-        "direct 00": insertion(
-            "qq direct box",
-            "11",
-            "direct qqbar",
-            "00",
-            ("qq direct box/11",),
-            audit.direct_box_coefficients["11"],
-            massive_bubble,
-            relative_weight=graph_cut_weight("qq direct box", "11"),
-        ),
-        "direct 10": insertion(
-            "qq direct box",
-            "01",
-            "direct qqbar",
-            "10",
-            ("qq direct box/01",),
-            audit.direct_box_coefficients["01"],
-            massive_triangle_stripped,
-            virtuality_factor=j1,
-            relative_weight=graph_cut_weight(
-                "qq direct box", "01", mirror_count=2
-            ),
-        ),
-        "direct 01": insertion(
-            "qq direct box",
-            "01",
-            "direct qqbar",
-            "01",
-            ("qq direct box/01",),
-            audit.direct_box_coefficients["01"],
-            massive_triangle_stripped,
-            virtuality_factor=j2,
-            relative_weight=graph_cut_weight(
-                "qq direct box", "01", mirror_count=2
-            ),
-        ),
-        "crossed 11": insertion(
-            "qq crossed box",
-            "11",
-            "crossed qqbar",
-            "11",
-            ("qq crossed box/11 (four apart children)",),
-            audit.crossed_box_coefficients["11"],
-            massive_bubble,
-            relative_weight=graph_cut_weight("qq crossed box", "11"),
-        ),
-        "crossed 10": insertion(
-            "qq crossed box",
-            "10",
-            "crossed qqbar",
-            "10",
-            ("qq crossed box/10 (four apart children)",),
-            audit.crossed_box_coefficients["10"],
-            massive_triangle_stripped,
-            virtuality_factor=j2,
-            relative_weight=graph_cut_weight("qq crossed box", "10"),
-        ),
-        "crossed 01": insertion(
-            "qq crossed box",
-            "01",
-            "crossed qqbar",
-            "01",
-            ("qq crossed box/01 (four apart children)",),
-            audit.crossed_box_coefficients["01"],
-            massive_triangle_stripped,
-            virtuality_factor=j1,
-            relative_weight=graph_cut_weight("qq crossed box", "01"),
-        ),
-        # In the retained z-space source the 00 object is negated once when it
-        # is defined and again in the four-cut sum.  Its numerator coefficient
-        # already carries the remaining minus sign; encoding that sequence as
-        # relative_weight=+1 makes the convention visible.
-        "crossed 00": insertion(
-            "qq crossed box",
-            "00",
-            "crossed qqbar",
-            "00",
-            (),
-            audit.crossed_box_coefficients["00"],
-            maximal_crossed,
-            virtuality_factor=j1 * j2,
-            relative_weight=graph_cut_weight("qq crossed box", "00"),
-        ),
-        "qg box 00": insertion(
-            "qg box",
-            "11",
-            "qg",
-            "box 00",
-            ("qg box/11",),
-            audit.qg_coefficients["11 box"],
-            massive_bubble,
-            relative_weight=graph_cut_weight("qg box", "11"),
-        ),
-        "qg box 10": insertion(
-            "qg box",
-            "01",
-            "qg",
-            "box 10",
-            ("qg box/01",),
-            audit.qg_coefficients["01 box"],
-            massive_triangle_stripped,
-            virtuality_factor=j1,
-            relative_weight=graph_cut_weight(
-                "qg box", "01", mirror_count=2
-            ),
-        ),
-        "qg box 01": insertion(
-            "qg box",
-            "01",
-            "qg",
-            "box 01",
-            ("qg box/01",),
-            audit.qg_coefficients["01 box"],
-            massive_triangle_stripped,
-            virtuality_factor=j2,
-            relative_weight=graph_cut_weight(
-                "qg box", "01", mirror_count=2
-            ),
-        ),
-        "qg triangle 00": insertion(
-            "qg triangle",
-            "11",
-            "qg",
-            "triangle 00",
-            ("qg triangle/11",),
-            audit.qg_coefficients["11 triangle"],
-            massive_bubble,
-            relative_weight=graph_cut_weight("qg triangle", "11"),
-        ),
-        "qg triangle 10": insertion(
-            "qg triangle",
-            "01",
-            "qg",
-            "triangle 10",
-            ("qg triangle/01",),
-            audit.qg_coefficients["01 triangle"],
-            massive_triangle_stripped,
-            virtuality_factor=j1,
-            relative_weight=graph_cut_weight(
-                "qg triangle", "01", mirror_count=2
-            ),
-        ),
-        "qg triangle 01": insertion(
-            "qg triangle",
-            "01",
-            "qg",
-            "triangle 01",
-            ("qg triangle/01",),
-            audit.qg_coefficients["01 triangle"],
-            massive_triangle_stripped,
-            virtuality_factor=j2,
-            relative_weight=graph_cut_weight(
-                "qg triangle", "01", mirror_count=2
-            ),
-        ),
-        "qg bubble 00": insertion(
-            "qg bubble",
-            "11",
-            "qg",
-            "bubble 00",
-            ("qg bubble/11",),
-            audit.qg_coefficients["11 bubble"],
-            massive_bubble,
-            relative_weight=graph_cut_weight("qg bubble", "11"),
-        ),
-    }
-    insertion_map = MappingProxyType(insertions)
+    # The incoming-virtuality factors are part of the shared contribution
+    # records. Reuse them here so this validation handoff cannot drift from
+    # the PM-bare/MP master ledger.
+    j1 = insertion_map["virtual p1-cut"].virtuality_factor
+    j2 = insertion_map["virtual p2-cut"].virtuality_factor
 
     qq_common = (
         electric_charge**2
@@ -2742,7 +3717,12 @@ def build_analytic_master_handoff(
 
 
 def assemble_closed_form_dy(context: DYContext) -> FullDYCoefficient:
-    """Encode the retained finite channels and separate virtual diagnostics."""
+    """Encode the raw finite reference ledgers and virtual diagnostics.
+
+    This downstream object preserves the historical master-convention sum.
+    It is not the paper-facing physical ``PM-bare + (MP - PM,bare)`` result;
+    use :func:`build_paper_dy_physical_handoff` for that coefficient.
+    """
 
     epsilon = context.epsilon
     s = context.s
@@ -2929,7 +3909,9 @@ def assemble_native_dy_scheme(
 
     This is the primary physical API.  It has no closed-form coefficient or
     historical-source construction, so a malformed downstream oracle cannot
-    prevent the native ``MP - PM`` result from being assembled.
+    prevent the native ``MP - PM`` result from being assembled.  The returned
+    scheme-change object's ``assemblies`` field is the full shared PM-bare/MP
+    ledger; the two-item return tuple is intentionally unchanged.
     """
 
     audit = audit_physical_reductions(
@@ -2953,7 +3935,6 @@ def assemble_reference_dy_handoff(
     scheme_change: NativeDYSchemeChange,
     *,
     context: DYContext,
-    graphs: Mapping[str, DYGraphSpec],
 ) -> FullDYCoefficient:
     """Attach closed-form and historical ledgers downstream of native DY."""
 
@@ -2962,7 +3943,6 @@ def assemble_reference_dy_handoff(
         audit,
         coefficient,
         context,
-        graphs,
         scheme_change=scheme_change,
     )
     if not handoff.native_checks_exact(context.z):
@@ -2993,7 +3973,6 @@ def assemble_full_dy(
         audit,
         scheme_change,
         context=context,
-        graphs=graphs,
     )
     return audit, coefficient
 
@@ -3002,16 +3981,25 @@ __all__ = [
     "AnalyticMasterHandoff",
     "ApartTerm",
     "ChannelAssembly",
+    "CutMembership",
     "DYContext",
     "DYGraphSpec",
     "DYProjectKey",
     "DYProjectPlan",
+    "EndpointRoute",
     "EndpointCoefficient",
     "FullDYCoefficient",
     "MasterInsertion",
+    "NativeDYCoefficientSelection",
+    "NativeDYCoefficientSelections",
+    "NativeDYContribution",
+    "NativeDYMasterAssemblies",
+    "NativeDYMasterSelection",
     "NativeDYSchemeChange",
     "NativeDYOneLegSchemeKernel",
     "NumeratorReduction",
+    "PaperDYPhysicalHandoff",
+    "PaperDYPhysicalPoleRecord",
     "ReductionAudit",
     "assemble_closed_form_dy",
     "assemble_full_dy",
@@ -3019,13 +4007,17 @@ __all__ = [
     "assemble_reference_dy_handoff",
     "audit_physical_reductions",
     "build_analytic_master_handoff",
+    "build_native_dy_coefficient_selections",
+    "build_native_dy_master_assemblies",
     "build_native_dy_scheme_change",
+    "build_paper_dy_physical_handoff",
     "build_dy_kira_projects",
     "crossed_box_reductions",
     "derive_external_bubble_scheme_correction",
     "normalize_rational",
     "numerator_reductions",
     "native_dy_one_leg_scheme_kernel",
+    "normalize_native_dy_master_selection",
     "qg_ward_reductions",
     "reduce_numerator",
     "replace_all",
