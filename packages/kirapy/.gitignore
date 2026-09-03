@@ -1,0 +1,7 @@
+.venv/
+.pytest_cache/
+build/
+dist/
+__pycache__/
+*.py[cod]
+kira.log
