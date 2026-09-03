@@ -10,16 +10,42 @@ from symbolica.community.idenso import (
     simplify_gamma,
     simplify_metrics,
 )
-from symbolica.community.spenso import Representation, Slot, TensorName
+from symbolica.community.spenso import (
+    Representation,
+    Slot,
+    TensorExpression,
+    TensorName,
+)
 
 from .kinematics import Kinematics, canonical
 from .kernels import ap_gg_cdr, ap_qg_cdr
 
 
 def as_expression(value: Expression | Slot) -> Expression:
+    if isinstance(value, TensorExpression):
+        return value.to_expression()
     if isinstance(value, Expression):
         return value
     return value.to_expression()
+
+
+def _reassemble_expansion(
+    terms: list[tuple[Expression, Expression]],
+) -> Expression:
+    """Reassemble Idenso's exact (tensor structure, coefficient) pairs."""
+
+    return sum(
+        (structure * coefficient for structure, coefficient in terms),
+        Expression.num(0),
+    )
+
+
+def _expand_mink_expression(expression: Expression) -> Expression:
+    return _reassemble_expansion(expand_mink(expression))
+
+
+def _expand_mink_bis_expression(expression: Expression) -> Expression:
+    return _reassemble_expansion(expand_mink_bis(expression))
 
 
 @dataclass(frozen=True)
@@ -191,7 +217,7 @@ def projector_checks(
     )
 
     momentum_contraction = simplify_metrics(
-        expand_mink(
+        _expand_mink_expression(
             tensors.vector(tensors.q, "mu") * projector("mu", "nu")
         )
     )
@@ -203,7 +229,7 @@ def projector_checks(
     )
 
     reference_contraction = simplify_metrics(
-        expand_mink(
+        _expand_mink_expression(
             tensors.vector(tensors.n, "mu") * projector("mu", "nu")
         )
     )
@@ -215,7 +241,9 @@ def projector_checks(
     )
 
     projector_square = simplify_metrics(
-        expand_mink(projector("mu", "rho") * projector("rho", "nu"))
+        _expand_mink_expression(
+            projector("mu", "rho") * projector("rho", "nu")
+        )
     )
     signed_idempotence = _replace_contracted_pairs(
         projector_square + projector("mu", "nu"),
@@ -225,7 +253,9 @@ def projector_checks(
     )
 
     projector_trace = simplify_metrics(
-        expand_mink(projector("mu", "nu") * projector("mu", "nu"))
+        _expand_mink_expression(
+            projector("mu", "nu") * projector("mu", "nu")
+        )
     )
     projector_trace = _replace_contracted_pairs(
         projector_trace,
@@ -301,8 +331,10 @@ def gluon_parent_quark_born_numerator(
 
     coefficients = []
     for piece in projector_pieces:
-        reduced = simplify_gamma(expand_mink_bis(trace_probe * piece))
-        reduced = simplify_metrics(expand_mink(reduced))
+        reduced = simplify_gamma(
+            _expand_mink_bis_expression(trace_probe * piece)
+        )
+        reduced = simplify_metrics(_expand_mink_expression(reduced))
         reduced = _replace_contracted_pairs(
             reduced,
             tensors,
@@ -386,9 +418,9 @@ def gluon_born_reduced_numerator(
     coefficients = []
     for projector_piece in projector_pieces:
         reduced = simplify_gamma(
-            expand_mink_bis(trace * projector_piece)
+            _expand_mink_bis_expression(trace * projector_piece)
         )
-        reduced = simplify_metrics(expand_mink(reduced))
+        reduced = simplify_metrics(_expand_mink_expression(reduced))
         coefficients.append(
             canonical(
                 _replace_contracted_pairs(
@@ -476,8 +508,10 @@ def quark_born_reduced_numerator(
 
     coefficients = []
     for piece in projector_pieces:
-        reduced = simplify_gamma(expand_mink_bis(trace_probe * piece))
-        reduced = simplify_metrics(expand_mink(reduced))
+        reduced = simplify_gamma(
+            _expand_mink_bis_expression(trace_probe * piece)
+        )
+        reduced = simplify_metrics(_expand_mink_expression(reduced))
         reduced = _replace_contracted_pairs(
             reduced,
             tensors,
@@ -618,7 +652,7 @@ def _cached_gluon_self_splitting_numerator(
 
     def reduce(projectors: Expression) -> Expression:
         reduced = simplify_metrics(
-            expand_mink(vertex_product * projectors)
+            _expand_mink_expression(vertex_product * projectors)
         )
         reduced = _replace_contracted_pairs(
             reduced,
@@ -756,7 +790,7 @@ def _cached_gluon_virtual_self_energy_numerator(
 
     def reduce_gluon(projector_piece: Expression) -> Expression:
         reduced = simplify_metrics(
-            expand_mink(
+            _expand_mink_expression(
                 vertex_product
                 * projector_piece
                 * cut_projector
@@ -778,7 +812,9 @@ def _cached_gluon_virtual_self_energy_numerator(
         canonical(piece.series(p2, 0, 1).get_coefficient(1) * p2)
         for piece in gluon_exact_pieces
     )
-    gluon_leading = canonical(sum(gluon_leading_pieces))
+    gluon_leading = canonical(
+        sum(gluon_leading_pieces, Expression.num(0))
+    )
     gluon_expected = canonical(
         2 * p2 * ap_gg_cdr(x, (4 - kinematics.d) / 2)
     )
@@ -794,9 +830,9 @@ def _cached_gluon_virtual_self_energy_numerator(
 
     def reduce_quark(projector_piece: Expression) -> Expression:
         reduced = simplify_gamma(
-            expand_mink_bis(quark_trace * projector_piece)
+            _expand_mink_bis_expression(quark_trace * projector_piece)
         )
-        reduced = simplify_metrics(expand_mink(reduced))
+        reduced = simplify_metrics(_expand_mink_expression(reduced))
         reduced = _replace_contracted_pairs(
             reduced,
             tensors,
@@ -812,7 +848,9 @@ def _cached_gluon_virtual_self_energy_numerator(
         canonical(piece.series(p2, 0, 1).get_coefficient(1) * p2)
         for piece in quark_exact_pieces
     )
-    quark_leading = canonical(sum(quark_leading_pieces))
+    quark_leading = canonical(
+        sum(quark_leading_pieces, Expression.num(0))
+    )
     quark_expected = canonical(
         2 * p2 * ap_qg_cdr(x, (4 - kinematics.d) / 2)
     )
@@ -904,9 +942,9 @@ def virtual_self_energy_numerator(
     projected_pieces: list[Expression] = []
     for projector_piece in projector_pieces:
         reduced = simplify_gamma(
-            expand_mink_bis(trace_probe * projector_piece)
+            _expand_mink_bis_expression(trace_probe * projector_piece)
         )
-        reduced = simplify_metrics(expand_mink(reduced))
+        reduced = simplify_metrics(_expand_mink_expression(reduced))
         reduced = _replace_contracted_pairs(
             reduced,
             tensors,
@@ -923,8 +961,8 @@ def virtual_self_energy_numerator(
         )
         for piece in projected_pieces
     )
-    exact = canonical(sum(projected_pieces))
-    leading = canonical(sum(leading_pieces))
+    exact = canonical(sum(projected_pieces, Expression.num(0)))
+    leading = canonical(sum(leading_pieces, Expression.num(0)))
     expected = canonical(
         p2 * (cut_fraction * (d - 2) + 4 * x / cut_fraction)
     )

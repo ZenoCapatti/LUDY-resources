@@ -2,14 +2,21 @@
 
 from dataclasses import dataclass
 
-from symbolica import Expression, S
+from symbolica import Expression
 from symbolica.community.idenso import expand_color, simplify_color
-from symbolica.community.spenso import Representation, Slot, TensorName
+from symbolica.community.spenso import (
+    Representation,
+    Slot,
+    TensorExpression,
+    TensorName,
+)
 
-from .kinematics import canonical
+from .kinematics import canonical, symbols
 
 
 def _as_expression(value: Expression | Slot) -> Expression:
+    if isinstance(value, TensorExpression):
+        return value.to_expression()
     if isinstance(value, Expression):
         return value
     return value.to_expression()
@@ -49,11 +56,14 @@ def _reduction(
     identity: Expression,
     label: Expression,
 ) -> ColorReduction:
-    reduced = simplify_color(expand_color(raw))
+    expanded = Expression.num(0)
+    for structure, coefficient in expand_color(raw):
+        expanded += structure * coefficient
+    reduced = simplify_color(expanded)
     invariant = reduced.coefficient(identity)
     if invariant == 0:
         raise ValueError(f"Could not extract color invariant from {reduced}")
-    residual = canonical(reduced - invariant * identity)
+    residual = canonical(reduced.replace(identity, Expression.num(0)))
     if residual != 0:
         raise ValueError(f"Unreduced color structure remains: {residual}")
     return ColorReduction(
@@ -62,13 +72,13 @@ def _reduction(
         identity_tensor=identity,
         invariant=invariant,
         conventional_label=label,
-        labeled_reduction=reduced.replace(invariant, label),
+        labeled_reduction=label * identity,
         residual=residual,
     )
 
 
 def make_color_context() -> ColorContext:
-    nc, na, nf, cf, ca, tr = S(
+    nc, na, nf, cf, ca, tr = symbols(
         "N_c",
         "N_A",
         "n_f",

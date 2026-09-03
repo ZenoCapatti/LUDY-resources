@@ -1,4 +1,4 @@
-from symbolica import Expression, S
+from symbolica import Expression
 
 from splitting_kernels.assembly import assemble_nlo_counterterm
 from splitting_kernels.channels import (
@@ -9,7 +9,11 @@ from splitting_kernels.channels import (
     derive_channel,
 )
 from splitting_kernels.colors import make_color_context
-from splitting_kernels.kinematics import assert_symbolic_equal, make_kinematics
+from splitting_kernels.kinematics import (
+    assert_symbolic_equal,
+    make_kinematics,
+    symbols,
+)
 from splitting_kernels.phase_space import (
     integrate_channel_phase_space,
     integrate_unit_interval_beta,
@@ -22,7 +26,7 @@ from splitting_kernels.virtual import (
 
 
 def test_beta_monomials_are_integrated_by_expression_replacement() -> None:
-    x, epsilon = S("x", "epsilon")
+    x, epsilon = symbols("x", "epsilon")
     integrand = (
         3 * x ** (1 - epsilon) * (1 - x) ** (-1 - epsilon)
         - 2 * x ** (-epsilon) * (1 - x) ** (2 - epsilon)
@@ -94,7 +98,7 @@ def test_assembled_counterterm_matches_compact_formula_entry_by_entry() -> None:
         assert entry.distributional_check.passed
         assert entry.distributional_check.residuals == (0, 0, 0)
 
-    test1, test2 = S("test1", "test2")
+    test1, test2 = symbols("test1", "test2")
     qq_check = next(
         entry.distributional_check
         for entry in assembly.entries

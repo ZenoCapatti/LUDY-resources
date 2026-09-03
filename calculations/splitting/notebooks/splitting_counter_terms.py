@@ -28,8 +28,9 @@ def _(mo):
     mo.md(r"""
     # Splitting counter terms
 
-    A Symbolica-only reconstruction of the real collinear counter terms in
-    `splitting_counter_term_computation.tex`.
+    A Symbolica-only reconstruction of the real collinear counter terms
+    derived in the "Splitting counter-term calculation" end matter of
+    [`paper/main.tex`](../../../paper/main.tex).
 
     The hard Born contribution is opaque. The calculation manipulates only
     its external spin or polarization connector and replaces a recognized
@@ -44,7 +45,9 @@ def _():
 
     from symbolica import Expression, get_version, set_license_key
 
-    symbolica_license_key = os.environ.get("SYMBOLICA_LICENSE_KEY")
+    symbolica_license_key = os.environ.get("SYMBOLICA_LICENSE_KEY") or os.environ.get(
+        "SYMBOLICA_LICENSE"
+    )
     if symbolica_license_key:
         set_license_key(symbolica_license_key)
 

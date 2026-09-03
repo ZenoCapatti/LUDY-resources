@@ -5,6 +5,12 @@ from dataclasses import dataclass
 from symbolica import Expression, S
 
 
+def symbols(*names: str) -> tuple[Expression, ...]:
+    """Create multiple plain Symbolica symbols with a precise return type."""
+
+    return tuple(S(name) for name in names)
+
+
 @dataclass(frozen=True)
 class Kinematics:
     """Sudakov identities with x assigned to the hard daughter."""
@@ -54,7 +60,7 @@ class Kinematics:
 
 
 def make_kinematics() -> Kinematics:
-    d, epsilon, x, p2, transverse2, lightcone_dot, cutoff2, mu2, lam = S(
+    d, epsilon, x, p2, transverse2, lightcone_dot, cutoff2, mu2, lam = symbols(
         "d",
         "epsilon",
         "x",
@@ -65,9 +71,9 @@ def make_kinematics() -> Kinematics:
         "mu2",
         "lambda",
     )
-    sigma, quark, gluon = S("sigma", "q", "g")
+    sigma, quark, gluon = symbols("sigma", "q", "g")
     born_quark, born_gluon = sigma(quark), sigma(gluon)
-    theta, delta = S("Theta", "Delta")
+    theta, delta = symbols("Theta", "Delta")
     return Kinematics(
         d=d,
         epsilon=epsilon,
@@ -91,13 +97,22 @@ def canonical(expression: Expression) -> Expression:
     return expression.together().cancel()
 
 
-def symbolic_difference(left: Expression, right: Expression) -> Expression:
-    return canonical(left - right)
+def _as_expression(value: Expression | int) -> Expression:
+    if isinstance(value, Expression):
+        return value
+    return Expression.num(value)
+
+
+def symbolic_difference(
+    left: Expression | int,
+    right: Expression | int,
+) -> Expression:
+    return canonical(_as_expression(left) - _as_expression(right))
 
 
 def assert_symbolic_equal(
-    left: Expression,
-    right: Expression,
+    left: Expression | int,
+    right: Expression | int,
     label: str,
 ) -> None:
     difference = symbolic_difference(left, right)

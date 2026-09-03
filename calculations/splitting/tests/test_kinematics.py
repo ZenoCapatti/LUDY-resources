@@ -1,10 +1,11 @@
-from symbolica import Expression, S
+from symbolica import Expression
 
 from splitting_kernels.kinematics import (
     assert_symbolic_equal,
     collinear_coefficient,
     complement_momentum_fraction,
     make_kinematics,
+    symbols,
 )
 
 
@@ -48,7 +49,7 @@ def test_sudakov_identities_are_symbolica_expressions() -> None:
         / (kinematics.x * (1 - kinematics.x)),
         "virtuality root",
     )
-    sigma, quark, gluon = S("sigma", "q", "g")
+    sigma, quark, gluon = symbols("sigma", "q", "g")
     assert kinematics.born_quark == sigma(quark)
     assert kinematics.born_gluon == sigma(gluon)
 

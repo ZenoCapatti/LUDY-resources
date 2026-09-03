@@ -158,11 +158,12 @@ def integrate_virtual_self_energy(
     )
     scheme_adjusted = canonical(angular_scheme * reduced_exact)
     expansion_series = scheme_adjusted.series(epsilon, 0, 0)
-    expansion = sum(
-        canonical(expansion_series.get_coefficient(power).expand())
-        * epsilon**power
-        for power in (-2, -1, 0)
-    )
+    expansion = Expression.num(0)
+    for power in (-2, -1, 0):
+        expansion += (
+            canonical(expansion_series.get_coefficient(power).expand())
+            * epsilon**power
+        )
     expansion = normalize_integer_trigamma(expansion)
 
     full_counterterm = canonical(
@@ -298,11 +299,12 @@ def integrate_gluon_virtual_self_energy(
     )
     scheme_adjusted = canonical(angular_scheme * reduced_exact)
     expansion_series = scheme_adjusted.series(epsilon, 0, 0)
-    expansion = sum(
-        canonical(expansion_series.get_coefficient(power).expand())
-        * epsilon**power
-        for power in (-2, -1, 0)
-    )
+    expansion = Expression.num(0)
+    for power in (-2, -1, 0):
+        expansion += (
+            canonical(expansion_series.get_coefficient(power).expand())
+            * epsilon**power
+        )
     expansion = normalize_integer_trigamma(expansion)
     full_counterterm = canonical(
         kinematics.delta(1 - kinematics.x)

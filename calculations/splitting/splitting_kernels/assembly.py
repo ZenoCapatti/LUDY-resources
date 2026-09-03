@@ -10,6 +10,7 @@ from .kinematics import (
     canonical,
     complement_momentum_fraction,
     set_dimension,
+    symbols,
 )
 from .kernels import ap_gq_cdr, ap_gg_cdr, ap_qg_cdr, ap_qq_cdr
 from .normalization import (
@@ -108,7 +109,12 @@ def _distributional_test_function(
     channel: str,
     xi: Expression,
 ) -> Expression:
-    test0, test1, test2, test3 = S("test0", "test1", "test2", "test3")
+    test0, test1, test2, test3 = symbols(
+        "test0",
+        "test1",
+        "test2",
+        "test3",
+    )
     if channel in ("D_qg", "D_gg"):
         # These entries contain a 1/x small-x singularity, so use smooth test
         # functions that vanish at x=0.
@@ -378,7 +384,10 @@ def assemble_nlo_counterterm(
         ),
     )
     residual_matrix = tuple(
-        tuple(canonical(derived - formula) for derived, formula in zip(row, other))
+        (
+            canonical(row[0] - other[0]),
+            canonical(row[1] - other[1]),
+        )
         for row, other in zip(derived_matrix, formula_matrix)
     )
     return NLOCountertermAssembly(
