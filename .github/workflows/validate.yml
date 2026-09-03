@@ -1,0 +1,86 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@v3
+
+      - name: Check Nix flake
+        run: nix flake check
+
+      - name: Check locked Python dependencies
+        run: nix develop .#ci --command uv lock --check
+
+      - name: Sync locked Python environment
+        run: nix develop .#ci --command uv sync --locked
+
+      - name: Check Marimo notebooks
+        run: |
+          nix develop .#ci --command uv run --locked marimo check --strict \
+            notebooks/ludy.py \
+            notebooks/collinear-cone.py \
+            notebooks/marimo-steady-state-slowdown.py \
+            calculations/dy/python/notebook.py \
+            calculations/dy/python/masters.py \
+            calculations/dis/python/notebook.py \
+            calculations/splitting/notebooks/splitting_counter_terms.py
+
+      - name: Type-check splitting calculation
+        run: >-
+          nix develop .#ci --command uv run --locked ty check
+          calculations/splitting/splitting_kernels
+          calculations/splitting/tests
+
+      - name: Detect Symbolica license
+        id: symbolica_license
+        env:
+          SYMBOLICA_LICENSE: ${{ secrets.SYMBOLICA_LICENSE }}
+        run: |
+          if [[ -n "$SYMBOLICA_LICENSE" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Test splitting calculation
+        if: >-
+          github.event_name != 'pull_request' &&
+          steps.symbolica_license.outputs.available == 'true'
+        env:
+          SYMBOLICA_LICENSE: ${{ secrets.SYMBOLICA_LICENSE }}
+        run: nix develop .#ci --command uv run --locked pytest calculations/splitting/tests
+
+      - name: Run side-effect-free DIS self-checks
+        if: >-
+          github.event_name != 'pull_request' &&
+          steps.symbolica_license.outputs.available == 'true'
+        env:
+          SYMBOLICA_LICENSE: ${{ secrets.SYMBOLICA_LICENSE }}
+        run: >-
+          nix develop .#ci --command uv run --locked python -c
+          "from calculations.dis.python.ancillary import self_check as ancillary_check;
+          from calculations.dis.python.masters import normalization_self_checks;
+          from calculations.dis.python.physical import self_check as physical_check;
+          from calculations.dis.python.assembly import self_check as assembly_check;
+          from calculations.dis.python.native_scheme import self_check as native_scheme_check;
+          from calculations.dis.python.mathematica_reference import self_check as mathematica_reference_check;
+          ancillary_check(); normalization_self_checks(); physical_check(); assembly_check();
+          native_scheme_check(); mathematica_reference_check()"

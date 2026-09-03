@@ -1,0 +1,4 @@
+export EDITOR="${EDITOR:-code --wait}"
+
+use flake
+source_env_if_exists .envrc.local

@@ -1,0 +1,523 @@
+from __future__ import annotations
+
+import pytest
+from symbolica import Expression, S
+
+from kirapy.models import (
+    IntegralFamily,
+    KinematicInvariant,
+    Kinematics,
+    KiraProject,
+    Propagator,
+    ReductionBounds,
+    ScalarProductRule,
+)
+from topo1_oracle import TARGET_INDICES
+from topo2_oracle import (
+    TARGET_INDICES as TOPO2_TARGET_INDICES,
+)
+from topo3_oracle import (
+    TARGET_INDICES as TOPO3_TARGET_INDICES,
+)
+from topo4_oracle import (
+    TARGET_INDICES as TOPO4_TARGET_INDICES,
+)
+from topo5_oracle import (
+    TARGET_INDICES as TOPO5_TARGET_INDICES,
+)
+from topo6_oracle import (
+    TARGET_INDICES as TOPO6_TARGET_INDICES,
+)
+from topo7_oracle import (
+    TARGET_INDICES as TOPO7_TARGET_INDICES,
+)
+from topo8_oracle import (
+    TARGET_INDICES as TOPO8_TARGET_INDICES,
+)
+from topo10_oracle import (
+    TARGET_INDICES as TOPO10_TARGET_INDICES,
+)
+from topo11_oracle import (
+    TARGET_INDICES as TOPO11_TARGET_INDICES,
+)
+from topo20_oracle import (
+    TARGET_INDICES as TOPO20_TARGET_INDICES,
+)
+from topo21_oracle import (
+    TARGET_INDICES as TOPO21_TARGET_INDICES,
+)
+
+
+def _symbols(*names: str) -> tuple[Expression, ...]:
+    return tuple(S(name) for name in names)
+
+
+@pytest.fixture
+def topo1_project() -> KiraProject:
+    q1, p1, p2, m, ipp1p2 = _symbols("q1", "p1", "p2", "m", "ipp1p2")
+    family = IntegralFamily(
+        name="topo1",
+        loop_momenta=(q1,),
+        propagators=(
+            Propagator(q1, m**2),
+            Propagator(q1 - p1),
+            Propagator(q1 - p2),
+        ),
+        top_level_sectors=(7,),
+    )
+    kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(m**2, 2),
+            KinematicInvariant(ipp1p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+        symbol_to_replace_by_one=m**2,
+    )
+    return KiraProject(
+        family=family,
+        kinematics=kinematics,
+        targets=tuple(family(*indices) for indices in TARGET_INDICES),
+        bounds=ReductionBounds(sectors=(7,), r=9, s=4, d=2),
+        preferred_masters=tuple(
+            family(*indices)
+            for indices in (
+                (1, 1, 1),
+                (0, 1, 1),
+                (1, 0, 0),
+            )
+        ),
+        check_masters=True,
+        reconstruct_mass=True,
+    )
+
+
+@pytest.fixture
+def topo2_project() -> KiraProject:
+    q1, p1, p2, m, ipp1p2 = _symbols("q1", "p1", "p2", "m", "ipp1p2")
+    family = IntegralFamily(
+        name="topo2",
+        loop_momenta=(q1,),
+        propagators=(
+            Propagator(q1, m**2),
+            Propagator(q1 - p1),
+            Propagator(q1 - p1 - p2),
+        ),
+        top_level_sectors=(7,),
+    )
+    kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(m**2, 2),
+            KinematicInvariant(ipp1p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+        symbol_to_replace_by_one=m**2,
+    )
+    return KiraProject(
+        family=family,
+        kinematics=kinematics,
+        targets=tuple(family(*indices) for indices in TOPO2_TARGET_INDICES),
+        bounds=ReductionBounds(sectors=(7,), r=9, s=4, d=2),
+        preferred_masters=tuple(
+            family(*indices)
+            for indices in (
+                (1, 0, 1),
+                (1, 0, 0),
+            )
+        ),
+        check_masters=True,
+        reconstruct_mass=True,
+    )
+
+
+@pytest.fixture
+def topo3_project() -> KiraProject:
+    q1, p1, p2, m, ipp1p2 = _symbols("q1", "p1", "p2", "m", "ipp1p2")
+    family = IntegralFamily(
+        name="topo3",
+        loop_momenta=(q1,),
+        propagators=(
+            Propagator(q1, m**2),
+            Propagator(q1 - p2),
+            Propagator(q1 - p1 - p2),
+        ),
+        top_level_sectors=(7,),
+    )
+    kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(m**2, 2),
+            KinematicInvariant(ipp1p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+        symbol_to_replace_by_one=m**2,
+    )
+    return KiraProject(
+        family=family,
+        kinematics=kinematics,
+        targets=tuple(family(*indices) for indices in TOPO3_TARGET_INDICES),
+        bounds=ReductionBounds(sectors=(7,), r=9, s=4, d=2),
+        preferred_masters=tuple(
+            family(*indices)
+            for indices in (
+                (1, 0, 1),
+                (1, 0, 0),
+            )
+        ),
+        check_masters=True,
+        reconstruct_mass=True,
+    )
+
+
+@pytest.fixture
+def topo4_project() -> KiraProject:
+    q1, p1, p2, ipp1p2 = _symbols("q1", "p1", "p2", "ipp1p2")
+    family = IntegralFamily(
+        name="topo4",
+        loop_momenta=(q1,),
+        propagators=(
+            Propagator(q1 - p1),
+            Propagator(q1 - p2),
+            Propagator(q1 - p1 - p2),
+        ),
+        top_level_sectors=(7,),
+    )
+    kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(KinematicInvariant(ipp1p2, 2),),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+    )
+    return KiraProject(
+        family=family,
+        kinematics=kinematics,
+        targets=tuple(family(*indices) for indices in TOPO4_TARGET_INDICES),
+        bounds=ReductionBounds(sectors=(7,), r=9, s=4, d=2),
+        preferred_masters=(family(1, 1, 0),),
+        check_masters=True,
+    )
+
+
+@pytest.fixture
+def topo5_project() -> KiraProject:
+    k1, p1, p2, ipp1p2 = _symbols("k1", "p1", "p2", "ipp1p2")
+    family = IntegralFamily(
+        name="topo5",
+        loop_momenta=(k1,),
+        propagators=(
+            Propagator(k1),
+            Propagator(k1 - p1),
+            Propagator(k1 + p2),
+        ),
+        top_level_sectors=(7,),
+    )
+    kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(KinematicInvariant(ipp1p2, 2),),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+    )
+    return KiraProject(
+        family=family,
+        kinematics=kinematics,
+        targets=tuple(family(*indices) for indices in TOPO5_TARGET_INDICES),
+        bounds=ReductionBounds(sectors=(7,), r=9, s=4, d=2),
+        preferred_masters=(family(0, 1, 1),),
+        check_masters=True,
+    )
+
+
+@pytest.fixture
+def topo6_project() -> KiraProject:
+    k1, p1, p2, ipp1p2, ipp2p2 = _symbols(
+        "k1", "p1", "p2", "ipp1p2", "ipp2p2"
+    )
+    family = IntegralFamily(
+        name="topo6",
+        loop_momenta=(k1,),
+        propagators=(
+            Propagator(k1),
+            Propagator(k1 - p1),
+            Propagator(k1 + p2),
+        ),
+        top_level_sectors=(7,),
+    )
+    kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(ipp1p2, 2),
+            KinematicInvariant(ipp2p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, ipp2p2),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+    )
+    return KiraProject(
+        family=family,
+        kinematics=kinematics,
+        targets=tuple(family(*indices) for indices in TOPO6_TARGET_INDICES),
+        bounds=ReductionBounds(sectors=(7,), r=9, s=4, d=2),
+        preferred_masters=(family(0, 1, 1), family(1, 0, 1)),
+        check_masters=True,
+    )
+
+
+@pytest.fixture
+def topo7_project() -> KiraProject:
+    k1, p1, p2, ipp1p1, ipp1p2 = _symbols(
+        "k1", "p1", "p2", "ipp1p1", "ipp1p2"
+    )
+    family = IntegralFamily(
+        name="topo7",
+        loop_momenta=(k1,),
+        propagators=(
+            Propagator(k1),
+            Propagator(k1 - p1),
+            Propagator(k1 + p2),
+        ),
+        top_level_sectors=(7,),
+    )
+    kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(ipp1p1, 2),
+            KinematicInvariant(ipp1p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, ipp1p1),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+    )
+    return KiraProject(
+        family=family,
+        kinematics=kinematics,
+        targets=tuple(family(*indices) for indices in TOPO7_TARGET_INDICES),
+        bounds=ReductionBounds(sectors=(7,), r=9, s=4, d=2),
+        preferred_masters=(family(0, 1, 1), family(1, 1, 0)),
+        check_masters=True,
+    )
+
+
+@pytest.fixture
+def topo8_project() -> KiraProject:
+    k1, p1, p2, ipp1p1, ipp1p2, ipp2p2 = _symbols(
+        "k1", "p1", "p2", "ipp1p1", "ipp1p2", "ipp2p2"
+    )
+    family = IntegralFamily(
+        name="topo8",
+        loop_momenta=(k1,),
+        propagators=(
+            Propagator(k1),
+            Propagator(k1 - p1),
+            Propagator(k1 - p2),
+        ),
+        top_level_sectors=(7,),
+    )
+    kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(ipp1p1, 2),
+            KinematicInvariant(ipp1p2, 2),
+            KinematicInvariant(ipp2p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, ipp1p1),
+            ScalarProductRule(p2, p2, ipp2p2),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+    )
+    return KiraProject(
+        family=family,
+        kinematics=kinematics,
+        targets=tuple(family(*indices) for indices in TOPO8_TARGET_INDICES),
+        bounds=ReductionBounds(sectors=(7,), r=9, s=4, d=2),
+        preferred_masters=tuple(
+            family(*indices)
+            for indices in (
+                (1, 1, 1),
+                (1, 1, 0),
+                (1, 0, 1),
+                (0, 1, 1),
+            )
+        ),
+        check_masters=True,
+    )
+
+
+@pytest.fixture
+def topo10_project() -> KiraProject:
+    q1, p1, p2, msq, ipp1p2 = _symbols(
+        "q1", "p1", "p2", "msq", "ipp1p2"
+    )
+    family = IntegralFamily(
+        name="topo10",
+        loop_momenta=(q1,),
+        propagators=(
+            Propagator(q1),
+            Propagator(q1 - p1),
+            Propagator(q1 - p1 - p2, msq),
+        ),
+        top_level_sectors=(7,),
+    )
+    kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(msq, 2),
+            KinematicInvariant(ipp1p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+        symbol_to_replace_by_one=msq,
+    )
+    return KiraProject(
+        family=family,
+        kinematics=kinematics,
+        targets=tuple(family(*indices) for indices in TOPO10_TARGET_INDICES),
+        bounds=ReductionBounds(sectors=(7,), r=9, s=6, d=3),
+        preferred_masters=tuple(
+            family(*indices) for indices in ((0, 0, 1), (1, 0, 1))
+        ),
+        check_masters=True,
+        reconstruct_mass=True,
+    )
+
+
+@pytest.fixture
+def topo11_project() -> KiraProject:
+    q1, p1, p2, msq, ipp1p1, ipp1p2 = _symbols(
+        "q1", "p1", "p2", "msq", "ipp1p1", "ipp1p2"
+    )
+    family = IntegralFamily(
+        name="topo11",
+        loop_momenta=(q1,),
+        propagators=(
+            Propagator(q1),
+            Propagator(q1 - p1),
+            Propagator(q1 - p1 - p2, msq),
+        ),
+        top_level_sectors=(7,),
+    )
+    kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(msq, 2),
+            KinematicInvariant(ipp1p1, 2),
+            KinematicInvariant(ipp1p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, ipp1p1),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+        symbol_to_replace_by_one=msq,
+    )
+    return KiraProject(
+        family=family,
+        kinematics=kinematics,
+        targets=tuple(family(*indices) for indices in TOPO11_TARGET_INDICES),
+        bounds=ReductionBounds(sectors=(7,), r=9, s=6, d=3),
+        preferred_masters=tuple(
+            family(*indices)
+            for indices in ((0, 0, 1), (1, 0, 1), (1, 1, 0), (1, 1, 1))
+        ),
+        check_masters=True,
+        reconstruct_mass=True,
+    )
+
+
+@pytest.fixture
+def topo20_project() -> KiraProject:
+    q1, p1, p2, msq, ipp1p2 = _symbols(
+        "q1", "p1", "p2", "msq", "ipp1p2"
+    )
+    family = IntegralFamily(
+        name="topo20",
+        loop_momenta=(q1,),
+        propagators=(
+            Propagator(q1),
+            Propagator(q1 - p1),
+            Propagator(q1 - p1 - p2, msq),
+        ),
+        top_level_sectors=(7,),
+    )
+    kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(
+            KinematicInvariant(msq, 2),
+            KinematicInvariant(ipp1p2, 2),
+        ),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+        symbol_to_replace_by_one=msq,
+    )
+    return KiraProject(
+        family=family,
+        kinematics=kinematics,
+        targets=tuple(family(*indices) for indices in TOPO20_TARGET_INDICES),
+        bounds=ReductionBounds(sectors=(7,), r=9, s=4, d=2),
+        preferred_masters=tuple(
+            family(*indices) for indices in ((0, 0, 1), (1, 0, 1))
+        ),
+        check_masters=True,
+        reconstruct_mass=True,
+    )
+
+
+@pytest.fixture
+def topo21_project() -> KiraProject:
+    q1, p1, p2, ipp1p2 = _symbols("q1", "p1", "p2", "ipp1p2")
+    family = IntegralFamily(
+        name="topo21",
+        loop_momenta=(q1,),
+        propagators=(
+            Propagator(q1),
+            Propagator(q1 - p1),
+            Propagator(q1 - p2),
+        ),
+        top_level_sectors=(7,),
+    )
+    kinematics = Kinematics(
+        incoming_momenta=(p1, p2),
+        kinematic_invariants=(KinematicInvariant(ipp1p2, 2),),
+        scalar_products=(
+            ScalarProductRule(p1, p1, 0),
+            ScalarProductRule(p2, p2, 0),
+            ScalarProductRule(p1, p2, ipp1p2),
+        ),
+    )
+    return KiraProject(
+        family=family,
+        kinematics=kinematics,
+        targets=tuple(family(*indices) for indices in TOPO21_TARGET_INDICES),
+        bounds=ReductionBounds(sectors=(7,), r=9, s=4, d=2),
+        preferred_masters=(family(0, 1, 1),),
+        check_masters=True,
+    )

@@ -1,0 +1,39 @@
+[build-system]
+requires = ["uv_build>=0.11.6,<0.12"]
+build-backend = "uv_build"
+
+[project]
+name = "kirapy"
+version = "0.1.0"
+description = "A small Symbolica-native Python wrapper around the external Kira executable"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "PyYAML>=6.0",
+    "symbolica @ git+https://github.com/symbolica-dev/symbolica.git@d6bb961d22c026c4866b2e698f56fbb964c4ee0e",
+]
+classifiers = [
+    "Private :: Do Not Upload",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+
+[tool.uv]
+package = true
+
+[tool.uv.extra-build-dependencies]
+symbolica = ["maturin==1.14.1"]
+
+[tool.uv.build-backend]
+module-name = "kirapy"
+module-root = "src"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ty>=0.0.65",
+    "uv-build>=0.11.6,<0.12",
+]
+build = [
+    "maturin==1.14.1",
+]
