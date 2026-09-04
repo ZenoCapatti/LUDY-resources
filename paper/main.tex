@@ -55,6 +55,7 @@ floatfix,
 }
 
 \usepackage{slashed}
+\usepackage[normalem]{ulem}
 \usepackage{graphicx}% Include figure files
 \usepackage{dcolumn}% Align table columns on decimal point
 \usepackage{bm}% bold math
@@ -98,7 +99,10 @@ CERN, Theory Department, 1211 Geneva 23, Switzerland
              %  but any date may be explicitly specified
 
 \begin{abstract}
-We present an initial-state implementation of the Kinoshita-Lee-Nauenberg theorem that is compatible with collinear factorisation, in which hadronic cross-sections express as convolutions of parton distribution functions with partonic cross-sections obtained by summing over the multiplicity of initial-state partons. The partonic cross-section is infrared finite without the need of a renormalisation procedure by virtue of the Kinoshita-Lee-Nauenberg theorem and can be computed analytically using Reverse Unitarity or directly in four dimensions by Monte Carlo methods, within the Local Unitarity approach, which realises infrared finiteness locally. We explicitly perform analytic and numerical computations of the Next-To-Leading Order, Leading-Power partonic cross-sections for the Deep Inelastic Scattering, Drell-Yan and $t\bar{t}$ production processes within this framework and show that they turn into their $\overline{\text{MS}}$ counter-parts by universal scheme changing counter-terms. This work sets the foundations for a next-generation computational approach for hadronic cross-sections within the Local Unitarity method.
+We present an initial-state implementation of the Kinoshita-Lee-Nauenberg theorem that is compatible with collinear factorisation, in which hadronic cross-sections express as convolutions of parton distribution functions with partonic cross-sections obtained by summing over the multiplicity of initial-state partons. 
+The partonic cross-section is infrared finite without the need of a renormalisation procedure by virtue of the Kinoshita-Lee-Nauenberg theorem and can be computed analytically using Reverse Unitarity or directly in four dimensions by Monte Carlo methods, within the Local Unitarity approach, which realises infrared finiteness locally. 
+We explicitly perform analytic and numerical computations of the Next-To-Leading Order, Leading-Power partonic cross-sections for the Deep Inelastic Scattering, Drell-Yan and $t\bar{t}$ production processes within this framework and show that they turn into their $\overline{\text{MS}}$ counter-parts by universal scheme changing counter-terms. 
+This work sets the foundations for a next-generation computational approach for hadronic cross-sections within the Local Unitarity method.
 \end{abstract}
 
 %\keywords{Suggested keywords}%Use showkeys class option if keyword
@@ -109,15 +113,28 @@ We present an initial-state implementation of the Kinoshita-Lee-Nauenberg theore
 
 \section{\label{sec:level1}Introduction}
 
-Precise predictions for high-energy hadron collider experiments require theoretical control over a wide spectrum of energy scales. However, Quantum Chromodynamics (QCD) admits perturbative and non-perturbative regimes in this range, requiring a matching procedure. %Hence, a core problem is to match the perturbative and non-perturbative regimes or, more precisely, relating the scattering of asymptotic quarks and gluons to that of hadrons. 
+Precise predictions for high-energy hadron collider experiments require theoretical control over a wide spectrum of energy scales. 
+However, Quantum Chromodynamics (QCD) admits perturbative and non-perturbative regimes in this range, requiring a matching procedure. 
+%Hence, a core problem is to match the perturbative and non-perturbative regimes or, more precisely, relating the scattering of asymptotic quarks and gluons to that of hadrons. 
 
-In practice, one must relate the scattering of asymptotic quarks and gluons to that of hadrons. A guiding principle is infrared (IR) safety: physical cross-sections must remain finite in dimensional regularisation, while large logarithms associated with unresolved soft and collinear radiation must admit resummation. These properties follow from two results: the Kinoshita-Lee-Nauenberg (KLN) theorem~\cite{Kinoshita:1962ur,PhysRev.133.B1549}, which states that initial/final-state IR poles cancel upon summing over the number of degenerate massless particles in the initial/final state of the collision, and factorisation~\cite{PhysRevD.8.3633,DAVIDPOLITZER1974129,Altarelli:1979ub,Collins:1981ta,Collins:1981tt,Collins:1983ju,Collins:1983pk,Collins:1985ue,Collins:1989gx,Bodwin:1984hc,Ellis:1978ty}, which states that IR poles and logarithms factorise universally from the cross-section, consistently with the principle of scale separation. 
+In practice, one must relate the scattering of asymptotic quarks and gluons to that of hadrons. 
+A guiding principle is infrared (IR) safety: physical cross-sections must remain finite in dimensional regularisation, while large logarithms associated with unresolved soft and collinear radiation must admit resummation. 
+These properties follow from two results: the Kinoshita-Lee-Nauenberg (KLN) theorem~\cite{Kinoshita:1962ur,PhysRev.133.B1549}, which states that initial/final-state IR poles cancel upon summing over the number of degenerate massless particles in the initial/final state of the collision, and factorisation~\cite{PhysRevD.8.3633,DAVIDPOLITZER1974129,Altarelli:1979ub,Collins:1981ta,Collins:1981tt,Collins:1983ju,Collins:1983pk,Collins:1985ue,Collins:1989gx,Bodwin:1984hc,Ellis:1978ty}, which states that IR poles and logarithms factorise universally from the cross-section, consistently with the principle of scale separation. 
 
-These principles are applied asymmetrically to hadronic cross-sections, which are computed at fixed initial-state parton multiplicity but arbitrary final-state multiplicity. Final-state IR poles cancel by virtue of the KLN theorem, whereas initial-state collinear poles are factorised and absorbed into a redefinition of the Parton Distribution Functions (PDFs). Initial-state soft poles cancel in the sum over diagrams. %This asymmetry suggests that collinear factorisation and the KLN theorem may be deeply related.
+These principles are applied asymmetrically to hadronic cross-sections, which are computed at fixed initial-state parton multiplicity but arbitrary final-state multiplicity. 
+Final-state IR poles cancel by virtue of the KLN theorem, whereas initial-state collinear poles are factorised and absorbed into a redefinition of the Parton Distribution Functions (PDFs). Initial-state soft poles cancel in the sum over diagrams. 
 
-In this paper, we investigate an initial-state implementation of the KLN theorem in which partonic cross-sections are obtained by summing over multiplicities of both initial- and final-state massless partons, guaranteeing KLN-driven cancellation in both the initial and final states. We compute analytically and numerically the Next-to-Leading Order (NLO) cross-sections for Deep Inelastic Scattering (DIS), the Drell-Yan (DY) process, and $t\bar{t}$ production. We perform analytic calculations by the Reverse Unitarity (RU) method~\cite{Anastasiou:2002qz,Anastasiou:2002yz,Anastasiou:2003yy,Anastasiou:2013mca,Anastasiou:2013srw}, and numerical ones by the Local Unitarity (LU) method~\cite{Capatti:2020xjc,Capatti:2021bsm,Capatti:2022tit,Capatti:2025khs}.
+%This asymmetry suggests that collinear factorisation and the KLN theorem may be deeply related.
 
-At leading power in a natural virtuality expansion unique to our framework, partonic cross-sections are IR-finite, without the need for a renormalisation procedure, evolve according to DGLAP equations~\cite{Altarelli:1977zs,Dokshitzer:1977sg,Gribov:1968ia,Gribov:1972ri} and turn into their $\overline{\text{MS}}$ parton model counterparts by a universal redefinition of the PDFs. In this way, we reconcile for the first time an initial-state implementation of the KLN theorem with collinear factorisation. In turn, this framework provides a new way to compute $\overline{\text{MS}}$ hadronic cross-sections. First, the KLN-finite cross-section is computed within the LU approach in four dimensions using Monte Carlo methods. Then, the numerical cross-section is converted to the $\overline{\text{MS}}$ scheme by adding a universal, analytically precomputed scheme-changing counterterm. %Due to the flexibility of Monte Carlo methods, this method has a great potential for automation. 
+In this paper, we investigate an initial-state implementation of the KLN theorem in which partonic cross-sections are obtained by summing over multiplicities of both initial- and final-state massless partons, guaranteeing KLN-driven cancellation in both the initial and final states. 
+We compute analytically and numerically the Next-to-Leading Order (NLO) cross-sections for Deep Inelastic Scattering (DIS), the Drell-Yan (DY) process, and $t\bar{t}$ production. 
+We perform analytic calculations using the Reverse Unitarity (RU) method~\cite{Anastasiou:2002qz,Anastasiou:2002yz,Anastasiou:2003yy,Anastasiou:2013mca,Anastasiou:2013srw}, and numerical ones using the Local Unitarity (LU) method~\cite{Capatti:2020xjc,Capatti:2021bsm,Capatti:2022tit,Capatti:2025khs}.
+
+At leading power in a {\color{green} \sout{ natural}} virtuality expansion unique{\color{green}ly natural} in our framework, partonic cross-sections are IR-finite, without the need for a renormalisation procedure, evolve according to DGLAP equations~\cite{Altarelli:1977zs,Dokshitzer:1977sg,Gribov:1968ia,Gribov:1972ri} and turn into their $\overline{\text{MS}}$ parton model counterparts by a universal redefinition of the PDFs. 
+In this way, we reconcile for the first time an initial-state implementation of the KLN theorem with collinear factorisation. 
+In turn, this framework provides a new way to compute $\overline{\text{MS}}$ hadronic cross-sections. 
+First, the KLN-finite cross-section is computed within the LU approach in four dimensions using Monte Carlo methods. 
+Then, the numerical cross-section is converted to the $\overline{\text{MS}}$ scheme by adding a universal, analytically precomputed scheme-changing counterterm. %Due to the flexibility of Monte Carlo methods, this method has a great potential for automation. 
 
 
 
@@ -144,7 +161,8 @@ The $n$ partons are clustered in a compound object with momentum $p$ by the foll
 \label{eq:1_clustering}
 \mathrm{d}\Pi_n^\mathbf{p}=\mathrm{d}\Pi_n\frac{\delta(q_{1n}-p)\delta_{\mathfrak{a},\mathfrak{q}_{1n}}}{4\pi\langle\mathfrak{a}\rangle}.
 \end{equation}
-with $q_{1n}=q_1+...+q_n$ and $\mathfrak{q}_{1n}=\mathfrak{q}_1+...+\mathfrak{q}_n$. $\mathbf{p}=(p,\mathfrak{a})$ is the tuple of the momentum $p$ of the cluster and its quark number $\mathfrak{a}\in\mathbb{Z}$.  The quark number of the $i$-th parton is $\mathfrak{q}_i=1$ for a quark, $\mathfrak{q}_i=-1$ for an anti-quark, and $\mathfrak{q}_i=0$ for a gluon. $\langle\mathfrak{a}\rangle=2N_c$ for $\mathfrak{a}=q,\bar{q}$, and $\langle\mathfrak{a}\rangle=(d-2)(N_c^2-1)$ for $\mathfrak{a}=g$. Eq.~\eqref{eq:1_clustering} imposes that the momenta and quark numbers of the $n$ initial-state partons must sum up to a the cluster's momentum $p$ and quark number $\mathfrak{a}$.
+with $q_{1n}=q_1+...+q_n$ and $\mathfrak{q}_{1n}=\mathfrak{q}_1+...+\mathfrak{q}_n$. $\mathbf{p}=(p,\mathfrak{a})$ is the tuple of the momentum $p$ of the cluster and its quark number $\mathfrak{a}\in\mathbb{Z}$.  
+The quark number of the $i$-th parton is $\mathfrak{q}_i=1$ for a quark, $\mathfrak{q}_i=-1$ for an anti-quark, and $\mathfrak{q}_i=0$ for a gluon. $\langle\mathfrak{a}\rangle=2N_c$ for $\mathfrak{a}=q,\bar{q}$, and $\langle\mathfrak{a}\rangle=(d-2)(N_c^2-1)$ for $\mathfrak{a}=g$. Eq.~\eqref{eq:1_clustering} imposes that the momenta and quark numbers of the $n$ initial-state partons must sum up to a the cluster's momentum $p$ and quark number $\mathfrak{a}$.
 
 We cluster $n$ partons into two compound objects with momenta $p_1$ and $p_2$ by distributing them according to:
 \begin{equation}
@@ -280,7 +298,7 @@ $\bar{\xi}=1-\xi$, $c_{gq}=T_F$, $c_{qq}=c_{qg}=C_F$ and $c_{gg}=C_A$. $P_{\math
 
 \section{\label{sec:level2}Reverse Unitarity computation}
 
-We now compute the NLO DIS and DY cross sections in the LU scheme using Reverse Unitarity, providing two benchmark tests of the correctness and universality of the splitting counter-terms of eq.~\eqref{eq:splitting_cts_nlo}. In the following, we will use $f=f^{(0)}+a_s f^{(1)}+\mathcal{O}(a_s)$ for the coupling expansion of the observable $f$.
+We now compute the NLO DIS and DY cross sections in the LU scheme using Reverse Unitarity, providing two benchmark tests of the correctness and universality of the splitting counter-terms of eq.~\eqref{eq:splitting_cts_nlo}. In the following, we will use $f=f^{(0)}+a_s f^{(1)}+\mathcal{O}(a_s)$ {\color{red}$a_s=\alpha_s/(4\pi)$} for the coupling expansion of the observable $f$.
 
 \underline{\textbf{DIS}}: The structure functions are obtained from the partonic tensor by projection of the partonic tensors with the usual projectors, $F_{a\mathfrak{q}}=\mathrm{P}_a^{\mu\nu}(W_{\mathfrak{q}})_{\mu\nu}$. We obtained in ref.~\cite{Capatti:2025gqj} that, for a quark:
 \begin{align}
