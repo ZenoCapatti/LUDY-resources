@@ -72,6 +72,34 @@ the `epsilon^-2` and `epsilon^-1` endpoint coefficients, and checks the full
 finite delta/plus result against the graph ledger. The longitudinal qg check
 also verifies `2 triangle - box - bubble = 0` before integration.
 
+## Reproduce the result as a plain Python command
+
+The physical notebook is also an ordinary Python entry point. A reader can
+reproduce the result without starting the Marimo editor, server, or CLI by
+explicitly allowing all 18 Kira reductions to run or resume:
+
+```console
+$ direnv exec . nix develop --command uv run --locked python calculations/dy/python/notebook.py --results --run-reductions
+```
+
+This creates fingerprinted reduction data under the ignored
+`calculations/dy/python/runs/kirapy/graph-v3/` tree. A later invocation can use
+those compatible caches in load-only mode and will not launch Kira:
+
+```console
+$ direnv exec . nix develop --command uv run --locked python calculations/dy/python/notebook.py --results
+```
+
+Add `--json` to either command for deterministic machine-readable output. The
+physical coefficients and exact validation checks are the only content
+written to standard output; notebook diagnostics and Kira progress go to
+standard error. The command exits successfully only when all 18 reductions
+are compatible and complete and every reported pole, compact-form, and
+physical-handoff check passes. Missing or incompatible caches in load-only
+mode, an incomplete reduction, or an inconsistent result produces a `FAIL`
+report and a nonzero exit status. The report is assembled from the native
+physical handoff; the paper forms enter only through downstream residuals.
+
 The final validation appendix keeps three scientific objects distinct: the consistently
 transverse native reconstruction, the presentation transcribed from saved Mathematica output, and the
 manuscript equations 317--318 used as the physical targets. Their nonzero

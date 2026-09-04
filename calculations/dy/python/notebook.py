@@ -17,7 +17,7 @@ with app.setup(hide_code=True):
         if _path not in _sys.path:
             _sys.path.insert(0, _path)
 
-    from calculations.dy.python.masters import typst_md as _typst_md
+    from notebooks.typst_marimo import typst_md as _typst_md
 
     # Typst source cells retain Marimo's prose styling while remaining fully
     # editable as source, just like native Markdown cells.
@@ -4503,4 +4503,6 @@ def _(
 
 
 if __name__ == "__main__":
-    app.run()
+    from calculations.dy.python.results import main as _results_main
+
+    raise SystemExit(_results_main(app))

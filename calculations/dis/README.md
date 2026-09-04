@@ -273,6 +273,35 @@ $ nix develop
 $ uv sync --locked
 ```
 
+### Reproduce the result as a plain Python command
+
+The focused notebook is also an ordinary Python entry point. A reader can
+reproduce the result without starting the Marimo editor, server, or CLI by
+explicitly allowing all required Kira reductions to run or resume:
+
+```console
+$ direnv exec . nix develop --command uv run --locked python calculations/dis/python/notebook.py --results --run-reductions
+```
+
+This creates fingerprinted reduction data under the ignored
+`runs/dis-paper-kirapy/` and `runs/dis-paper-raised-external-kirapy/`
+directories. A later invocation can use those compatible caches in load-only
+mode and will not launch Kira:
+
+```console
+$ direnv exec . nix develop --command uv run --locked python calculations/dis/python/notebook.py --results
+```
+
+Add `--json` to either command for deterministic machine-readable output. The
+native coefficient functions and exact validation checks are the only content
+written to standard output; notebook diagnostics and Kira progress go to
+standard error. The command exits successfully only when all 16 ordinary and
+two raised-external reductions are compatible and complete, every required
+native audit passes, and all reported residuals vanish. Missing or
+incompatible caches in load-only mode, an incomplete reduction, or an
+inconsistent result produces a `FAIL` report and a nonzero exit status. The
+report never substitutes the paper target for a missing native result.
+
 The local source, master, topology, and API checks are side-effect-free and do
 not launch Kira:
 

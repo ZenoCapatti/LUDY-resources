@@ -5,13 +5,10 @@ app = marimo.App(width="medium")
 
 
 with app.setup(hide_code=True):
+    from contextlib import nullcontext
     from math import prod
     from pathlib import Path
     import sys
-
-    import marimo as _marimo
-    from symbolica import E, S, Expression
-    from symbolica.community.spenso import Representation, TensorName, dot
 
     repository_root = Path(__file__).resolve().parents[3]
     _notebook_root = repository_root / "notebooks"
@@ -19,58 +16,71 @@ with app.setup(hide_code=True):
         if _path not in sys.path:
             sys.path.insert(0, _path)
 
-    from calculations.dis.python.ancillary import ANCILLARY_SPECS
-    from calculations.dis.python.assembly import (
-        audit_raised_external_reductions,
-        build_master_insertion_audit,
-        build_raised_external_kira_projects,
-        build_raised_external_master_boundaries,
-    )
-    from calculations.dis.python.masters import (
-        MASTER_SUPPORT,
-        NORMALIZATION_SELF_CHECKS,
-        massless_cut_bubble,
-        massless_cut_triangle,
-        normalization_ledger as master_normalization_ledger,
-        paper_cut_bubble,
-        paper_cut_triangle,
-        paper_uncut_bubble,
-        uncut_bubble,
-    )
-    from calculations.dis.python.native_scheme import (
-        audit_native_dis_scheme_change,
-    )
-    from calculations.dis.python.physical import (
-        DISGraphTopology,
-        DISKinematics,
-        DISRootedTopology,
-        DistributionCoefficient,
-        MomentumCombination,
-        NORMALIZATION_LEDGER,
-        PAPER_TARGETS,
-        audit_kira_master_coefficients,
-        audit_projected_numerator_reductions,
-        build_kira_numerator_handoffs,
-        build_kira_smoke_projects,
-        build_structural_cut_ledger,
-        build_validation_ledger,
-        compile_dis_graph_specs,
-        crossed_box_apart,
-        derive_projected_numerators,
-    )
-    from calculations.dy.python.physical import (
-        native_dy_one_leg_scheme_kernel,
-    )
-    from calculations.dy.python.masters import typst_md
-    from kirapy import Kira, KiraWorkdirError
-    from notebooks.ludy import (
-        gamma_trace_to_dots,
-        momentum_printer,
-        normalize_rational,
-        replace_all,
-        scalar_printer,
-        spenso_table,
-    )
+    from calculations.dis.python.results import app_stdout_on_stderr
+
+    # Keep machine-readable result stdout free of import-time engine banners.
+    # The context is inactive for ordinary notebook execution and export.
+    with (
+        app_stdout_on_stderr()
+        if "--results" in sys.argv[1:]
+        else nullcontext()
+    ):
+        import marimo as _marimo
+        from symbolica import E, S, Expression
+        from symbolica.community.spenso import Representation, TensorName, dot
+
+        from calculations.dis.python.ancillary import ANCILLARY_SPECS
+        from calculations.dis.python.assembly import (
+            audit_raised_external_reductions,
+            build_master_insertion_audit,
+            build_raised_external_kira_projects,
+            build_raised_external_master_boundaries,
+        )
+        from calculations.dis.python.masters import (
+            MASTER_SUPPORT,
+            NORMALIZATION_SELF_CHECKS,
+            massless_cut_bubble,
+            massless_cut_triangle,
+            normalization_ledger as master_normalization_ledger,
+            paper_cut_bubble,
+            paper_cut_triangle,
+            paper_uncut_bubble,
+            uncut_bubble,
+        )
+        from calculations.dis.python.native_scheme import (
+            audit_native_dis_scheme_change,
+        )
+        from calculations.dis.python.physical import (
+            DISGraphTopology,
+            DISKinematics,
+            DISRootedTopology,
+            DistributionCoefficient,
+            MomentumCombination,
+            NORMALIZATION_LEDGER,
+            PAPER_TARGETS,
+            audit_kira_master_coefficients,
+            audit_projected_numerator_reductions,
+            build_kira_numerator_handoffs,
+            build_kira_smoke_projects,
+            build_structural_cut_ledger,
+            build_validation_ledger,
+            compile_dis_graph_specs,
+            crossed_box_apart,
+            derive_projected_numerators,
+        )
+        from calculations.dy.python.physical import (
+            native_dy_one_leg_scheme_kernel,
+        )
+        from calculations.dy.python.masters import typst_md
+        from kirapy import Kira, KiraWorkdirError
+        from notebooks.ludy import (
+            gamma_trace_to_dots,
+            momentum_printer,
+            normalize_rational,
+            replace_all,
+            scalar_printer,
+            spenso_table,
+        )
 
     _marimo.md = typst_md
     globals()["mo"] = _marimo
@@ -4564,4 +4574,6 @@ def _(spenso_table):
 
 
 if __name__ == "__main__":
-    app.run()
+    from calculations.dis.python.results import run_dis_notebook_cli
+
+    raise SystemExit(run_dis_notebook_cli(app, marimo))
