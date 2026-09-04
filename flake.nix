@@ -47,6 +47,19 @@
               import ./packages/kirapy/nix { pkgs = runtimePkgs; }
             else
               null;
+          paperTexlive = pkgs.texlive.combine {
+            inherit (pkgs.texlive)
+              braket
+              caption
+              carlisle
+              cleveref
+              cm-super
+              latexmk
+              pgfplots
+              revtex
+              scheme-small
+              ;
+          };
         in
         shells
         // {
@@ -55,7 +68,10 @@
             {
               nativeBuildInputs =
                 (old.nativeBuildInputs or [ ])
-                ++ [ pkgs.nodejs ]
+                ++ [
+                  pkgs.nodejs
+                  paperTexlive
+                ]
                 ++ pkgs.lib.optionals (bundledKiraRuntime != null) [
                   bundledKiraRuntime.fermat
                   bundledKiraRuntime.kira
