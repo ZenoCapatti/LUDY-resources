@@ -187,7 +187,7 @@ we write the partonic tensor as a sum over initial-state multiplicities:
 \label{eq:partonic_tensor_MP}
 W_{\mathfrak{a}}^{\mu\nu}(x,q^2;\Lambda^2)= \sum_{\vec{\mathfrak{s}}\in \mathfrak{S}_\infty}\int_0^{\Lambda^2} \frac{\mathrm{d}p^2}{2\pi}W_{\mathfrak{a},\vec{\mathfrak{s}}}^{\mu\nu}(p,q),
 \end{equation}
-where $p=\frac{Q^2}{2xq_-}\eta_++xq_-\frac{p^2}{Q^2}\eta_-$ in light-cone coordinates ($\eta_\pm^2=0$, $\eta_+\cdot \eta_-=1$) and $Q^2=-q^2$. For fixed initial-state multiplicities:
+where $p=\frac{Q^2}{2xq_-}\eta_++xq_-\frac{p^2}{2Q^2}\eta_-$ in light-cone coordinates ($\eta_\pm^2=0$, $\eta_+\cdot \eta_-=2$) and $Q^2=-q^2$. For fixed initial-state multiplicities:
 \begin{equation}
 \label{eq:partonic_tensor_MP_fixed_mult}
 W_{\mathfrak{a},\vec{\mathfrak{s}}}^{\mu\nu}=\text{disc}_{1-x}\int \mathrm{d}\Pi_{|\vec{\mathfrak{s}}|}^\mathbf{p}\mathcal{A}(\vec{\mathfrak{s}} \, \gamma^\star_\mu(q)\rightarrow \vec{\mathfrak{s}} \, \gamma^\star_\nu(q)),
@@ -207,7 +207,7 @@ In DY, instead, two protons scatter and produce QCD radiation and a lepton pair,
 \begin{equation}
 \frac{\mathrm{d}\sigma_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}(\hat{s};\Lambda^2)= \! \sum_{\substack{\mathfrak{s}\in\mathfrak{S}_{\infty} \\ \mathfrak{s}'\in\mathfrak{S}_{\infty} }}\left[\prod_{i=1}^2\int_0^{\Lambda^2}\frac{\mathrm{d}p_i^2}{2\pi}\right]\frac{\mathrm{d}\sigma^{\mathfrak{s}\mathfrak{s}'}_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}(p_1,p_2),
 \end{equation}
-where $p_1=x_1\frac{\sqrt{s}}{2}\eta_++\frac{p_1^2}{x_1\sqrt{s}}\eta_-$, $p_2=x_2\frac{\sqrt{s}}{2}\eta_-+\frac{p_2^2}{x_2\sqrt{s}}\eta_+$ and $\hat{s}=x_1 x_2 s$. The partonic cross-section at fixed multiplicities reads:
+where $p_1=x_1\frac{\sqrt{s}}{2}\eta_++\frac{p_1^2}{2x_1\sqrt{s}}\eta_-$, $p_2=x_2\frac{\sqrt{s}}{2}\eta_-+\frac{p_2^2}{2x_2\sqrt{s}}\eta_+$ and $\hat{s}=x_1 x_2 s$. The partonic cross-section at fixed multiplicities reads:
 \begin{equation}
 \label{eq:DY_partonic_fixed}
 \frac{\mathrm{d}\sigma^{\mathfrak{s}\mathfrak{s}'}_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}=\frac{1}{\hat{s}}\int \mathrm{d}\Pi_{|\mathfrak{s}|}^{\mathbf{p}_1\mathbf{p}_2}\int \mathrm{d}\Pi_f |\mathcal{A}(\mathfrak{s}  \rightarrow \mathfrak{s}' \gamma^\star(k))|^2. 
@@ -278,7 +278,7 @@ D_{\mathfrak q\mathfrak q'}^{(1)}
 \sum_{\mathfrak a \in \mathfrak{S}_1}\int_0^1\mathrm d\xi'\,
 \frac{c_{\mathfrak q\mathfrak a}}{\Gamma(1-\epsilon)}
 \Bigg\{
-\delta_{\mathfrak a\mathfrak q'}\delta(\xi-\xi')
+-\delta_{\mathfrak a\mathfrak q'}\delta(\xi-\xi')
 b_{\partial}^{\mathfrak q\mathfrak a}
 +
 \left[
@@ -299,7 +299,7 @@ P_{\mathfrak q\mathfrak a}^{(0)}(\xi')
 \end{widetext}
 
 {\color{green} Check order of indices parent-child and color factror ordering too}
-$\bar{\xi}=1-\xi$, $c_{gq}=T_F$, $c_{qq}=c_{qg}=C_F$ and $c_{gg}=C_A$. $P_{\mathfrak{q}\mathfrak{q}'}^{(0)}(\xi)$ is the leading-order AP splitting kernel in conventional dimensional regularisation, eqs.~(32)-(35) of ref.~\cite{Catani:1996pk}, stripped of colour factors, while $\big|_{\epsilon^0}$ stresses that the pole is discarded. The $\delta(\xi-\xi')$ pieces originate from the contribution with an additional QCD emission in the final state. Finally, $b_{\partial}^{gq}=1$, $b_{\partial}^{qg}=b_{\partial}^{qq}=1-\epsilon$, $b_{\partial}^{gg}=\tfrac{3(2\epsilon-3)}{4(1-\epsilon)}$ specifies the Feynman gauge boundary terms. Reverse Unitarity calculations require them, whereas Local Unitarity's are organised with $b_{\partial}^{\mathfrak{q}\mathfrak{q}'}=0$.
+$\bar{\xi}=1-\xi$, $c_{qg}=T_F$, $c_{qq}=c_{gq}=C_F$ and $c_{gg}=C_A$. $P_{\mathfrak{q}\mathfrak{q}'}^{(0)}(\xi)$ is the leading-order AP splitting kernel in conventional dimensional regularisation, eqs.~(32)-(35) of ref.~\cite{Catani:1996pk}, stripped of colour factors, while $\big|_{\epsilon^0}$ stresses that the pole is discarded. The $\delta(\xi-\xi')$ pieces originate from the contribution with an additional QCD emission in the final state. Finally, $b_{\partial}^{qg}=1$, $b_{\partial}^{gq}=b_{\partial}^{qq}=1-\epsilon$, $b_{\partial}^{gg}=\tfrac{3(2\epsilon-3)}{4(1-\epsilon)}$ specifies the Feynman gauge boundary terms. Reverse Unitarity calculations require them, whereas Local Unitarity's are organised with $b_{\partial}^{\mathfrak{q}\mathfrak{q}'}=0$.
 
 
 \section{\label{sec:level2}Reverse Unitarity computation}
@@ -321,11 +321,10 @@ We now compute the NLO DIS and DY cross sections in the LU scheme using Reverse 
 \end{align}
 while for a gluon:
 \begin{align}
-\frac{F_{2g}^{\text{LU},(1)}}{e_q^2 T_F x}&= \tilde{P}_{gq}^{(0)}(x)L_x+6x(1-x)-2+\mathcal{O}\left(\Lambda^2\right), \\
-\frac{F_{Lg}^{\text{LU},(1)}}{e_q^2 T_F x}&=4  x(1-x)+\mathcal{O}\left(\Lambda^2\right),
+\frac{F_{2g}^{\text{LU},(1)}}{2e_q^2 T_F x}&= \tilde{P}_{gq}^{(0)}(x)L_x+6x(1-x)-2+\mathcal{O}\left(\Lambda^2\right), \\
+\frac{F_{Lg}^{\text{LU},(1)}}{2e_q^2 T_F x}&=4  x(1-x)+\mathcal{O}\left(\Lambda^2\right),
 \end{align}
-{\color{red} factor 2}
-where $L_x=\log\left(\tfrac{Q^2}{\Lambda^2 x^2}\right)$ and $\mathcal{O}(\Lambda^2)$ absorbs all terms suppressed in ratios of $\Lambda^2$ over $Q^2$ and $(p+q)^2$. $\tilde{P}^{(0)}_{\mathfrak{q}\mathfrak{q}'}$ is the regularised Altarelli-Parisi splitting kernel, eqs.~(C.6)-(C.9) of ref.~\cite{Catani_1997}, stripped of colour factors. 
+where $L_x=\log\left(\tfrac{Q^2}{\Lambda^2 x^2}\right)$ and $\mathcal{O}(\Lambda^2)$ absorbs all terms suppressed in ratios of $\Lambda^2$ over $Q^2$ and $(p+q)^2$. $\tilde{P}^{(0)}_{\mathfrak{q}\mathfrak{q}'}$ is the regularised Altarelli-Parisi splitting kernel, eqs.~(C.6)-(C.9) of ref.~\cite{Catani_1997}, stripped of colour factors. The results for the gluon structure function include a single quark flavour. 
 
 % Each displayed gluon expression is one $q$-or-$\bar q$ summand; the complete one-flavour $\gamma^*g$ result is twice the displayed expression. To check and display factor 2 if necessary
 
@@ -337,7 +336,7 @@ F_{2\mathfrak{q}}^{\overline{\text{MS}}}=\sum_{\mathfrak{q}'}D^{-1}_{\mathfrak{q
 where the $D_{\mathfrak{q} \mathfrak{q}'}$ functions are precisely those of eq.~\eqref{eq:splitting_cts_nlo}, with the Feynman gauge boundary terms, and the $\overline{\text{MS}}$ result is given in refs.~\cite{Bardeen:1978yd}. %The Reverse Unitarity computation naturally captures boundary terms, and provides an independent cross-check of the direct splitting counter-term computation. 
 
 
-\underline{\textbf{DY}}: We can compute the NLO DY cross-section in the same formalism. The Reverse Unitarity computation gives, using $q^2=z \hat{s}$ with $\hat{s}=p_{12}^2$, 
+\underline{\textbf{DY}}: We can compute the NLO DY cross-section in the same formalism. The Reverse Unitarity computation gives, using $q^2=z \hat{s}$, 
 \begin{align}
 &\frac{\mathrm{d}\sigma_{q\bar{q}}^{\text{LU},(1)}}{\mathrm{d}q^2}= \frac{e_q^2 e^2 C_F}{3N_cq^2 \hat{s}}\! \Bigg[ 2\tilde{P}_{qq}^{(0)}(z)L_z -\delta(1-z)\!\nonumber \\
 &+2(1+z^2)\! \left[\frac{\log(1\!-\! z)}{1\!-\!z}\right]_+ +2z-4 \Bigg] \!  +\mathcal{O}\left(\Lambda^2\right), \label{eq:qq_DY}\\
