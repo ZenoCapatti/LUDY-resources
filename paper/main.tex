@@ -207,7 +207,7 @@ In DY, instead, two protons scatter and produce QCD radiation and a lepton pair,
 \begin{equation}
 \frac{\mathrm{d}\sigma_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}(\hat{s};\Lambda^2)= \! \sum_{\substack{\mathfrak{s}\in\mathfrak{S}_{\infty} \\ \mathfrak{s}'\in\mathfrak{S}_{\infty} }}\left[\prod_{i=1}^2\int_0^{\Lambda^2}\frac{\mathrm{d}p_i^2}{2\pi}\right]\frac{\mathrm{d}\sigma^{\mathfrak{s}\mathfrak{s}'}_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}(p_1,p_2),
 \end{equation}
-where $p_i=x_i\frac{\sqrt{s}}{2}\eta_++\frac{p_i^2}{x_i\sqrt{s}}\eta_-$ and $\hat{s}=x_1 x_2 s$. The partonic cross-section at fixed multiplicities reads:
+where $p_1=x_1\frac{\sqrt{s}}{2}\eta_++\frac{p_1^2}{x_1\sqrt{s}}\eta_-$, $p_2=x_2\frac{\sqrt{s}}{2}\eta_-+\frac{p_2^2}{x_2\sqrt{s}}\eta_+$ and $\hat{s}=x_1 x_2 s$. The partonic cross-section at fixed multiplicities reads:
 \begin{equation}
 \label{eq:DY_partonic_fixed}
 \frac{\mathrm{d}\sigma^{\mathfrak{s}\mathfrak{s}'}_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}=\frac{1}{\hat{s}}\int \mathrm{d}\Pi_{|\mathfrak{s}|}^{\mathbf{p}_1\mathbf{p}_2}\int \mathrm{d}\Pi_f |\mathcal{A}(\mathfrak{s}  \rightarrow \mathfrak{s}' \gamma^\star(k))|^2. 
@@ -216,7 +216,7 @@ $\mathbf{p}_1=(p_1,\mathfrak{a})$, $\mathbf{p}_2=(p_2,\mathfrak{b})$ are the mom
 \begin{equation}
 \mathrm{d}\Pi_f=4\pi\langle \mathfrak{a}+\mathfrak{b}\rangle N_{ee} \, \mathrm{d}\Pi_{|\mathfrak{s}'|}^{\mathbf{p}_{X}}  \frac{\mathrm{d}^d k}{(2\pi)^d}\delta^\pm_{q^2}(k).
 \end{equation}
- where $\mathbf{p}_X=(p_1+p_2-k,\mathfrak{a}+\mathfrak{b})$, and $N_{ee}=2e_q^2/(3 q^2)$ is the remainder of the leptonic integration. The Dirac delta function implements the measurement of the invariant mass of the photon, and specifically reads
+ where $\mathbf{p}_X=(p_1+p_2-k,\mathfrak{a}+\mathfrak{b})$, and $N_{ee}=2e^2/(3 q^2)$ is the remainder of the leptonic integration. The Dirac delta function implements the measurement of the invariant mass of the photon, and specifically reads
 \begin{equation}
 \delta^\pm_{m^2}(p)=2\pi i \delta\left (p^2-m^2\right)\Theta(\pm p^0).
 \end{equation}
@@ -324,6 +324,7 @@ while for a gluon:
 \frac{F_{2g}^{\text{LU},(1)}}{e_q^2 T_F x}&= \tilde{P}_{gq}^{(0)}(x)L_x+6x(1-x)-2+\mathcal{O}\left(\Lambda^2\right), \\
 \frac{F_{Lg}^{\text{LU},(1)}}{e_q^2 T_F x}&=4  x(1-x)+\mathcal{O}\left(\Lambda^2\right),
 \end{align}
+{\color{red} factor 2}
 where $L_x=\log\left(\tfrac{Q^2}{\Lambda^2 x^2}\right)$ and $\mathcal{O}(\Lambda^2)$ absorbs all terms suppressed in ratios of $\Lambda^2$ over $Q^2$ and $(p+q)^2$. $\tilde{P}^{(0)}_{\mathfrak{q}\mathfrak{q}'}$ is the regularised Altarelli-Parisi splitting kernel, eqs.~(C.6)-(C.9) of ref.~\cite{Catani_1997}, stripped of colour factors. 
 
 % Each displayed gluon expression is one $q$-or-$\bar q$ summand; the complete one-flavour $\gamma^*g$ result is twice the displayed expression. To check and display factor 2 if necessary
@@ -338,14 +339,14 @@ where the $D_{\mathfrak{q} \mathfrak{q}'}$ functions are precisely those of eq.~
 
 \underline{\textbf{DY}}: We can compute the NLO DY cross-section in the same formalism. The Reverse Unitarity computation gives, using $q^2=z \hat{s}$ with $\hat{s}=p_{12}^2$, 
 \begin{align}
-&\frac{\mathrm{d}\sigma_{q\bar{q}}^{\text{LU},(1)}}{\mathrm{d}q^2}= \frac{e_q^4 C_F}{3N_cq^2 \hat{s}}\! \Bigg[ 2\tilde{P}_{qq}^{(0)}(z)L_z -\delta(1-z)\!\nonumber \\
+&\frac{\mathrm{d}\sigma_{q\bar{q}}^{\text{LU},(1)}}{\mathrm{d}q^2}= \frac{e_q^2 e^2 C_F}{3N_cq^2 \hat{s}}\! \Bigg[ 2\tilde{P}_{qq}^{(0)}(z)L_z -\delta(1-z)\!\nonumber \\
 &+2(1+z^2)\! \left[\frac{\log(1\!-\! z)}{1\!-\!z}\right]_+ +2z-4 \Bigg] \!  +\mathcal{O}\left(\Lambda^2\right), \label{eq:qq_DY}\\
-&\frac{\mathrm{d}\sigma_{qg}^{\text{LU},(1)}}{\mathrm{d}q^2}=\frac{e_q^4 T_F}{3N_cq^2 \hat{s}}\Bigg[
+&\frac{\mathrm{d}\sigma_{qg}^{\text{LU},(1)}}{\mathrm{d}q^2}=\frac{e_q^2 e^2 T_F}{3N_cq^2 \hat{s}}\Bigg[
 \tilde{P}_{gq}^{(0)}(z)\left(L_z+\log(1-z)\right) \nonumber
  \\
  &+\frac{-1+2z-3z^2}{2}\Bigg] +\mathcal{O}\left(\Lambda^2\right), \label{eq:qg_DY}
 \end{align}
-where $L_z=\log(q^2/\Lambda^2z^2)$ and $\mathcal{O}\left(\Lambda^2\right)$ includes all terms suppressed by ratios of $\Lambda^2$ with $\hat{s}$ and $q^2$. {\color{red} changed results above to include full normalisation, also propagated throughout the paper. changed the sign of the logarithm} 
+where $L_z=\log\left(\tfrac{\hat{s}}{\Lambda^2z}\right)=\log\left(\tfrac{q^2}{\Lambda^2z^2}\right)$ and $\mathcal{O}\left(\Lambda^2\right)$ includes all terms suppressed by ratios of $\Lambda^2$ with $\hat{s}$ and $q^2$. {\color{red} changed results above to include full normalisation, also propagated throughout the paper. changed the sign of the logarithm} 
 %The displayed cross-sections are reduced coefficients: the common factor $ e_q^4/(3N_cq^2 \hat{s})$ is suppressed. {\color{green} ask where all these come from $q^2$,$3$, should we include the flux factor? -> definition of xs }
 Eqs.~\eqref{eq:qq_DY} and \eqref{eq:qg_DY} are related to the $\overline{\text{MS}}$ results~\cite{Altarelli:1979ub} by 
 \begin{align}
@@ -364,7 +365,7 @@ We exploit the IR finiteness of $\text{LU}$-scheme hadronic cross-sections to co
 are added to the LU result to match the $\overline{\text{MS}}$-scheme. For DY, one computes the bin contribution
 \begin{equation}
 %\Delta_{ab}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}=
-\int_a^b \mathrm{d}z\frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}}{\mathrm{d}z}=\sum_{G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}}\frac{\Delta_{ab}^G}{4\pi \hat{s}\langle\mathfrak{q}\rangle \langle\mathfrak{q}'\rangle},
+\int_a^b \mathrm{d}z\frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}}{\mathrm{d}z}=\sum_{G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}}\frac{N_{ee}\Delta_{ab}^G}{4\pi \langle\mathfrak{q}\rangle \langle\mathfrak{q}'\rangle},
 \end{equation}
 where
 \begin{equation}
@@ -419,6 +420,8 @@ Finally, the infrared interplay between the multi-partonic contributions and the
 
 \subsection{List of integrals for DIS and DY}
 \label{sec:integrals_DIS_DY}
+
+{\color{red} symmetry factors}
 \textbf{DIS:} For DIS, we have $\Gamma_{q}=\{\triangle,\Box,\bigcirc,\text{lsz}\}$ and $\Gamma_{g}=\{\Box,\timesbox\}$. The corresponding integrals have the form
 \begin{equation}
 \frac{I^{\mu\nu}_{\mathfrak{q}G}}{e_q^2 g^2}= \bar{\mu}^{2\epsilon}\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{\mathfrak{q}G}^{\mu\nu}}{\prod_{j=1}^6 D_j^{\alpha_j^G}},
@@ -465,7 +468,7 @@ and $N_{\Box_2}^{q\bar{q}}=N_{\Box_1}^{q\bar{q}}|_{p_1\leftrightarrow p_2}$.
 \subsection{Analytic calculations}
 \label{sec:AP-splitting-counterterms}
 
-
+\iffalse
 We now outline the computation of the splitting counter-terms, eq.~\eqref{eq:splitting_cts_nlo}. We focus on the $D_{qq}$ as a working example, and work in the axial gauge. To determine it, we must compute the contribution of all the additional cut diagrams introduced on top of the bare parton model. In the axial gauge, all the collinear singularities are in fact contained in only two cut diagrams, shown in fig. . Cut diagrams possessing soft singularities instead cancel each other (fig.), after the virtuality expansion. Thus, at leading power in $\Lambda^2$, the computation reduces to the two cut diagrams of fig. Their contributions read:
 \begin{align}
 I_1&=\int_0^{\Lambda^2}\frac{\mathrm{d}p_1^2}{p_1^2} \int \frac{\mathrm{d}^dk}{(2\pi)^d} C_F N_1\delta^+(p_1-k)\delta^+(k)', \\
@@ -489,7 +492,6 @@ I_2^c&=\int_0^{\Lambda^2}\frac{\mathrm{d}p_1^2}{(p_1^2)^2}\int_0^1 \mathrm{d}\xi
 We solve the last Dirac delta function in $p_1^2$, and perform integration in $k_\perp$. When the derivative in $p_1^2$ hits the integration boundary, we retain the term, multiplied by $a_\partial$. Doing so, we find $I_1+I_2=D_{qq}\otimes\sigma^{(0)}$,
 where $D_{qq}$ is given in eq.~\eqref{eq:splitting_cts_nlo}.
 
-\iffalse
 
 \subsection{Local Unitarity and expansion-by-regions}
 \begin{figure}
