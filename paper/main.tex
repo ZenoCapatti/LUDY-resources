@@ -100,7 +100,7 @@ CERN, Theory Department, 1211 Geneva 23, Switzerland
 
 \begin{abstract}
 We present an initial-state implementation of the Kinoshita-Lee-Nauenberg theorem that is compatible with collinear factorisation, in which hadronic cross-sections express as convolutions of parton distribution functions with partonic cross-sections obtained by summing over the multiplicity of initial-state partons.
-The partonic cross-section is infrared finite without the need of a renormalisation procedure by virtue of the Kinoshita-Lee-Nauenberg theorem and can be computed analytically using Reverse Unitarity or directly in four dimensions by Monte Carlo methods, within the Local Unitarity approach, which realises infrared finiteness locally.
+The partonic cross-section is infrared finite without the need of an infrared renormalisation procedure by virtue of the Kinoshita-Lee-Nauenberg theorem and can be computed analytically using Reverse Unitarity or directly in four dimensions by Monte Carlo methods, within the Local Unitarity approach, which realises infrared finiteness locally.
 We explicitly perform analytic and numerical computations of the Next-To-Leading Order, Leading-Power partonic cross-sections for the Deep Inelastic Scattering, Drell-Yan and $t\bar{t}$ production processes within this framework and show that they turn into their $\overline{\text{MS}}$ counter-parts by universal scheme changing counter-terms.
 This work sets the foundations for a next-generation computational approach for hadronic cross-sections within the Local Unitarity method.
 \end{abstract}
@@ -169,7 +169,7 @@ We cluster $n$ partons into two compound objects with momenta $p_1$ and $p_2$ by
 \label{eq:2_clustering}
 \mathrm{d}\Pi_n^{\mathbf{p}_1\mathbf{p}_2}=\sum_{(S_1,S_2)\in J_n}\frac{\mathrm{d}\Pi_n}{4\pi} \prod_{j=1}^2 \frac{\delta(q_{S_j}-p_j)\delta_{\mathfrak{a}_j,\mathfrak{q}_{S_j}}}{\langle\mathfrak{a}_j\rangle}
 \end{equation}
-with $q_{S_i}=\sum_{j\in S_i} q_j$ and $\mathfrak{q}_{S_j}=\sum_{j\in S_i} \mathfrak{q}_j$, and
+with $q_{S_i}=\sum_{j\in S_i} q_j$ and $\mathfrak{q}_{S_i}=\sum_{j\in S_i} \mathfrak{q}_j$, and
 \begin{equation}
 J_n=\left\{(S_1,S_2)\big|\, S_i\subset\mathbb{Z}_n, \, S_1\cup S_2=\mathbb{Z}_n\right\}.
 \end{equation}
@@ -180,9 +180,9 @@ Each initial-state parton belongs to one or both clusters. The momenta and quark
 
 In DIS, a high energy hadron scatters against an electron. In QCD, the collision takes place through a electro-weak boson probe (here, a photon) with momentum $q$ emitted by the electron with momentum $p_e$. The partonic cross-section is the contraction of the leptonic tensor $L_{\mu\nu}(p_e,q)$ and the partonic tensor $W_{\mathfrak{a}}^{\mu\nu}(x,q^2;\Lambda^2)$ that depends on the Bjorken variable $x$, on $q^2$, and an infrared scale $\Lambda^2$. Given the collections of all partonic sequences:
 \begin{equation}
-\mathfrak{S}_n=\bigcup_{j=0}^n \{q,\bar{q},g\}^j,
+ \mathfrak{S}_n=\bigcup_{j=1}^n \{q,\bar{q},g\}^j,
 \end{equation}
-we write the partonic tensor as a sum over initial-state multiplicities:
+and $\tilde{\mathfrak{S}}_n=\mathfrak{S}_n\cup \emptyset$, we write the partonic tensor as a sum over initial-state multiplicities:
 \begin{equation}
 \label{eq:partonic_tensor_MP}
 W_{\mathfrak{a}}^{\mu\nu}(x,q^2;\Lambda^2)= \sum_{\vec{\mathfrak{s}}\in \mathfrak{S}_\infty}\int_0^{\Lambda^2} \frac{\mathrm{d}p^2}{2\pi}W_{\mathfrak{a},\vec{\mathfrak{s}}}^{\mu\nu}(p,q),
@@ -205,16 +205,16 @@ W_{H}^{\mu\nu}=\sum_{\mathfrak{q}\in\mathfrak{S}_1}\int_x^1 \frac{\mathrm{d}\xi}
 
 In DY, instead, two protons scatter and produce QCD radiation and a lepton pair, whose invariant mass $q^2$ is measured. In QCD, the leptonic phase-space is integrated exactly and factorises multiplicatively. Hence we may consider a final-state photon with mass $q^2$ instead. In our extension, the partonic cross-section reads:
 \begin{equation}
-\frac{\mathrm{d}\sigma_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}(\hat{s};\Lambda^2)= \! \sum_{\substack{\mathfrak{s}\in\mathfrak{S}_{\infty} \\ \mathfrak{s}'\in\mathfrak{S}_{\infty} }}\left[\prod_{i=1}^2\int_0^{\Lambda^2}\frac{\mathrm{d}p_i^2}{2\pi}\right]\frac{\mathrm{d}\sigma^{\mathfrak{s}\mathfrak{s}'}_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}(p_1,p_2),
+\frac{\mathrm{d}\sigma_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}(\hat{s};\Lambda^2)= \! \sum_{\substack{\mathfrak{s}\in\mathfrak{S}_{\infty} \\ \mathfrak{s}'\in\tilde{\mathfrak{S}}_{\infty} }}\left[\prod_{i=1}^2\int_0^{\Lambda^2}\frac{\mathrm{d}p_i^2}{2\pi}\right]\frac{\mathrm{d}\sigma^{\mathfrak{s}\mathfrak{s}'}_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}(p_1,p_2),
 \end{equation}
 where $p_1=x_1\frac{\sqrt{s}}{2}\eta_++\frac{p_1^2}{2x_1\sqrt{s}}\eta_-$, $p_2=x_2\frac{\sqrt{s}}{2}\eta_-+\frac{p_2^2}{2x_2\sqrt{s}}\eta_+$ and $\hat{s}=x_1 x_2 s$. The partonic cross-section at fixed multiplicities reads:
 \begin{equation}
 \label{eq:DY_partonic_fixed}
 \frac{\mathrm{d}\sigma^{\mathfrak{s}\mathfrak{s}'}_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}=\frac{1}{\hat{s}}\int \mathrm{d}\Pi_{|\mathfrak{s}|}^{\mathbf{p}_1\mathbf{p}_2}\int \mathrm{d}\Pi_f |\mathcal{A}(\mathfrak{s}  \rightarrow \mathfrak{s}' \gamma^\star(k))|^2.
 \end{equation}
-$\mathbf{p}_1=(p_1,\mathfrak{a})$, $\mathbf{p}_2=(p_2,\mathfrak{b})$ are the momenta and quark numbers of the two colliding clusters. The final-state integration measure is given by
+$\mathbf{p}_1=(p_1,\mathfrak{a})$, $\mathbf{p}_2=(p_2,\mathfrak{b})$ are the momenta and quark numbers of the two colliding clusters. Letting $q_{\mathfrak{s}}$ and $q_{\mathfrak{s}'}$ be the sum of the partonic momenta in the initial and final state, final states are distributed according to:
 \begin{equation}
-\mathrm{d}\Pi_f=4\pi\langle \mathfrak{a}+\mathfrak{b}\rangle N_{ee} \, \mathrm{d}\Pi_{|\mathfrak{s}'|}^{\mathbf{p}_{X}}  \frac{\mathrm{d}^d k}{(2\pi)^d}\delta^\pm_{q^2}(k).
+\mathrm{d}\Pi_f= N_{ee} \, \mathrm{d}\Pi_{|\mathfrak{s}'|} \frac{\mathrm{d}^d k}{(2\pi)^d}\delta(q_{\mathfrak{s}}-q_{\mathfrak{s}'}-k)\delta^+_{q^2}(k).
 \end{equation}
  where $\mathbf{p}_X=(p_1+p_2-k,\mathfrak{a}+\mathfrak{b})$, and $N_{ee}=2e^2/(3 q^2)$ is the remainder of the leptonic integration. The Dirac delta function implements the measurement of the invariant mass of the photon, and specifically reads
 \begin{equation}
@@ -222,7 +222,7 @@ $\mathbf{p}_1=(p_1,\mathfrak{a})$, $\mathbf{p}_2=(p_2,\mathfrak{b})$ are the mom
 \end{equation}
 Spin and helicities are summed over. The hadronic cross-section is the convolution
 \begin{equation}
-\hspace{-0.05cm}\frac{\mathrm{d}\sigma}{\mathrm{d}q^2}\!=\! \! \left[\prod_{i=1}^2\sum_{\mathfrak{q}_i \in\mathfrak{S}_1}\hspace{-0.075cm}\int \frac{\mathrm{d}\xi_i}{\xi_i}f_{\mathfrak{q}_i}(\xi_i;\Lambda ^2)\right] \!  \frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}}{\mathrm{d}q^2} \!\left(\tfrac{x_i}{\xi_i},\Lambda^2\right)\! .
+\hspace{-0.05cm}\frac{\mathrm{d}\sigma}{\mathrm{d}q^2}\!=\! \! \left[\prod_{i=1}^2\sum_{\mathfrak{q}_i \in\mathfrak{S}_1}\hspace{-0.075cm}\int \frac{\mathrm{d}x_i}{x_i}f_{\mathfrak{q}_i}(x_i;\Lambda ^2)\right] \!  \frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}}{\mathrm{d}q^2} \!\left(\hat{s},\Lambda^2\right)\! .
 \end{equation}
 The $t\bar{t}$ cross-section is obtained by simply swapping the final-state photon with a $t\bar{t}$ pair and changing the final-state phase-space measure $\mathrm{d}\Pi_f$ accordingly.
 
@@ -320,7 +320,7 @@ where $L_x=\log\left(\tfrac{Q^2}{\Lambda^2 x^2}\right)$ and $\mathcal{O}(\Lambda
 
 The result is IR finite, owing to the KLN mechanism, and the scale evolution and longitudinal structure functions take the same form as in the $\overline{\text{MS}}$ parton model. Hence, structure functions can be cast in the $\overline{\text{MS}}$-scheme by a scheme redefinition. More precisely, we find that
 \begin{equation}
-F_{2\mathfrak{q}}^{\overline{\text{MS}}}=\sum_{\mathfrak{q}'}D^{-1}_{\mathfrak{q}\mathfrak{q}'}\otimes F_{2\mathfrak{q}'}^{\text{LU}}+\mathcal{O}(\alpha_s^2,\Lambda^2).
+F_{2\mathfrak{q}}^{\overline{\text{MS}}}=\sum_{\mathfrak{q}'\in\mathfrak{S}_1}D^{-1}_{\mathfrak{q}'\mathfrak{q}}\otimes F_{2\mathfrak{q}'}^{\text{LU}}+\mathcal{O}(\alpha_s^2,\Lambda^2).
 \end{equation}
 where the $D_{\mathfrak{q} \mathfrak{q}'}$ functions are precisely those of eq.~\eqref{eq:splitting_cts_nlo}, with the Feynman gauge boundary terms, and the $\overline{\text{MS}}$ result is given in refs.~\cite{Bardeen:1978yd}. %The Reverse Unitarity computation naturally captures boundary terms, and provides an independent cross-check of the direct splitting counter-term computation.
 
@@ -338,7 +338,7 @@ where $L_z=\log\left(\tfrac{\hat{s}}{\Lambda^2z}\right)=\log\left(\tfrac{q^2}{\L
 %The displayed cross-sections are reduced coefficients: the common factor $ e_q^4/(3N_cq^2 \hat{s})$ is suppressed. {\color{green} ask where all these come from $q^2$,$3$, should we include the flux factor? -> definition of xs }
 Eqs.~\eqref{eq:qq_DY} and \eqref{eq:qg_DY} are related to the $\overline{\text{MS}}$ results~\cite{Altarelli:1979ub} by
 \begin{align}
-\frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\overline{\text{MS}}}}{\mathrm{d}q^2}=\sum_{\mathfrak{q}_1,\mathfrak{q}_2}D^{-1}_{\mathfrak{q}\mathfrak{q}_1}\otimes\frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}^{\text{LU}}}{\mathrm{d}q^2}\otimes D^{-1}_{\mathfrak{q}'\mathfrak{q}_2}+\mathcal{O}(\alpha_s^2,\Lambda^2),
+\frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\overline{\text{MS}}}}{\mathrm{d}q^2}=\sum_{\mathfrak{q}_1,\mathfrak{q}_2\in\mathfrak{S}_1}D^{-1}_{\mathfrak{q}_1\mathfrak{q}}\otimes\frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}^{\text{LU}}}{\mathrm{d}q^2}\otimes D^{-1}_{\mathfrak{q}_2\mathfrak{q}'}+\mathcal{O}(\alpha_s^2,\Lambda^2),
 \end{align}
 
 {\color{green} does the -1 also change the order?}
@@ -368,7 +368,7 @@ where
 \begin{equation}
 \mathrm{d}\Pi_k=\left[\prod_{i=1}^2\frac{\mathrm{d}p_i^2}{2\pi}\Theta(\Lambda^2-p_i^2)\right]\frac{\mathrm{d}^4 k}{(2\pi)^4},
 \end{equation}
-and $N_{\mathfrak{q}\mathfrak{q}'}$ is the numerator, a polynomial in $k, p_1, p_2$, $D_j=q_j^2-m_j^2$. The sum runs over all tuples $C_\sigma=(\sigma,C)\in\mathcal{C}_G$ of cut sets $C\subset E$ and signs $\sigma\in\{\pm 1\}^{|C|}$, compatible with the energy integration and the expansion of the discontinuity in terms of cut diagrams. Each contribution now has, for DY, $|C|=4$ (for $t\bar{t}$, $|C|=5$).
+and $N_{\mathfrak{q}\mathfrak{q}'}$ is the numerator, a polynomial in $k, p_1, p_2$, $D_j=q_j^2-m_j^2$. The sum runs over all tuples $C_\sigma=(\sigma,C)\in\mathcal{C}_G$ of cut sets $C\subset E$ and signs $\sigma\in\{\pm 1\}^{|C|}$, compatible with the energy integration and the expansion of the discontinuity in terms of cut diagrams. Each contribution now has, for DY, $|C|=4$ (for $t\bar{t}$, $|C|=5$). Whenever a cut crosses a repeated propagator, the generalised cutting rule must be used~\cite{Capatti:2022tit}.
 
 The LP contribution is obtained by an asymptotic expansion in $\Lambda^2$, using the expansion-by-regions method~\cite{Chetyrkin:1988zz,Gorishnii:1989dd,etde_6475136,Beneke:1997zp,Jantzen:2011nz,Gardi:2022khw}. We find that all the regions are of hard, (anti-)collinear, soft, soft-(anti-)collinear type:
 \begin{equation}
@@ -412,7 +412,7 @@ Finally, the infrared interplay between the multi-partonic contributions and the
 {\color{red} symmetry factors}
 \textbf{DIS:} For DIS, we have $\Gamma_{q}=\{\triangle,\Box,\bigcirc,\text{lsz}\}$ and $\Gamma_{g}=\{\Box,\timesbox\}$. The corresponding integrals have the form
 \begin{equation}
-\frac{I^{\mu\nu}_{\mathfrak{q}G}}{e_q^2 g^2}= \bar{\mu}^{2\epsilon}\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{\mathfrak{q}G}^{\mu\nu}}{\prod_{j=1}^6 D_j^{\alpha_j^G}},
+\frac{I^{\mu\nu}_{\mathfrak{q}G}}{e_q^2 g_s^2}= \bar{\mu}^{2\epsilon}\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{\mathfrak{q}G}^{\mu\nu}}{\prod_{j=1}^6 D_j^{\alpha_j^G}},
 \end{equation}
 with $D_1=k^2$, $D_2=(k+p)^2$, $D_3=(k+p+q)^2$, $D_4=(k+q)^2$, $D_5=p^2$, $D_6=(p+q)^2$. $\bar{\mu}^{2\epsilon}$ is the usual $\overline{\text{MS}}$ measure. In particular:
 $\boldsymbol{\alpha}^\triangle=[1,1,1,0,1,1]$, $\boldsymbol{\alpha}^\Box=[1,2,1,0,1,0]$,
@@ -427,11 +427,11 @@ N_{q\text{lsz}}^{\mu\nu}&=\text{Tr}[\slashed{p}\gamma^\mu (\slashed{p}+\slashed{
 N_{g\Box}^{\mu\nu}&=\text{Tr}[\slashed{k}\gamma^\sigma (\slashed{k}+\slashed{p}) \gamma^\mu (\slashed{k}+\slashed{p}+\slashed{q})\gamma^\nu (\slashed{k}+\slashed{p})\gamma_\sigma]\\
 N_{g\timesbox}^{\mu\nu}&=\text{Tr}[\slashed{k}\gamma^\sigma (\slashed{k}+\slashed{p}) \gamma^\mu (\slashed{k}+\slashed{p}+\slashed{q})\gamma_\sigma (\slashed{k}+\slashed{q})\gamma^\nu]
 \end{align}
-\textbf{DY, zero bin:} For DY, we have $\Gamma_{q\bar{q}}=\{\triangle, \text{lsz}_1,\text{lsz}_2,\Box_1,\Box_2, \timesbox\}$ and $\Gamma_{qg}=\{\slashed{\triangle},\bigcirc, \Box\}$. The $q\bar{q}$ channel contributions that are localised at $s=q^2$ read:
+\textbf{DY, zero bin:} For DY, we have $\Gamma_{q\bar{q}}=\{\triangle, \text{lsz}_1,\text{lsz}_2,\Box_1,\Box_2, \timesbox\}$ and $\Gamma_{qg}=\{\slashed{\triangle},\bigcirc, \Box\}$. The $q\bar{q}$ channel contributions that are localised at $\hat{s}=q^2$ read:
 \begin{align}
-\frac{I_{G}^{q\bar{q}}}{e_q^2 g^2}&=\bar{\mu}^{2\epsilon}\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{G}^{q\bar{q}} \, \delta_{q^2}^+(p_{12})}{\prod_{j=1}^5 D_j^{\alpha_j^G}},
+\frac{I_{G}^{q\bar{q}}}{e_q^2 g_s^2}&=\bar{\mu}^{2\epsilon}\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{G}^{q\bar{q}} \, \delta_{q^2}^+(p_{12})}{\prod_{j=1}^5 D_j^{\alpha_j^G}},
 \end{align}
-for $G\in\{\triangle,\text{lsz}_1,\text{lsz}_2\}$, with $D_1=k^2$, $D_2=(k+p_1)^2$, $D_3=(k-p_2)^2$, $D_4=p_1^2$, $D_5=p_2^2$. We have $\boldsymbol{\alpha}^{\triangle}=[1,1,1,1,1]$, $\boldsymbol{\alpha}^{\text{lsz}_1}=[1,1,0,2,1]$, $\boldsymbol{\alpha}^{\text{lsz}_2}=[1,1,0,1,2]$, and
+for $G\in\{\triangle,\text{lsz}_1,\text{lsz}_2\}$, with $D_1=k^2$, $D_2=(k+p_1)^2$, $D_3=(k-p_2)^2$, $D_4=p_1^2$, $D_5=p_2^2$. We have $\boldsymbol{\alpha}^{\triangle}=[1,1,1,1,1]$, $\boldsymbol{\alpha}^{\text{lsz}_1}=[1,1,0,2,1]$, $\boldsymbol{\alpha}^{\text{lsz}_2}=[1,0,1,1,2]$, and
 \begin{align}
 N_{\triangle}^{q\bar{q}}&=\text{Tr}[\slashed{p}_1\gamma^\sigma (\slashed{k}+\slashed{p}_1) \gamma^\mu (\slashed{k}-\slashed{p}_2)\gamma_\sigma \slashed{p}_2\gamma_\mu], \\
 N_{\text{lsz}_1}^{q\bar{q}}&=\text{Tr}[\slashed{p}_1\gamma^\sigma \slashed{k} \gamma_\sigma \slashed{p}_1\gamma_\mu \slashed{p}_2\gamma^\mu],
@@ -439,15 +439,15 @@ N_{\text{lsz}_1}^{q\bar{q}}&=\text{Tr}[\slashed{p}_1\gamma^\sigma \slashed{k} \g
 and $N_{\text{lsz}_2}^{q\bar{q}}=N_{\text{lsz}_1}^{q\bar{q}}|_{p_1\leftrightarrow p_2}$.
 {\color{red} comment on soft triangle}
 
-\textbf{DY, spectrum:} For the diagrams that contribute to the entire $z=q^2/s$ spectrum, namely $G\in\{\slashed{\triangle},\Box,\Box_1,\Box_2, \timesbox,\bigcirc\}$, we have
+\textbf{DY, spectrum:} For the diagrams that contribute to the entire $z=q^2/\hat{s}$ spectrum, namely $G\in\{\slashed{\triangle},\Box,\Box_1,\Box_2, \timesbox,\bigcirc\}$, we have
 \begin{equation}
-\frac{I_{G}^{\mathfrak{q}\mathfrak{q}'}}{e_q^2 g^2}=\bar{\mu}^{2\epsilon}\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{G}^{\mathfrak{q}\mathfrak{q}'} \, \delta_{q^2}^+(p_{12}-k)\delta^+_0(k)}{\prod_{j=1}^4 D_j^{\alpha_j^G}}
+\frac{I_{G}^{\mathfrak{q}\mathfrak{q}'}}{e_q^2 g_s^2}=\bar{\mu}^{2\epsilon}\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{G}^{\mathfrak{q}\mathfrak{q}'} \, \delta_{q^2}^+(p_{12}-k)\delta^+_0(k)}{\prod_{j=1}^5 D_j^{\alpha_j^G}}
 \end{equation}
-with $D_1=(k-p_1)^2$, $D_2=(k-p_2)^2$, $D_3=p_1^2$, $D_4=p_2^2$ and $D_5=s$. We now have $\boldsymbol{\alpha}^{\slashed{\triangle}}=[1,0,1,1,1]$, $\boldsymbol{\alpha}^{\Box}=\boldsymbol{\alpha}^{\Box_1}=\boldsymbol{\alpha}^{\Box_2}=[2,0,1,1,0]$, $\boldsymbol{\alpha}^{\Box}=\boldsymbol{\alpha}^{\Box_1}=\boldsymbol{\alpha}^{\timesbox}=[1,1,1,1,0]$, $\boldsymbol{\alpha}^{\bigcirc}=[0,0,1,1,2]$. The numerators read:
+with $p_{12}=p_1+p_2$, $D_1=(k-p_1)^2$, $D_2=(k-p_2)^2$, $D_3=p_1^2$, $D_4=p_2^2$ and $D_5=s$. We now have $\boldsymbol{\alpha}^{\slashed{\triangle}}=[1,0,1,1,1]$, $\boldsymbol{\alpha}^{\Box_1}=[2,0,1,1,0]$, $\boldsymbol{\alpha}^{\Box_2}=[0,2,1,1,0]$, $\boldsymbol{\alpha}^{\timesbox}=[1,1,1,1,0]$, $\boldsymbol{\alpha}^{\bigcirc}=[0,0,1,1,2]$. The numerators read:
 \begin{align}
 N^{qg}_{\slashed{\triangle}}&=\text{Tr}[\slashed{p}_2\gamma^\sigma (\slashed{k}-\slashed{p}_1) \gamma^\mu \slashed{k}\gamma_\sigma (\slashed{p}_1+\slashed{p}_2)\gamma_\mu], \\
 N^{qg}_{\Box}&=\text{Tr}[\slashed{p}_2\gamma^\sigma (\slashed{k}-\slashed{p}_1) \gamma_\mu \slashed{k}\gamma^\mu (\slashed{k}-\slashed{p}_1)\gamma_\sigma],\\
-N^{qg}_{\bigcirc}&=\text{Tr}[\slashed{p}_1\gamma^\sigma \slashed{p}_{12} \gamma_\mu (\slashed{k}-\slashed{p}_{12})\gamma^\mu \slashed{p}_{12}\gamma_\sigma],
+N^{qg}_{\bigcirc}&=\text{Tr}[\slashed{p}_2\gamma^\sigma \slashed{p}_{12} \gamma_\mu (\slashed{k}-\slashed{p}_{12})\gamma^\mu \slashed{p}_{12}\gamma_\sigma],
 \\
 N^{q\bar{q}}_{\Box_1}&=\text{Tr}[\slashed{p}_1\gamma^\sigma (\slashed{k}-\slashed{p}_1) \gamma_\mu \slashed{p}_2\gamma^\mu (\slashed{k}-\slashed{p}_1)\gamma_\sigma],\\
 N^{q\bar{q}}_{\timesbox}&=\text{Tr}[\slashed{p}_1\gamma^\sigma (\slashed{k}-\slashed{p}_1) \gamma^\mu \slashed{p}_2\gamma_\sigma (\slashed{k}-\slashed{p}_2)\gamma_\mu],
