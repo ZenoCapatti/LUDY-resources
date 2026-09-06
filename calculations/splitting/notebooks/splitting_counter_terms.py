@@ -58,7 +58,7 @@ def _():
         build_qg_channel,
         build_qq_channel,
         derive_channel,
-        kernel_qg,
+        kernel_gq,
     )
     from splitting_kernels.colors import make_color_context
     from splitting_kernels.kinematics import (
@@ -123,7 +123,7 @@ def _():
         integrate_gluon_virtual_self_energy,
         integrate_virtual_self_energy,
         joint_collinear_scale,
-        kernel_qg,
+        kernel_gq,
         latex_body,
         make_color_context,
         make_kinematics,
@@ -441,13 +441,13 @@ def _(mo):
                 \left(\frac{e^{\gamma_E}\mu^2}{4\pi}\right)^\epsilon
                 \int_0^{\Lambda^2}\frac{\mathrm dp^2}{2\pi p^2}
                 \int\frac{\mathrm d^dk}{(2\pi)^d}\,
-                \big[\mathcal T_{ij}\circ H_j\big](p,k)\,
+                \big[\mathcal T_{ij}\circ H_i\big](p,k)\,
                 [2\pi\delta^+(k^2)]\,
                 [2\pi\delta^{+\prime}((p-k)^2)]\\
                 &={}\mathcal C_\epsilon
                 \int_0^{\Lambda^2}\frac{\mathrm dp^2}{p^2}
                 \int\frac{\mathrm d^dk}{(2\pi)^d}\,
-                \big[\mathcal T_{ij}\circ H_j\big](p,k)\,
+                \big[\mathcal T_{ij}\circ H_i\big](p,k)\,
                 \delta^+(k^2)\,\delta^{+\prime}((p-k)^2).
                 \end{aligned}
                 $$
@@ -505,7 +505,7 @@ def _(mo):
                 Born; it is not an internal propagator.
 
                 The spin factors multiplying the tensor reductions are
-                $2/(d-2)$ for $D_{gq}$, $1/2$ for $D_{qg}$, and $1$ for
+                $2/(d-2)$ for $D_{qg}$, $1/2$ for $D_{gq}$, and $1$ for
                 $D_{qq}$ and $D_{gg}$; they include the conversion of the
                 external spin sums to the averaged Born functions.
 
@@ -517,7 +517,7 @@ def _(mo):
 
                 No expression inside $H_q$ or $H_g$ is constructed or inspected.
                 The next section specifies the leading-power replacement under
-                which $\mathcal T_{ij}\circ H_j$ becomes a scalar numerator multiplying
+                which $\mathcal T_{ij}\circ H_i$ becomes a scalar numerator multiplying
                 $\sigma(q)$ or $\sigma(g)$.
                 """
             ),
@@ -528,26 +528,26 @@ def _(mo):
 
 @app.cell
 def _(
-    build_gq_channel,
+    build_qg_channel,
     colors,
     gluon_parent_quark_born_numerator,
     kinematics,
     tensors,
 ):
-    gq_polarization_report = gluon_parent_quark_born_numerator(
+    qg_polarization_report = gluon_parent_quark_born_numerator(
         tensors,
         kinematics,
     )
-    assert gq_polarization_report.massless_residual == 0
-    assert gq_polarization_report.p_transverse_residual == 0
-    gq_spec = build_gq_channel(kinematics, tensors, colors)
-    return (gq_spec,)
+    assert qg_polarization_report.massless_residual == 0
+    assert qg_polarization_report.p_transverse_residual == 0
+    qg_spec = build_qg_channel(kinematics, tensors, colors)
+    return (qg_spec,)
 
 
 @app.cell
-def _(build_qg_channel, colors, kinematics, tensors):
-    qg_spec = build_qg_channel(kinematics, tensors, colors)
-    return (qg_spec,)
+def _(build_gq_channel, colors, kinematics, tensors):
+    gq_spec = build_gq_channel(kinematics, tensors, colors)
+    return (gq_spec,)
 
 
 @app.cell
@@ -580,7 +580,7 @@ def _(
 
 @app.cell
 def _(gg_spec, gq_spec, qg_spec, qq_spec):
-    channel_specs = (gq_spec, qg_spec, qq_spec, gg_spec)
+    channel_specs = (qg_spec, gq_spec, qq_spec, gg_spec)
     return (channel_specs,)
 
 
@@ -646,21 +646,21 @@ def _(
 def _(
     assert_symbolic_equal,
     d,
-    kernel_qg,
+    kernel_gq,
     kinematics,
     p2,
-    qg_spec,
+    gq_spec,
     transverse2,
     x,
 ):
-    qg_trace_target = (
+    gq_trace_target = (
         2 * (d - 2) * (1 - x) * p2
-        + 4 * transverse2 * kernel_qg(kinematics) / (x * (1 - x))
+        + 4 * transverse2 * kernel_gq(kinematics) / (x * (1 - x))
     )
     assert_symbolic_equal(
-        qg_spec.raw_numerator,
-        qg_trace_target,
-        "D_qg tensor trace",
+        gq_spec.raw_numerator,
+        gq_trace_target,
+        "D_gq tensor trace",
     )
     return
 
@@ -694,14 +694,14 @@ def _(channel_results, manuscript_latex, mo):
                 $$
                 p^2\mapsto\lambda^2p^2,\qquad
                 |k_\perp|^2\mapsto\lambda^2|k_\perp|^2,\qquad
-                H_j(p-k)\mapsto H_j(xp_+).
+                H_i(p-k)\mapsto H_i(xp_+).
                 $$
 
                 Keeping the coefficient of $\lambda^2$ gives
 
                 $$
-                \big[\mathcal T_{ij}\circ H_j\big]_{\mathrm{LP}}
-                =N_{ij}^{\mathrm{LP}}(x,p^2,|k_\perp|^2)\,\sigma(j).
+                \big[\mathcal T_{ij}\circ H_i\big]_{\mathrm{LP}}
+                =N_{ij}^{\mathrm{LP}}(x,p^2,|k_\perp|^2)\,\sigma(i).
                 $$
 
                 The Symbolica audit finds that all four reduced real
@@ -718,9 +718,9 @@ def _(channel_results, manuscript_latex, mo):
 
                 $$
                 \begin{aligned}
-                \mathcal T_{gq}&=(\slashed p-\slashed k)\gamma^\mu\slashed k
+                \mathcal T_{qg}&=(\slashed p-\slashed k)\gamma^\mu\slashed k
                 \gamma^\nu(\slashed p-\slashed k)d_{\mu\nu}(p;n),\\
-                \mathcal T_{qg}^{\rho\sigma}
+                \mathcal T_{gq}^{\rho\sigma}
                 &=d^{\rho\mu}(p-k;n)d^{\sigma\nu}(p-k;n)
                 \operatorname{Tr}\!\left[
                 \slashed p\gamma_\mu\slashed k\gamma_\nu\right],\\
@@ -752,9 +752,9 @@ def _(channel_results, manuscript_latex, mo):
                 $\delta^{+\prime}((p-k)^2)$, and the Born flux normalization:
 
                 $$
-                \mathcal J_{gq}=\mathcal J_{qq}
+                \mathcal J_{qg}=\mathcal J_{qq}
                 =\frac{1}{2x^2(1-x)p^2},\qquad
-                \mathcal J_{qg}=\mathcal J_{gg}
+                \mathcal J_{gq}=\mathcal J_{gg}
                 =\frac{1}{2x(1-x)p^2}.
                 $$
 
@@ -766,7 +766,7 @@ def _(channel_results, manuscript_latex, mo):
                 &=\mathcal C_\epsilon
                 \int_0^{\Lambda^2}\frac{\mathrm dp^2}{p^2}
                 \int\frac{\mathrm d^dk}{(2\pi)^d}\,
-                N_{ij}^{\mathrm{LP}}\,\sigma(j)\,
+                N_{ij}^{\mathrm{LP}}\,\sigma(i)\,
                 \delta^+(k^2)\,\delta^{+\prime}\!\left((p-k)^2\right)\\
                 &=\mathcal C_\epsilon
                 \int_0^{\Lambda^2}\mathrm dp^2
@@ -775,7 +775,7 @@ def _(channel_results, manuscript_latex, mo):
                 \mathcal W_{ij}}
                 \delta'\!\left(
                 p^2-\frac{|k_\perp|^2}{x(1-x)}
-                \right)\sigma(j).
+                \right)\sigma(i).
                 \end{aligned}
                 $$
 
@@ -1046,15 +1046,15 @@ def _(
     cdr_kernel_symbol,
     epsilon,
     expand_cdr_kernel,
-    gq_spec,
+    qg_spec,
     kinematics,
     p2,
     set_dimension,
     transverse2,
     x,
 ):
-    _gq_fully_normalized_numerator = (
-        4 * gq_spec.color_factor * (1 - x) * x**2 * p2 / (1 - epsilon)
+    _qg_fully_normalized_numerator = (
+        4 * qg_spec.color_factor * (1 - x) * x**2 * p2 / (1 - epsilon)
         + 2
         * transverse2
         * cdr_kernel_symbol("qg", x, epsilon)
@@ -1062,16 +1062,16 @@ def _(
     )
     assert_symbolic_equal(
         expand_cdr_kernel(
-            _gq_fully_normalized_numerator,
-            gq_spec.ap_kernel_name,
+            _qg_fully_normalized_numerator,
+            qg_spec.ap_kernel_name,
             x,
             epsilon,
-            gq_spec.color_factor,
+            qg_spec.color_factor,
         ),
-        set_dimension(gq_spec.raw_numerator, kinematics)
-        * set_dimension(gq_spec.spin_factorization_factor, kinematics)
-        * gq_spec.color_factor,
-        "D_gq color- and spin-averaged Born normalization",
+        set_dimension(qg_spec.raw_numerator, kinematics)
+        * set_dimension(qg_spec.spin_factorization_factor, kinematics)
+        * qg_spec.color_factor,
+        "D_qg color- and spin-averaged Born normalization",
     )
     return
 
@@ -1144,7 +1144,7 @@ def _(
                 \int_0^{\Lambda^2}\mathrm dp^2
                 \int\frac{\mathrm dx\,\mathrm d^{d-2}k_\perp}{(2\pi)^d}
                 \mathcal W_{ij}(x,p^2,|k_\perp|^2)
-                \delta'(p^2-p_0^2)\,\sigma(j).
+                \delta'(p^2-p_0^2)\,\sigma(i).
                 $$
 
                 The $p^2$ integration is the equality
@@ -1157,7 +1157,7 @@ def _(
                 \Big[&-\left.\partial_{p^2}\mathcal W_{ij}\right|_{p^2=p_0^2}
                 \Theta(\Lambda^2-p_0^2)\\
                 &+\mathcal W_{ij}(x,\Lambda^2,|k_\perp|^2)
-                \delta(\Lambda^2-p_0^2)\Big]\sigma(j).
+                \delta(\Lambda^2-p_0^2)\Big]\sigma(i).
                 \end{aligned}
                 $$
 
@@ -1186,7 +1186,7 @@ def _(
                 \Theta\!\left(\Lambda^2-\frac{K}{x(1-x)}\right)\\
                 &\hspace{4.8cm}+\mathcal W_{ij}(x,\Lambda^2,K)
                 \delta\!\left(\Lambda^2-\frac{K}{x(1-x)}\right)
-                \Bigg]\sigma(j).
+                \Bigg]\sigma(i).
                 \end{aligned}
                 $$
 
@@ -1207,7 +1207,7 @@ def _(
                 [\Lambda^2x(1-x)]^{-\epsilon}
                 \mathcal W_{ij}\!\left(
                 x,\Lambda^2,\Lambda^2x(1-x)\right)
-                \Bigg]\sigma(j).
+                \Bigg]\sigma(i).
                 \end{aligned}
                 $$
 
@@ -1243,7 +1243,7 @@ def _(
                 {\epsilon}
                 +x(1-x)\mathcal W_{ij}\!\left(
                 x,\Lambda^2,\Lambda^2x(1-x)\right)
-                \Bigg]\sigma(j).
+                \Bigg]\sigma(i).
                 \end{aligned}
                 $$
 
@@ -1252,7 +1252,7 @@ def _(
                 The coefficients $\widetilde{\mathcal W}_{ij}$ and the
                 integrated terms
                 $-\widetilde{\mathcal W}_{ij}\mathcal R_\epsilon(x)
-                \sigma(j)/\epsilon$ are given by:
+                \sigma(i)/\epsilon$ are given by:
                 """
             ),
             mo.ui.table(phase_space_rows, pagination=False),
@@ -1334,7 +1334,7 @@ def _(
                 \left.\mathcal I_{ij}^{R}\right|_{\partial,-g}
                 =\int_0^1\mathrm dx\,
                 \mathcal R_\epsilon(x)\,
-                B_{ij}^{(-g)}(x,\epsilon)\,\sigma(j).
+                B_{ij}^{(-g)}(x,\epsilon)\,\sigma(i).
                 $$
 
                 The superscript $(-g)$ records one retained metric projector;
@@ -1343,8 +1343,8 @@ def _(
                 The four metric surfaces simplify to
 
                 $$
-                B_{gq}^{(-g)}=T_R,\qquad
-                B_{qg}^{(-g)}=B_{qq}^{(-g)}
+                B_{qg}^{(-g)}=T_R,\qquad
+                B_{gq}^{(-g)}=B_{qq}^{(-g)}
                 =\frac{C_F(d-2)}{2}=C_F(1-\epsilon),
                 $$
 
@@ -1649,15 +1649,16 @@ def _(mo):
     \mathfrak S_1=\{g,q_1,\bar q_1,\ldots,q_{n_f},\bar q_{n_f}\}.
     $$
 
-    The color-stripped kernels in the compact counterterm use the same
-    index order as $D_{\mathfrak q\mathfrak q'}$. Thus the results of
-    Section 1 are inserted through
+    The color-stripped kernels and counterterms use daughter-first DGLAP
+    ordering: the first index is the daughter entering the hard interaction
+    and the second is the parent parton. Thus the results of Section 1 are
+    inserted through
 
     $$
     \begin{aligned}
     c_{qq}P_{qq}^{(0)}&=P_{qq}^{\mathrm{CDR}},&
-    c_{qg}P_{qg}^{(0)}&=P_{gq}^{\mathrm{CDR}},\\
-    c_{gq}P_{gq}^{(0)}&=P_{qg}^{\mathrm{CDR}},&
+    c_{qg}P_{qg}^{(0)}&=P_{qg}^{\mathrm{CDR}},\\
+    c_{gq}P_{gq}^{(0)}&=P_{gq}^{\mathrm{CDR}},&
     c_{gg}P_{gg}^{(0)}&=P_{gg}^{\mathrm{CDR}},
     \end{aligned}
     $$
@@ -1665,20 +1666,19 @@ def _(mo):
     with
 
     $$
-    c_{gq}=T_R,\qquad c_{qg}=c_{qq}=C_F,\qquad c_{gg}=C_A.
+    c_{qg}=T_R,\qquad c_{gq}=c_{qq}=C_F,\qquad c_{gg}=C_A.
     $$
 
     The metric-projector boundaries of Section 5 give
 
     $$
-    b_{\partial}^{gq}=1,\qquad
-    b_{\partial}^{qg}=b_{\partial}^{qq}=1-\epsilon,\qquad
+    b_{\partial}^{qg}=1,\qquad
+    b_{\partial}^{gq}=b_{\partial}^{qq}=1-\epsilon,\qquad
     b_{\partial}^{gg}=-\frac{3(3-2\epsilon)}{4(1-\epsilon)},
     $$
 
     because
-    $c_{\mathfrak q\mathfrak a}b_{\partial}^{\mathfrak q\mathfrak a}
-    =B_{\mathfrak q\mathfrak a}^{(-g)}$ for the first three channels and
+    $c_{aj}b_{\partial}^{aj}=B_{aj}^{(-g)}$ for the first three channels and
     $c_{gg}b_{\partial}^{gg}=B_{gg}^{(-g,-g,-g)}$. The sum over $\mathfrak S_1$
     reproduces the two virtual results of Section 6: for a quark it gives
     $P_{qq}^{\mathrm{CDR}}+P_{gq}^{\mathrm{CDR}}$, while for a gluon it
@@ -1697,20 +1697,20 @@ def _(mo):
 
     $$
     \begin{aligned}
-    D_{\mathfrak q\mathfrak q'}^{(1)}(\xi)
+    D_{ij}^{(1)}(\xi)
     &={}
     \left.
-    \sum_{\mathfrak a\in\mathfrak S_1}\int_0^1\mathrm d\xi'\,
-    \frac{c_{\mathfrak q\mathfrak a}}{\Gamma(1-\epsilon)}
+    \sum_{a\in\mathfrak S_1}\int_0^1\mathrm d\xi'\,
+    \frac{c_{aj}}{\Gamma(1-\epsilon)}
     \Bigg\{
-    \delta_{\mathfrak a\mathfrak q'}\delta(\xi-\xi')
-    b_{\partial}^{\mathfrak q\mathfrak a}
+    \delta_{ia}\delta(\xi-\xi')
+    b_{\partial}^{aj}
         +
         \left[
-    \delta_{\mathfrak a\mathfrak q'}\delta(\xi-\xi')
-    -\frac{\delta_{\mathfrak q\mathfrak q'}\delta(1-\xi)}{2}
+    \delta_{ia}\delta(\xi-\xi')
+    -\frac{\delta_{ij}\delta(1-\xi)}{2}
     \right]
-    \frac{P_{\mathfrak q\mathfrak a}^{(0)}(\xi')}{\epsilon}
+    \frac{P_{aj}^{(0)}(\xi')}{\epsilon}
     \Bigg\}
     \left(
     \frac{\Lambda^2\xi'\bar\xi'}{e^{\gamma_E}\mu^2}

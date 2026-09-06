@@ -65,14 +65,14 @@ class ChannelResult:
 def kernel_gq(kinematics: Kinematics) -> Expression:
     x = kinematics.x
     d = kinematics.d
-    epsilon_d = (4 - d) / 2
-    return canonical(2 * (1 - epsilon_d) * ap_qg_cdr(x, epsilon_d))
+    return ap_gq_cdr(x, (4 - d) / 2)
 
 
 def kernel_qg(kinematics: Kinematics) -> Expression:
     x = kinematics.x
     d = kinematics.d
-    return ap_gq_cdr(x, (4 - d) / 2)
+    epsilon_d = (4 - d) / 2
+    return canonical(2 * (1 - epsilon_d) * ap_qg_cdr(x, epsilon_d))
 
 
 def kernel_qq(kinematics: Kinematics) -> Expression:
@@ -87,17 +87,19 @@ def kernel_gg(kinematics: Kinematics) -> Expression:
     return ap_gg_cdr(x, (4 - d) / 2)
 
 
-def build_gq_channel(
+def build_qg_channel(
     kinematics: Kinematics,
     tensors: TensorContext,
     colors: ColorContext,
 ) -> ChannelSpec:
+    """Build the q <- g channel D_qg using daughter-first ordering."""
+
     x = kinematics.x
     cut_fraction = kinematics.cut_fraction
     p2 = kinematics.p2
     transverse2 = kinematics.transverse2
     epsilon = kinematics.epsilon
-    kernel = kernel_gq(kinematics)
+    kernel = kernel_qg(kinematics)
     ap_kernel = ap_qg_cdr(x, epsilon)
     ap_symbol = ap_kernel_symbol("qg", x, epsilon)
 
@@ -117,7 +119,7 @@ def build_gq_channel(
     manuscript = polarization_sum.p_transverse_polarization_sum
     prefactor = 1 / (2 * cut_fraction * x**2 * p2)
     return ChannelSpec(
-        name="D_gq",
+        name="D_qg",
         born_kind="quark",
         raw_numerator=canonical(raw),
         metric_numerator=canonical(polarization_sum.metric_term),
@@ -138,18 +140,20 @@ def build_gq_channel(
     )
 
 
-def build_qg_channel(
+def build_gq_channel(
     kinematics: Kinematics,
     tensors: TensorContext,
     colors: ColorContext,
 ) -> ChannelSpec:
+    """Build the g <- q channel D_gq using daughter-first ordering."""
+
     x = kinematics.x
     cut_fraction = kinematics.cut_fraction
     d = kinematics.d
     p2 = kinematics.p2
     transverse2 = kinematics.transverse2
     epsilon = kinematics.epsilon
-    kernel = kernel_qg(kinematics)
+    kernel = kernel_gq(kinematics)
     ap_kernel = ap_gq_cdr(x, epsilon)
     ap_symbol = ap_kernel_symbol("gq", x, epsilon)
     tensor_result = gluon_born_reduced_numerator(tensors, kinematics)
@@ -173,7 +177,7 @@ def build_qg_channel(
     # before applying the common phase-space integration.
     prefactor = 1 / (2 * x * cut_fraction * p2)
     return ChannelSpec(
-        name="D_qg",
+        name="D_gq",
         born_kind="gluon",
         raw_numerator=canonical(raw),
         metric_numerator=canonical(tensor_result.metric_term),

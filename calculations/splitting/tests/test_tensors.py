@@ -1,4 +1,4 @@
-from splitting_kernels.channels import kernel_gg, kernel_qg
+from splitting_kernels.channels import kernel_gg, kernel_gq
 from splitting_kernels.kinematics import assert_symbolic_equal, make_kinematics
 from splitting_kernels.tensors import (
     gluon_parent_quark_born_numerator,
@@ -65,7 +65,7 @@ def test_gluon_born_trace_reproduces_corrected_numerator() -> None:
         2 * (d - 2) * (1 - x) * p2
         + 4
         * transverse2
-        * kernel_qg(kinematics)
+        * kernel_gq(kinematics)
         / (x * (1 - x))
     )
 
@@ -73,7 +73,7 @@ def test_gluon_born_trace_reproduces_corrected_numerator() -> None:
     assert_symbolic_equal(
         result.reduced_numerator,
         expected,
-        "D_qg tensor trace",
+        "D_gq tensor trace",
     )
 
 

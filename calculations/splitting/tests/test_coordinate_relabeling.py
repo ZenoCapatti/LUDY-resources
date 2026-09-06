@@ -16,8 +16,8 @@ def test_old_cut_fraction_results_equal_new_hard_fraction_results() -> None:
     tensors = make_tensor_context(kinematics)
     colors = make_color_context()
     specs = (
-        build_gq_channel(kinematics, tensors, colors),
         build_qg_channel(kinematics, tensors, colors),
+        build_gq_channel(kinematics, tensors, colors),
         build_qq_channel(kinematics, tensors, colors),
     )
     channels = tuple(derive_channel(spec, kinematics) for spec in specs)

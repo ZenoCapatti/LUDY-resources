@@ -54,8 +54,8 @@ def test_assembled_counterterm_matches_compact_formula_entry_by_entry() -> None:
     tensors = make_tensor_context(kinematics)
     colors = make_color_context()
     specs = (
-        build_gq_channel(kinematics, tensors, colors),
         build_qg_channel(kinematics, tensors, colors),
+        build_gq_channel(kinematics, tensors, colors),
         build_qq_channel(kinematics, tensors, colors),
         build_gg_channel(kinematics, tensors, colors),
     )
@@ -85,10 +85,31 @@ def test_assembled_counterterm_matches_compact_formula_entry_by_entry() -> None:
 
     assert assembly.passed
     assert tuple(entry.channel for entry in assembly.entries) == (
-        "D_gq",
         "D_qg",
+        "D_gq",
         "D_qq",
         "D_gg",
+    )
+    by_name = {entry.channel: entry for entry in assembly.entries}
+    assert assembly.derived_matrix == (
+        (
+            by_name["D_qq"].derived_counterterm,
+            by_name["D_qg"].derived_counterterm,
+        ),
+        (
+            by_name["D_gq"].derived_counterterm,
+            by_name["D_gg"].derived_counterterm,
+        ),
+    )
+    assert assembly.formula_matrix == (
+        (
+            by_name["D_qq"].formula_counterterm,
+            by_name["D_qg"].formula_counterterm,
+        ),
+        (
+            by_name["D_gq"].formula_counterterm,
+            by_name["D_gg"].formula_counterterm,
+        ),
     )
     assert assembly.residual_matrix == ((0, 0), (0, 0))
     for entry in assembly.entries:

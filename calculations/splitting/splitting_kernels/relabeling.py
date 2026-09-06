@@ -61,7 +61,7 @@ def old_cut_fraction_references(
 
     return (
         CoordinateReference(
-            channel="D_gq",
+            channel="D_qg",
             raw_numerator=canonical(
                 4 * x * (1 - x) ** 2 * p2
                 + transverse2
@@ -77,7 +77,7 @@ def old_cut_fraction_references(
             ),
         ),
         CoordinateReference(
-            channel="D_qg",
+            channel="D_gq",
             raw_numerator=canonical(
                 2 * (d - 2) * x * p2
                 + 4
