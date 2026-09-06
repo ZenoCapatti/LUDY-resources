@@ -115,7 +115,7 @@ def _distributional_test_function(
         "test2",
         "test3",
     )
-    if channel in ("D_qg", "D_gg"):
+    if channel in ("D_gq", "D_gg"):
         # These entries contain a 1/x small-x singularity, so use smooth test
         # functions that vanish at x=0.
         return test1 * xi + test2 * xi**2 + test3 * xi**3
@@ -172,7 +172,10 @@ def assemble_nlo_counterterm(
     kinematics: Kinematics,
     colors: ColorContext,
 ) -> NLOCountertermAssembly:
-    """Assemble the four entries and check the compact flavor-sum formula.
+    """Assemble the daughter-first D_ij matrix and compact flavor-sum formula.
+
+    The first channel index is the daughter entering the hard interaction and
+    the second is the parent parton represented by the PDF.
 
     The counterterm convention is
     ``D = -I_real_bulk + I_real_boundary + I_virtual``.  Since the raw radial
@@ -228,13 +231,13 @@ def assemble_nlo_counterterm(
     }
 
     formula_data = {
-        "D_gq": (
+        "D_qg": (
             colors.tr,
             ap_qg_cdr(x, epsilon),
             Expression.num(1),
             Expression.num(0),
         ),
-        "D_qg": (
+        "D_gq": (
             colors.cf,
             ap_gq_cdr(x, epsilon),
             1 - epsilon,
@@ -257,7 +260,7 @@ def assemble_nlo_counterterm(
     }
 
     entries = []
-    for channel in ("D_gq", "D_qg", "D_qq", "D_gg"):
+    for channel in ("D_qg", "D_gq", "D_qq", "D_gg"):
         boundary, bulk_kernel = derived_real_data[channel]
         derived_real = canonical(
             weight

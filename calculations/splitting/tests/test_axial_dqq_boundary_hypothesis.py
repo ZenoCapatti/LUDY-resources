@@ -3,7 +3,7 @@
 from symbolica import Expression
 
 from splitting_kernels.channels import (
-    build_qg_channel,
+    build_gq_channel,
     build_qq_channel,
     derive_channel,
 )
@@ -158,9 +158,9 @@ def test_phase_space_keeps_only_metric_surface_for_quark_channels() -> None:
         ),
         kinematics,
     )
-    qg = integrate_channel_phase_space(
+    gq = integrate_channel_phase_space(
         derive_channel(
-            build_qg_channel(kinematics, tensors, colors),
+            build_gq_channel(kinematics, tensors, colors),
             kinematics,
         ),
         kinematics,
@@ -173,7 +173,7 @@ def test_phase_space_keeps_only_metric_surface_for_quark_channels() -> None:
         "D_qq metric surface",
     )
     assert_symbolic_equal(
-        qg.boundary_coefficient,
+        gq.boundary_coefficient,
         regular_surface,
-        "D_qg metric surface",
+        "D_gq metric surface",
     )

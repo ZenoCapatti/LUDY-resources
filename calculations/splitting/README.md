@@ -6,7 +6,9 @@ counter-terms with Symbolica, Spenso, and Idenso. The reusable
 numerator, reduces the color contractions supplying `C_F`, `T_R`, and `C_A`,
 and performs the phase-space and normalization checks. The shared Sudakov
 convention assigns `x` to the daughter entering the hard interaction and
-`1-x` to the cut daughter.
+`1-x` to the cut daughter. Counterterms and splitting kernels use standard
+daughter-first DGLAP ordering: in `D_ij` and `P_ij`, `i` is the daughter
+entering the hard interaction and `j` is the parent parton.
 
 The calculation is an independent validation layer. Its symbolic results are
 not inputs to the native DIS or Drell--Yan assemblies.

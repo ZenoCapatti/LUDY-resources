@@ -40,8 +40,8 @@ def _results():
     tensors = make_tensor_context(kinematics)
     colors = make_color_context()
     specs = (
-        build_gq_channel(kinematics, tensors, colors),
         build_qg_channel(kinematics, tensors, colors),
+        build_gq_channel(kinematics, tensors, colors),
         build_qq_channel(kinematics, tensors, colors),
         build_gg_channel(kinematics, tensors, colors),
     )
@@ -84,8 +84,8 @@ def test_all_channels_use_the_reduced_color_factors() -> None:
     colors = make_color_context()
     by_name = {channel.spec.name: channel.spec for channel in channels}
 
-    assert_symbolic_equal(by_name["D_gq"].color_factor, colors.tr, "g -> qqbar")
-    assert_symbolic_equal(by_name["D_qg"].color_factor, colors.cf, "q -> gq")
+    assert_symbolic_equal(by_name["D_qg"].color_factor, colors.tr, "g -> qqbar")
+    assert_symbolic_equal(by_name["D_gq"].color_factor, colors.cf, "q -> gq")
     assert_symbolic_equal(by_name["D_qq"].color_factor, colors.cf, "q -> qg")
     assert_symbolic_equal(by_name["D_gg"].color_factor, colors.ca, "g -> gg")
     for spec in by_name.values():
@@ -96,20 +96,30 @@ def test_all_channels_use_the_reduced_color_factors() -> None:
         )
 
 
+def test_off_diagonal_channel_names_use_daughter_first_ordering() -> None:
+    _, channels, _ = _results()
+    by_name = {channel.spec.name: channel.spec for channel in channels}
+
+    assert by_name["D_qg"].ap_kernel_name == "qg"
+    assert by_name["D_qg"].born_kind == "quark"
+    assert by_name["D_gq"].ap_kernel_name == "gq"
+    assert by_name["D_gq"].born_kind == "gluon"
+
+
 def test_initial_state_spin_averages_are_explicit() -> None:
     kinematics, channels, _ = _results()
     by_name = {channel.spec.name: channel.spec for channel in channels}
 
     assert_symbolic_equal(
         set_dimension(
-            by_name["D_gq"].spin_factorization_factor,
+            by_name["D_qg"].spin_factorization_factor,
             kinematics,
         ),
         1 / (1 - kinematics.epsilon),
         "gluon-parent to quark-Born spin normalization",
     )
     assert_symbolic_equal(
-        by_name["D_qg"].spin_factorization_factor,
+        by_name["D_gq"].spin_factorization_factor,
         Expression.num(1) / 2,
         "incoming-quark helicity average",
     )
@@ -120,7 +130,7 @@ def test_initial_state_spin_averages_are_explicit() -> None:
     )
     assert_symbolic_equal(
         by_name["D_qq"].phase_space_prefactor,
-        by_name["D_gq"].phase_space_prefactor,
+        by_name["D_qg"].phase_space_prefactor,
         "common on-shell and delta-prime Jacobians",
     )
     assert_symbolic_equal(
@@ -129,8 +139,8 @@ def test_initial_state_spin_averages_are_explicit() -> None:
         "gluon-parent and gluon-Born spin averages cancel",
     )
     assert_symbolic_equal(
-        by_name["D_qg"].phase_space_prefactor,
-        kinematics.x * by_name["D_gq"].phase_space_prefactor,
+        by_name["D_gq"].phase_space_prefactor,
+        kinematics.x * by_name["D_qg"].phase_space_prefactor,
         "gluon-Born flux conversion",
     )
 
@@ -145,16 +155,16 @@ def test_delta_prime_bulk_coefficients() -> None:
     }
 
     assert_symbolic_equal(
-        set_dimension(by_name["D_gq"].bulk_coefficient, kinematics),
-        by_name["D_gq"].channel.spec.color_factor
-        * ap_qg_cdr(x, kinematics.epsilon),
-        "D_gq bulk coefficient",
-    )
-    assert_symbolic_equal(
         set_dimension(by_name["D_qg"].bulk_coefficient, kinematics),
         by_name["D_qg"].channel.spec.color_factor
-        * ap_gq_cdr(x, kinematics.epsilon),
+        * ap_qg_cdr(x, kinematics.epsilon),
         "D_qg bulk coefficient",
+    )
+    assert_symbolic_equal(
+        set_dimension(by_name["D_gq"].bulk_coefficient, kinematics),
+        by_name["D_gq"].channel.spec.color_factor
+        * ap_gq_cdr(x, kinematics.epsilon),
+        "D_gq bulk coefficient",
     )
     assert_symbolic_equal(
         set_dimension(by_name["D_qq"].bulk_coefficient, kinematics),
@@ -192,18 +202,18 @@ def test_integrated_results_have_dimensional_poles() -> None:
         assert pole != 0
 
 
-def test_probability_relation_between_qq_and_qg_kernels() -> None:
+def test_probability_relation_between_qq_and_gq_kernels() -> None:
     kinematics = make_kinematics()
     x = kinematics.x
     temporary = kinematics.delta
-    qg_at_complement = kernel_qg(kinematics).replace(x, temporary).replace(
+    gq_at_complement = kernel_gq(kinematics).replace(x, temporary).replace(
         temporary,
         1 - x,
     )
 
     assert_symbolic_equal(
         kernel_qq(kinematics),
-        qg_at_complement,
+        gq_at_complement,
         "P_qq(x) = P_gq(1-x)",
     )
 
@@ -253,12 +263,12 @@ def test_cdr_altarelli_parisi_kernels() -> None:
         )
     assert_symbolic_equal(
         set_dimension(kernel_gq(kinematics), kinematics),
-        2 * (1 - epsilon) * ap_qg_cdr(x, epsilon),
+        ap_gq_cdr(x, epsilon),
         "manuscript tilde P_gq mapping",
     )
     assert_symbolic_equal(
         set_dimension(kernel_qg(kinematics), kinematics),
-        ap_gq_cdr(x, epsilon),
+        2 * (1 - epsilon) * ap_qg_cdr(x, epsilon),
         "manuscript tilde P_qg mapping",
     )
     assert_symbolic_equal(
@@ -363,15 +373,15 @@ def test_cutoff_boundary_normalizations() -> None:
     }
 
     assert_symbolic_equal(
-        by_name["D_gq"].boundary_coefficient,
-        by_name["D_gq"].channel.spec.color_factor,
-        "D_gq cutoff boundary",
+        by_name["D_qg"].boundary_coefficient,
+        by_name["D_qg"].channel.spec.color_factor,
+        "D_qg cutoff boundary",
     )
     assert_symbolic_equal(
-        by_name["D_qg"].boundary_coefficient,
-        by_name["D_qg"].channel.spec.color_factor
+        by_name["D_gq"].boundary_coefficient,
+        by_name["D_gq"].channel.spec.color_factor
         * (1 - epsilon),
-        "D_qg cutoff boundary",
+        "D_gq cutoff boundary",
     )
     assert_symbolic_equal(
         by_name["D_qq"].boundary_coefficient,
@@ -398,28 +408,28 @@ def test_dgg_kernel_is_symmetric_under_daughter_exchange() -> None:
     )
 
 
-def test_dqq_dqg_complementarity_includes_metric_boundary() -> None:
+def test_dqq_dgq_complementarity_includes_metric_boundary() -> None:
     kinematics, _, phase_space = _results()
     by_name = {
         result.channel.spec.name: result
         for result in phase_space
     }
     qq = by_name["D_qq"]
-    qg = by_name["D_qg"]
+    gq = by_name["D_gq"]
 
     assert_symbolic_equal(
         set_dimension(qq.bulk_coefficient, kinematics),
         complement_momentum_fraction(
-            set_dimension(qg.bulk_coefficient, kinematics),
+            set_dimension(gq.bulk_coefficient, kinematics),
             kinematics,
         ),
-        "D_qq(x) = D_qg(1-x) bulk",
+        "D_qq(x) = D_gq(1-x) bulk",
     )
     assert_symbolic_equal(
         qq.boundary_coefficient,
         complement_momentum_fraction(
-            qg.boundary_coefficient,
+            gq.boundary_coefficient,
             kinematics,
         ),
-        "D_qq(x) = D_qg(1-x) boundary",
+        "D_qq(x) = D_gq(1-x) boundary",
     )
