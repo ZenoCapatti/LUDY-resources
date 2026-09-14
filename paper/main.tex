@@ -67,6 +67,7 @@ floatfix,
 \usepackage{pgfplots}
 \usepackage{subcaption}
 \usepackage{cleveref}
+\usepackage{fancyvrb}
 \allowdisplaybreaks
 \begin{document}
 
@@ -556,10 +557,10 @@ N^{q\bar{q}}_{\timesbox}&=-2\text{Tr}[\slashed{p}_1\gamma^\sigma (\slashed{k}-\s
 \end{align}
 and $N_{\Box_2}^{q\bar{q}}=N_{\Box_1}^{q\bar{q}}|_{p_1\leftrightarrow p_2}$. 
 
+\iffalse
 \subsection{Analytic calculations}
 \label{sec:AP-splitting-counterterms}
 
-\iffalse
 We now outline the computation of the splitting counter-terms, eq.~\eqref{eq:splitting_cts_nlo}.
 We focus on the $D_{qq}$ as a working example, and work in the axial gauge.
 To determine it, we must compute the contribution of all the additional cut diagrams introduced on top of the bare parton model.
@@ -674,10 +675,8 @@ The integrand constructed above is finite and can be integrated by Monte Carlo m
 
 \fi
 
-\onecolumngrid
-
-
 \iffalse
+\onecolumngrid
 
 \begin{figure}
 \begin{subfigure}{0.45\textwidth}
@@ -688,6 +687,45 @@ The integrand constructed above is finite and can be integrated by Monte Carlo m
 \end{subfigure}
 \end{figure}
 \fi
+
+\subsection{Reproducible analytic calculations}
+\label{sec:reproducible-analytic-calculations}
+
+The accompanying Python notebooks carry out our analytic NLO calculations of the quark and gluon contributions to the DIS structure functions $F_2$ and $F_L$, and of the $q\bar q$ and $qg$ Drell--Yan partonic cross sections.
+The crossed-box notebook presents a worked example of the common calculation, which the DIS and Drell--Yan notebooks extend to the complete real and virtual channel sums.
+Starting from the routed graphs and their cuts, they evaluate the Dirac traces and reduce the scalar integrals to analytic master integrals.
+The incoming-virtuality expansion and endpoint-distribution assembly then give the leading-power coefficients as functions of the virtuality cutoffs.
+Separate parton-model graph selections provide comparisons with the DIS coefficient functions in Chapter~4 of ref.~\cite{Ellis:1996mzs} and the Drell--Yan cross sections of ref.~\cite{Altarelli:1979ub}.
+
+Installation instructions for the Python calculations are provided in the \href{https://github.com/ZenoCapatti/LUDY-resources/blob/main/docs/reproducing-analytic-results.md}{LUDY-resources reproduction guide}.
+After completing the setup, evaluate the DIS structure functions and Drell--Yan partonic coefficients, respectively, from the repository root:
+\begin{verbatim}
+uv run --locked python \
+  calculations/dis/python/notebook.py \
+  --results --run-reductions
+
+uv run --locked python \
+  calculations/dy/python/notebook.py \
+  --results --run-reductions
+\end{verbatim}
+Each command prints the analytic results and their consistency checks.
+For example, the DIS report gives the leading-power quark coefficient $F_{2q}^{\text{LU},(1)}=e_q^2 C_F x M_{2,q}$, with the coupling factor $\alpha_s/(2\pi)$ extracted as above.
+The corresponding terminal output reads, with line breaks added to fit the column:
+\begin{Verbatim}[fontsize=\small,commandchars=\\\{\}]
+M_2,q (F2q):
+  delta(1-x) = 1/6*(-6+9*log(Q_squared)
+    -9*log(Lambda_squared)-4*\ensuremath{\pi}^2)
+  D0(x)      = 1/2*(-3+4*log(Q_squared)
+    -4*log(Lambda_squared))
+  D1(x)      = 0
+  regular    = (-1-2*x+2*log(x)
+    +log(Q_squared)-log(Lambda_squared)
+    +3*x^2+2*x^2*log(x)
+    -x^2*log(Q_squared)
+    +x^2*log(Lambda_squared))/(-1+x)
+\end{Verbatim}
+Here \texttt{Q\_squared} and \texttt{Lambda\_squared} denote $Q^2$ and $\Lambda^2$, while \texttt{D0(x)} and \texttt{D1(x)} denote $\mathcal{D}_n(x)=[\log^n(1-x)/(1-x)]_+$ for $n=0,1$.
+The same Python files also run as interactive Marimo notebooks, displaying the derivation, intermediate expressions, and validation tables; launch instructions are included in the repository guide.
 
 \end{document}
 %

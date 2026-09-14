@@ -5,6 +5,11 @@ references for factorisable Local Unitarity. It is organized as a research
 monorepo: the root Nix/uv environment runs every Marimo notebook, while the
 reusable Kira wrapper retains its own independently locked package environment.
 
+For the command-line DIS and Drell--Yan calculations, start with
+[Reproducible analytic calculations](docs/reproducing-analytic-results.md).
+The guide covers installation, plain-Python execution, and reuse of completed
+reductions.
+
 ```text
 paper/                         manuscript and its local TeX inputs
 calculations/
