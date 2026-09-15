@@ -691,12 +691,16 @@ The integrand constructed above is finite and can be integrated by Monte Carlo m
 \subsection{Reproducible analytic calculations}
 \label{sec:reproducible-analytic-calculations}
 
-We provide Python notebooks for the analytic NLO DIS and Drell--Yan calculations in the \href{https://github.com/ZenoCapatti/LUDY-resources}{LUDY-resources repository}.
+We provide Python notebooks for the analytic NLO DIS and Drell--Yan calculations and the collinear splitting counter-terms in the \href{https://github.com/ZenoCapatti/LUDY-resources}{LUDY-resources repository}.
 They compute the quark and gluon contributions to the DIS structure functions $F_2$ and $F_L$, and the $q\bar q$ and $qg$ Drell--Yan partonic cross sections.
 The crossed-box notebook presents a worked example of the common calculation, which the DIS and Drell--Yan notebooks extend to the complete real and virtual channel sums.
 Starting from the routed graphs and their cuts, they evaluate the Dirac traces and reduce the scalar integrals to analytic master integrals.
 The incoming-virtuality expansion and endpoint-distribution assembly then give the leading-power coefficients as functions of the virtuality cutoffs.
 Separate parton-model graph selections provide comparisons with the DIS coefficient functions in Chapter~4 of ref.~\cite{Ellis:1996mzs} and the Drell--Yan cross sections of ref.~\cite{Altarelli:1979ub}.
+A separate notebook derives the splitting counter-terms $D_{qq}$, $D_{gq}$, $D_{qg}$, and $D_{gg}$ from real and virtual collinear diagrams, including the colour factors, phase-space integrals, and endpoint contributions.
+
+The graphs were generated with GammaLoop~\cite{GammaLoopSoftware}.
+The symbolic calculations use Symbolica~\cite{SymbolicaSoftware}, with Spenso and Idenso~\cite{SpensoSoftware} for tensor contractions and Dirac and colour algebra.
 
 Installation instructions for the Python calculations are provided in the \href{https://github.com/ZenoCapatti/LUDY-resources/blob/main/docs/reproducing-analytic-results.md}{LUDY-resources reproduction guide}.
 After completing the setup, evaluate the DIS structure functions and Drell--Yan partonic coefficients, respectively, from the repository root:
@@ -726,7 +730,7 @@ M_2,q (F2q):
     +x^2*log(Lambda_squared))/(-1+x)
 \end{Verbatim}
 Here \texttt{Q\_squared} and \texttt{Lambda\_squared} denote $Q^2$ and $\Lambda^2$, while \texttt{D0(x)} and \texttt{D1(x)} denote $\mathcal{D}_n(x)=[\log^n(1-x)/(1-x)]_+$ for $n=0,1$.
-The same Python files also run as interactive Marimo notebooks, displaying the derivation, intermediate expressions, and validation tables; launch instructions are included in the repository guide.
+The same Python files also run as interactive Marimo notebooks, displaying the derivation, intermediate expressions, and validation tables; the repository guide includes launch instructions and commands for evaluating the splitting counter-term calculation.
 
 \end{document}
 %

@@ -4,11 +4,21 @@ The DIS and Drell--Yan calculations can be run as ordinary Python programs.
 They print analytic coefficients and exact checks in the terminal; opening a
 notebook editor is optional.
 The same files provide the mathematical walkthroughs when opened interactively.
+An independent notebook derives the quark and gluon collinear splitting
+counterterms from real and virtual diagrams.
 
 The commands below use `uv` to select the repository's Python environment.
 Run them from the repository root, containing `pyproject.toml` and `uv.lock`.
 Obtain a checkout of [LUDY-resources](https://github.com/ZenoCapatti/LUDY-resources)
 and record its revision when sharing results.
+
+[GammaLoop](https://github.com/alphal00p/gammaloop) was used to generate the
+starting graphs.
+The symbolic calculations use [Symbolica](https://symbolica.io), with
+[Spenso and Idenso](https://github.com/alphal00p/spenso) for tensor contractions,
+Dirac traces, and colour algebra.
+The pinned Symbolica Community build obtains these tensor-algebra libraries
+from the [GammaLoop source distribution](https://github.com/alphal00p/gammaloop).
 
 ## Set up the environment
 
@@ -158,6 +168,32 @@ JSON is written to standard output and calculation diagnostics to standard
 error, so standard shell redirection can save the report separately.
 Each program also accepts `--help`.
 
+## Evaluate the splitting counterterms
+
+The independent [splitting calculation](../calculations/splitting/README.md)
+derives `D_qq`, `D_gq`, `D_qg`, and `D_gg` from real and virtual collinear
+diagrams, including colour contractions, phase-space integration, and endpoint
+terms.
+The first index labels the daughter entering the hard interaction and the
+second the parent parton.
+The derivation supplies a separate check of the splitting counterterms used
+in the scheme transformation.
+
+Evaluate the notebook as a Python program from the repository root:
+
+```sh
+uv run --locked python calculations/splitting/notebooks/splitting_counter_terms.py
+```
+
+For a terminal summary of its symbolic regression checks, run:
+
+```sh
+uv run --locked pytest calculations/splitting/tests
+```
+
+The interactive notebook displays the derived expressions and comparison
+tables at each stage.
+
 ## Read the calculation interactively
 
 For the derivation, intermediate expressions, and comparison tables, open the
@@ -166,6 +202,7 @@ same files in Marimo:
 ```sh
 uv run --locked marimo edit calculations/dis/python/notebook.py
 uv run --locked marimo edit calculations/dy/python/notebook.py
+uv run --locked marimo edit calculations/splitting/notebooks/splitting_counter_terms.py
 ```
 
 For a first interactive DIS calculation, activate both "Evaluate the 16 DIS
