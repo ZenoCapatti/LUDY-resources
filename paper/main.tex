@@ -54,7 +54,8 @@ floatfix,
     }
   }%
 }
-
+\usepackage{booktabs}
+\usepackage{multirow}
 \usepackage{slashed}
 \usepackage[normalem]{ulem}
 \usepackage{graphicx}% Include figure files
@@ -68,6 +69,21 @@ floatfix,
 \usepackage{subcaption}
 \usepackage{cleveref}
 \usepackage{fancyvrb}
+\usepackage[table]{xcolor}
+\usepackage{ragged2e}
+\newcommand{\topblackrule}{%
+  \noalign{\color{black}\hrule height 0.65pt}%
+}
+\newcommand{\midblackrule}{%
+  \noalign{\color{black}\hrule height 0.40pt}%
+}
+\newcommand{\bottomblackrule}{%
+  \noalign{\color{black}\hrule height 0.65pt}%
+}
+
+\definecolor{ludybg}{RGB}{232,243,247}   % very light blue-cyan
+\definecolor{refbg}{RGB}{248,238,230}    % very light peach
+\definecolor{mgfivebg}{RGB}{248,238,230} % very light peach
 \allowdisplaybreaks
 \begin{document}
 
@@ -166,7 +182,7 @@ In order to relate the scattering of many partons with that of hadrons, we intro
 
 Consider $n$ massless partons and the usual Lorentz-invariant phase-space measure ($d=4-2\epsilon$):
 \begin{equation}
-\mathrm{d}\Pi_n=\prod_{i=1}^{n} \frac{\mathrm{d}^d q_i}{(2\pi)^{d-1}} i\delta(q_i^2)\Theta(q_i^0).
+\mathrm{d}\Pi_n=\prod_{i=1}^{n} \frac{\mathrm{d}^d q_i}{(2\pi)^{d-1}} \delta(q_i^2)\Theta(q_i^0).
 \end{equation}
 The $n$ partons are clustered in a compound object with momentum $p$ by the following integration measure~\cite{Capatti:2025gqj}:
 \begin{equation}
@@ -208,7 +224,7 @@ and $\tilde{\mathfrak{S}}_n=\mathfrak{S}_n\cup \{\emptyset\}$, we write the part
 \label{eq:partonic_tensor_MP}
 W_{\mathfrak{a}}^{\mu\nu}(x,q^2;\Lambda^2)= \sum_{\vec{\mathfrak{s}}\in \mathfrak{S}_\infty}\int_0^{\Lambda^2} \frac{\mathrm{d}p^2}{2\pi}W_{\mathfrak{a},\vec{\mathfrak{s}}}^{\mu\nu}(p,q),
 \end{equation}
-where $p=\frac{Q^2}{2xq_-}\eta_++xq_-\frac{p^2}{2Q^2}\eta_-$, $q=q_-\eta_-+\frac{q^2}{2q_-}\eta_+$ in light-cone coordinates ($\eta_\pm^2=0$, $\eta_+\cdot \eta_-=2$) and $Q^2=-q^2$.
+where $p=\frac{Q^2}{4xq_-}\eta_++xq_-\frac{p^2}{Q^2}\eta_-$, $q=q_-\eta_-+\frac{q^2}{4q_-}\eta_+$ in light-cone coordinates ($\eta_\pm^2=0$, $\eta_+\cdot \eta_-=2$) and $Q^2=-q^2$.
 For fixed initial-state multiplicities:
 \begin{equation}
 \label{eq:partonic_tensor_MP_fixed_mult}
@@ -249,12 +265,12 @@ Letting $q_{\mathfrak{s}}$ and $q_{\mathfrak{s}'}$ be the sum of the partonic mo
  where $N_{ee}=2\alpha/(3 q^2)$ is the remainder of the leptonic integration.
  The Dirac delta function implements the measurement of the invariant mass of the photon, and specifically reads
 \begin{equation}
-\delta^\pm_{m^2}(p)=2\pi i \delta\left (p^2-m^2\right)\Theta(\pm p^0).
+\delta^\pm_{m^2}(p)=2\pi  \delta\left (p^2-m^2\right)\Theta(\pm p^0).
 \end{equation}
 Spin and helicities are summed over.
 The hadronic cross-section is the convolution
 \begin{equation}
-\hspace{-0.05cm}\frac{\mathrm{d}\sigma}{\mathrm{d}q^2}\!=\! \! \left[\prod_{i=1}^2\sum_{\mathfrak{q}_i \in\mathfrak{S}_1}\hspace{-0.075cm}\int_0^1 \frac{\mathrm{d}x_i}{x_i}f_{\mathfrak{q}_i}(x_i;\Lambda ^2)\right] \!  \frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}}{\mathrm{d}q^2} \!\left(\hat{s};\Lambda^2\right)\! .
+\hspace{-0.05cm}\frac{\mathrm{d}\sigma}{\mathrm{d}q^2}\!=\! \! \left[\prod_{i=1}^2\sum_{\mathfrak{q}_i \in\mathfrak{S}_1}\hspace{-0.075cm}\int_0^1 \mathrm{d}x_i f_{\mathfrak{q}_i}(x_i;\Lambda ^2)\right] \!  \frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}}{\mathrm{d}q^2} \!\left(\hat{s};\Lambda^2\right)\! .
 \end{equation}
 The $t\bar{t}$ cross-section is obtained by simply swapping the final-state photon with a $t\bar{t}$ pair and changing the final-state phase-space measure $\mathrm{d}\Pi_f$ accordingly.
 
@@ -319,9 +335,10 @@ This time, we have one discontinuity for each incoming hadron.
 \begin{figure*}[t]
   \centering
   \includegraphics{paper/xbox-sum.pdf}
-  \caption{The cross-box term in the sum over diagrams in \eqref{eq:disc_dy}.
+  \caption{ \justifying The cross-box term in the sum over diagrams in \eqref{eq:disc_dy}.
   Here we show the initial state cuts that make up the discontinuities in  $p_1^2$ and $p_2^2$.}
   \label{fig:xbox-sum}
+  {\color{gray!50}\rule{0.8\linewidth}{0.6pt}}
 \end{figure*}
 
 \begin{figure}[t]
@@ -334,7 +351,7 @@ This time, we have one discontinuity for each incoming hadron.
 % The factor $1/(4\pi)$ is the single global observable-normalisation factor for the complete two-leg cluster.
 
 To determine the universal scheme transformation from LU-scheme to $\overline{\text{MS}}$ PDFs, we employ standard Altarelli-Parisi (AP) techniques~\cite{Altarelli:1977zs}, adapted to the present framework (see \emph{End Matter} material).
-This also establishes the factorisability of the minimal set of multi-partonic diagrams.
+This also proves the factorisability of the minimal set of multi-partonic diagrams.
 We introduce the \emph{splitting counter-terms} $D_{\mathfrak{q}\mathfrak{q}'}$ by the relation $f_{\mathfrak{q}'}^{\overline{\text{MS}}}=D_{\mathfrak{q}'\mathfrak{q}}\otimes f_{\mathfrak{q}}^{\text{LU}}$:
 \begin{equation}
 f_{\mathfrak{q}'}^{\overline{\text{MS}}}(x;\mu^2)=\hspace{-0.15cm}\sum_{\mathfrak{q}\in\mathfrak{S}_1}\hspace{-0.05cm}\int_0^1 \hspace{-0.05cm}\frac{\mathrm{d}\xi}{\xi} D_{\mathfrak{q}'\mathfrak{q}}\hspace{-0.06cm}\left(\xi,\tfrac{\Lambda^2}{\mu^2}\right)f_{\mathfrak{q}}^{\text{LU}}\hspace{-0.06cm}\left(\tfrac{x}{\xi};\Lambda^2\right).
@@ -423,7 +440,6 @@ Eqs.~\eqref{eq:qq_DY} and \eqref{eq:qg_DY} are related to the $\overline{\text{M
 \begin{align}
 \hspace{-0.05cm}\frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\overline{\text{MS}}}}{\mathrm{d}q^2}=\hspace{-0.3cm}\sum_{\mathfrak{q}_1,\mathfrak{q}_2\in\mathfrak{S}_1}\hspace{-0.3cm}D^{-1}_{\mathfrak{q}_1\mathfrak{q}}\otimes\frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}^{\text{LU}}}{\mathrm{d}q^2}\otimes D^{-1}_{\mathfrak{q}_2\mathfrak{q}'}\hspace{-0.05cm}+\mathcal{O}\left(\alpha_s,\tfrac{\Lambda^2}{q^2_{\text{h}}}\right),
 \end{align}
-
 which uses $D_{qq}$ and $D_{qg}$ as defined by eq.~\eqref{eq:splitting_cts_nlo}.
 
 These computations confirm that, at NLO, LU and $\overline{\text{MS}}$ cross-sections carry the same scale dependence and are related to each other by a universal scheme redefinition.
@@ -467,10 +483,37 @@ The bare parton model only selects the hard contribution of $I_{ G}^{\mathfrak{q
 We then introduce an auxiliary scaling variable $t$ in line with Soper's trick~\cite{Soper_2000,Capatti:2020xjc}, rescaling $z\rightarrow t^2 z$ and $\mathbf{k}\rightarrow t \mathbf{k}$, and finally solve the four Dirac delta functions in $p_1^2,p_2^2,k^0,t$.
 That gives an integrand that is locally free of infrared singularities and can be directly fed to a Monte Carlo integrator.
 %We provide a detailed example of this integrand manipulation as \emph{End Matter} material.
-Finally, we should note that ultraviolet singularities are renormalised locally by the BPHZ-based~\cite{BogoliubowParasiuk1957,Zimmermann1969,Hepp1966} procedure of ref.~\cite{Capatti:2022tit}, and thresholds of loop diagrams are subtracted by the counter-term procedure of ref.~\cite{Kermanschah:2021wbk}, being careful to correctly zero their contribution close to soft singularities.
+Finally, we should note that ultraviolet singularities are renormalised locally by the BPHZ-based~\cite{BogoliubowParasiuk1957,Zimmermann1969,Hepp1966} procedure of ref.~\cite{Capatti:2022tit}, and acquire dependence on a renormalisation scale $\mu$, which can be varied independently from the factorisation scale $\Lambda$. Thresholds of loop diagrams are subtracted by the counter-term procedure of ref.~\cite{Kermanschah:2021wbk}, being careful to correctly zero their contribution close to soft singularities.
 
-We report in fig. Monte Carlo results obtained through the LU computation of the DY (differential in $z$) and $PP\rightarrow t \bar{t}$ (inclusive) hadronic cross-section at NLO.
-Agreement with the $\overline{\text{MS}}$ cross-sections for all partonic channels is achieved after the scheme conversion eq.~\eqref{eq:splitting_cts_nlo} (with $b_\partial^{\mathfrak{q}\mathfrak{q}'}=0$), both at the partonic~\cite{Altarelli:1979ub,Czakon:2008ii, 1988NuPhB.303..607N} and hadronic~\cite{Alwall:2014hca} level, confirming that $D_{gg}$ and $D_{qg}$ are also correct.
+
+\begin{figure}
+\begin{subfigure}{0.45\textwidth}
+\input{paper/histogram_dy}
+\end{subfigure}
+\phantom{g}\\[-0.3cm]
+\begin{subfigure}{0.45\textwidth}
+\begin{minipage}{1\textwidth}
+\input{paper/table_partonic_tt}
+\end{minipage}
+\end{subfigure}
+\begin{subfigure}{0.45\textwidth}
+\begin{minipage}{1\textwidth}
+\input{paper/table_hadronic_tt}
+\end{minipage}
+\end{subfigure}
+\begin{subfigure}{0.45\textwidth}
+\begin{minipage}{1\textwidth}
+\input{paper/parameters}
+\end{minipage}
+\end{subfigure}
+
+\caption{\justifying Results for the Drell-Yan and $t\bar{t}$-production processes, using Local Unitarity (\texttt{LUDY}). Results for \textbf{A} are obtained with 25M points per bin, 100M for the endpoint bin. Results for \textbf{B} are obtained with 100M points per channel and $\sqrt{\hat{s}}$, 400M for $gg$, 400GeV. Results for \textbf{C} are obtained with 1B points per $\sqrt{s}$, 100M for $\sqrt{s}=400$GeV. See \emph{End Matter} for a discussion of numerical performance.}
+{\color{gray!50}\rule{0.8\linewidth}{0.6pt}}
+\label{fig:results}
+\end{figure}
+
+
+We report in fig.~\ref{fig:results} Monte Carlo results for the DY (differential in $z$) and $PP\rightarrow t \bar{t}$ (inclusive) hadronic cross-section at NLO, using our path-finder code \texttt{LUDY}. We use one $d$-quark flavour, and the parameters reported in the figure. Agreement with the $\overline{\text{MS}}$ cross-sections for all partonic channels is achieved after the scheme conversion eq.~\eqref{eq:splitting_cts_nlo} (with $b_\partial^{\mathfrak{q}\mathfrak{q}'}=0$), both at the partonic~\cite{Altarelli:1979ub,Czakon:2008ii, 1988NuPhB.303..607N} and hadronic~\cite{Alwall:2014hca} level, confirming that $D_{gg}$ and $D_{qg}$ are also correct. The $\texttt{MG5}$ result also required us to introduce the decoupling-scheme counter-term, on top of the splitting counter-terms, to obtain agreement.
 
 
 \section{Outlook}
@@ -736,6 +779,38 @@ M_2,q (F2q):
 \end{Verbatim}
 Here \texttt{Q\_squared} and \texttt{Lambda\_squared} denote $Q^2$ and $\Lambda^2$, while \texttt{D0(x)} and \texttt{D1(x)} denote $\mathcal{D}_n(x)=[\log^n(1-x)/(1-x)]_+$ for $n=0,1$.
 The same Python files also run as interactive Marimo notebooks, displaying the derivation, intermediate expressions, and validation tables; the repository guide includes launch instructions and commands for evaluating the splitting counter-term calculation.
+
+\subsection{Numerical performance}
+
+Our path-finder Local Unitarity implementation \texttt{LUDY}  provides a blueprint for future high-performance implementations, including within the \texttt{gammaloop} framework. As expected, it underperforms established tools such as \texttt{MG5}, allowing to clearly identify two performance issues to be addressed in future work.
+
+The first is evaluation time: evaluating a single $PP\rightarrow t\bar{t}$ cross-section sample in floating-point arithmetic takes ... ms, making runs resource-intensive and time-consuming. This is consistent with an unoptimised implementation in Python. Based on our experience, using a low-level language such as Rust and managing the size of the symbolic expressions subject to evaluation could lower evaluation times by more than an order of magnitude.
+
+The second is slow convergence, which appears largely attributable to two aspects of the diagrams' soft behaviour:
+\begin{itemize}
+\item Hadronic $PP\rightarrow t\bar{t}$ runs converge more slowly as $\sqrt{s}$ increases, consistent with the cancellation of double soft logarithms across graphs (... digits at 400~GeV and ... at 2000~GeV). Aligning the soft phase-space regions of diagrams with soft singularities would make these cancellations local, prior to integration.
+
+\item The soft region, especially for virtual diagrams, involves delicate cancellations between cut diagrams and threshold counterterms. Larger weights arise in increasingly narrow regions around the soft point, yielding integrable behaviour but slowing convergence. Future high-performance implementations would need to address this through an appropriate parametrisation around the soft point.
+\end{itemize}
+
+Since our Monte Carlo implementation aimed primarily to demonstrate the correctness of the theoretical ideas presented here and lay the foundations for the numerical approach, we leave these performance issues to future work.
+
+
+\iffalse
+Our path-finder implementation of the Local Unitarity method provides a blueprint for future high-performance implementations, for example within the gammaloop framework. For this reason, and as expected, it performs poorly compared with existing tools such as \texttt{MG5}. Our numerical investigations using the path-finder implementation, however, clearly point to two performance issues that should be addressed in future work.
+
+The first concerns evaluation time per sample. Evaluating a single sample in floating-point arithmetic for the $PP\rightarrow t\bar{t}$ cross section, for example, takes ... ms in our implementation, making runs resource-intensive and time-consuming. This timing is consistent with an unoptimised implementation in Python, a high-level programming language. An implementation in a low-level language such as Rust, together with greater attention to the size of the symbolic expressions being manipulated and evaluated, could, based on our experience, reduce evaluation times by more than an order of magnitude.
+
+The second problem is slow convergence, which, to the best of our understanding, can largely be attributed to two main issues, both related to the soft behaviour of the diagrams we integrate:
+
+\begin{itemize}
+\item As $\sqrt{s}$ increases, the hadronic runs for $PP\rightarrow t\bar{t}$ show a clear deterioration in convergence. This is entirely consistent with the cancellation of double soft logarithms across graphs (... digits at 400~GeV and ... at 2000~GeV). The solution is to align the soft regions of phase space across the different diagrams with soft singularities, so that the cancellation occurs locally, prior to integration.
+
+\item The soft region, especially for virtual diagrams, involves delicate cancellations between cut diagrams and threshold counterterms. Larger weights arise in increasingly narrow regions of phase space around the soft point, resulting in overall integrable behaviour that nevertheless slows convergence. A future high-performance implementation would need to address this by devising an appropriate parametrisation around the soft point.
+\end{itemize}
+
+Since the main objective of our Monte Carlo implementation was to demonstrate the correctness of the theoretical ideas presented in this paper and to lay the foundations for the numerical approach, we have chosen not to address these two issues directly, leaving their resolution to future work.
+\fi
 
 \end{document}
 %
