@@ -1,134 +1,207 @@
-\begin{tikzpicture}
+\begin{tikzpicture}[line join=round,line cap=round]
 \begin{axis}[
-  width=9cm,
-  height=10cm,
-  xmin=-0.8, xmax=0.8,
-  ymin=-1.1, ymax=1.1,
-  xtick distance=0.4,
-  tick label style={black!55, font=\tiny},
-  tick style={black!45, line width=0.45pt},
+  width=13.2cm, height=11cm,
+  scale only axis,
+  axis equal image,
+  xmin=-1.2, xmax=1.2,
+  ymin=-0.5, ymax=1.5,
+  xtick={-1.2,-0.8,-0.4,0.4,0.8,1.2},
+  ytick={-0.5,0.5,1,1.5},
+  xticklabels={,,,,,}, yticklabels={,,,},
+  tick label style={black!55,font=\footnotesize},
+  tick style={black!45,line width=0.45pt},
   axis lines=middle,
-  axis line style={black!45, line width=0.55pt},
-  xlabel={$k_y$},
-  ylabel={$k_z$},
-  xlabel style={anchor=west, text=black!75},
-  ylabel style={anchor=south, text=black!75},
+  axis line style={black!45,line width=0.55pt},
+  xlabel={$k_y$}, ylabel={$k_z$},
+  xlabel style={anchor=west,text=black!75,font=\large},
+  ylabel style={anchor=south,text=black!75,font=\large},
   tick align=inside,
-  samples=160,
-  clip=true,
+  clip=false,
 ]
 
-% RegionPlot: y^2 + 0.3 z (1+z) < 0
-% shifted upward by 1: plotted at vertical coordinate z+1
+\begin{scope}
+\clip (axis cs:-1.2,-0.5) rectangle (axis cs:1.2,1.5);
+
+% ========================================================
+% Red region from the second plot, shifted upward by +1.
+% Give it a light hatch pattern.
+% ========================================================
+
+% Top strip: 1 <= k_z <= 2.
 \path[
-  fill=black!65,
-  fill opacity=0.20,
-  draw=black!70,
-  line width=0.85pt
+  fill=red,
+  fill opacity=0.26,
+  pattern=north east lines,
+  pattern color=blue!60
 ]
-  plot[domain=-1:0, samples=180, variable=\z]
-    (axis cs:{sqrt(-0.3*\z*(1+\z))},{\z+1})
-  -- plot[domain=0:-1, samples=180, variable=\z]
-    (axis cs:{-sqrt(-0.3*\z*(1+\z))},{\z+1})
+  (axis cs:-2,1) rectangle (axis cs:2,2);
+
+% Middle strip: 0 <= k_z <= 1, outside the upper ellipse
+% k_y^2 = 0.3 k_z (1-k_z).
+\path[
+  fill=red,
+  fill opacity=0.26,
+  pattern=north east lines,
+  pattern color=blue!60
+]
+  plot[domain=0:1,samples=220,variable=\z]
+    (axis cs:{sqrt(max(0,0.3*\z*(1-\z)))},{\z})
+  -- (axis cs:2,1) -- (axis cs:2,0) -- cycle;
+
+\path[
+  fill=red,
+  fill opacity=0.26,
+  pattern=north east lines,
+  pattern color=blue!60
+]
+  plot[domain=1:0,samples=220,variable=\z]
+    (axis cs:{-sqrt(max(0,0.3*\z*(1-\z)))},{\z})
+  -- (axis cs:-2,0) -- (axis cs:-2,1) -- cycle;
+
+% Lower strip: -1 <= k_z <= 0, outside the lower white region.
+\path[
+  fill=red,
+  fill opacity=0.26,
+  pattern=north east lines,
+  pattern color=blue!60
+]
+  plot[domain=-1:0,samples=260,variable=\z]
+    (axis cs:{sqrt(max(0,-0.3*(\z-1)^2*\z/(0.7+0.3*\z)))},{\z})
+  -- (axis cs:2,0) -- (axis cs:2,-1) -- cycle;
+
+\path[
+  fill=red,
+  fill opacity=0.26,
+  pattern=north east lines,
+  pattern color=blue!60
+]
+  plot[domain=0:-1,samples=260,variable=\z]
+    (axis cs:{-sqrt(max(0,-0.3*(\z-1)^2*\z/(0.7+0.3*\z)))},{\z})
+  -- (axis cs:-2,-1) -- (axis cs:-2,0) -- cycle;
+
+% ========================================================
+% Shade the lower non-red region to indicate "no red".
+% ========================================================
+\path[
+  fill=white,
+  fill opacity=0.28,
+  draw=gray!55,
+  line width=0.6pt
+]
+  (axis cs:0,0)
+  -- plot[domain=0:-1,samples=260,variable=\z]
+    (axis cs:{sqrt(max(0,-0.3*(\z-1)^2*\z/(0.7+0.3*\z)))},{\z})
+  -- plot[domain=-1:0,samples=260,variable=\z]
+    (axis cs:{-sqrt(max(0,-0.3*(\z-1)^2*\z/(0.7+0.3*\z)))},{\z})
   -- cycle;
 
+% ========================================================
+% First-plot regions kept in the final overlay.
+% ========================================================
+
+% Upper collinear ellipse.
 \path[
-  fill=black!65,
+  fill=black!30,
   fill opacity=0.20,
-  draw=black!70,
+  draw=gray!55,
   line width=0.85pt
 ]
-  plot[domain=0:1, samples=180, variable=\z]
-    (axis cs:{sqrt(0.3*\z*(1-\z))},{\z-1})
-  -- plot[domain=1:0, samples=180, variable=\z]
-    (axis cs:{-sqrt(0.3*\z*(1-\z))},{\z-1})
+  plot[domain=0:360,samples=240,variable=\t]
+    (axis cs:{sqrt(0.075)*cos(\t)},{0.5+0.5*sin(\t)})
   -- cycle;
 
-% softCollplot region 2
+% Soft region.
 \path[
   fill=orange!85!yellow,
   fill opacity=0.55,
   draw=orange!70!black,
   line width=0.95pt
 ]
-  plot[domain=-1.15:-1, samples=100, variable=\z]
-    (axis cs:{sqrt(0.6*(\z+1.15))},{\z+1})
-  -- plot[domain=-1:-0.85, samples=100, variable=\z]
-    (axis cs:{sqrt(0.6*(-\z-0.85))},{\z+1})
-  -- plot[domain=-0.85:-1, samples=100, variable=\z]
-    (axis cs:{-sqrt(0.6*(-\z-0.85))},{\z+1})
-  -- plot[domain=-1:-1.15, samples=100, variable=\z]
-    (axis cs:{-sqrt(0.6*(\z+1.15))},{\z+1})
+  plot[domain=-0.15:0,samples=100,variable=\z]
+    (axis cs:{sqrt(max(0,0.6*(\z+0.15)))},{\z})
+  -- plot[domain=0:0.15,samples=100,variable=\z]
+    (axis cs:{sqrt(max(0,0.6*(0.15-\z)))},{\z})
+  -- plot[domain=0.15:0,samples=100,variable=\z]
+    (axis cs:{-sqrt(max(0,0.6*(0.15-\z)))},{\z})
+  -- plot[domain=0:-0.15,samples=100,variable=\z]
+    (axis cs:{-sqrt(max(0,0.6*(\z+0.15)))},{\z})
   -- cycle;
 
-% softCollplot region 1
+% Soft-collinear region from the first plot.
 \path[
   fill=blue!65!cyan,
   fill opacity=0.50,
   draw=blue!70!black,
   line width=0.95pt
 ]
-  plot[domain=-1:-0.85, samples=100, variable=\z]
-    (axis cs:{sqrt(0.3*(\z+1))},{\z+1})
-  -- plot[domain=-0.85:-1, samples=100, variable=\z]
-    (axis cs:{-sqrt(0.3*(\z+1))},{\z+1})
+  plot[domain=0:0.15,samples=100,variable=\z]
+    (axis cs:{sqrt(max(0,0.3*\z))},{\z})
+  -- plot[domain=0.15:0,samples=100,variable=\z]
+    (axis cs:{-sqrt(max(0,0.3*\z))},{\z})
   -- cycle;
 
-% softCollplot2
-\path[
-  fill=green!55!cyan,
-  fill opacity=0.45,
-  draw=green!45!black,
-  line width=0.95pt
-]
-  plot[domain=-0.15:0, samples=100, variable=\z]
-    (axis cs:{sqrt(-0.3*\z)},{\z})
-  -- plot[domain=0:-0.15, samples=100, variable=\z]
-    (axis cs:{-sqrt(-0.3*\z)},{\z})
+% Shifted soft-collinear region from the second plot.
+\path[fill=blue,fill opacity=0.20]
+  plot[domain=0:0.1,samples=100,variable=\z]
+    (axis cs:{sqrt(max(0,0.3*\z))},{\z})
+  -- plot[domain=0.1:0.15,samples=100,variable=\z]
+    (axis cs:{sqrt(max(0,0.09-0.6*\z))},{\z})
+  -- plot[domain=0.15:0.1,samples=100,variable=\z]
+    (axis cs:{-sqrt(max(0,0.09-0.6*\z))},{\z})
+  -- plot[domain=0.1:0,samples=100,variable=\z]
+    (axis cs:{-sqrt(max(0,0.3*\z))},{\z})
   -- cycle;
 
-% Red arrows
-\addplot[
-  red!75!black,
-  line width=1.1pt,
-  ->
-] coordinates {(0,0) (0,1)}
-  node[midway, right, text=red!75!black] {$\mathbf{p}_1$};
+% Threshold circle shifted so that its point (0,-1) is at the origin.
+\draw[black,thick]
+  plot[domain=0:360,samples=360,variable=\t]
+    (axis cs:{cos(\t)},{1+sin(\t)})
+  -- cycle;
+\end{scope}
 
-\addplot[
-  red!75!black,
-  line width=1.1pt,
-  ->
-] coordinates {(0,0) (0,-1)}
-  node[midway, right, text=red!75!black] {$\mathbf{p}_2$};
+% Optional plotting-window border.
+\draw[gray,line width=0.4pt]
+  (axis cs:-1.2,-0.5) rectangle (axis cs:1.2,1.5);
 
-% Labels
-\node[
-  below right,
-  text=orange!70!black
-] at (axis cs:-0.42,0.2) {soft};
+% Tick labels.
+\begin{scope}[every node/.style={text=black!55,font=\footnotesize,inner sep=1pt}]
+  \pgfplotsinvokeforeach{-0.8,-0.4,0.4,0.8}{
+    \node[anchor=north,yshift=-3pt] at (axis cs:#1,0) {$#1$};
+  }
+  \node[anchor=north west,xshift=3pt,yshift=-3pt] at (axis cs:-1.2,0) {$-1.2$};
+  \node[anchor=north east,xshift=-3pt,yshift=-3pt] at (axis cs:1.2,0) {$1.2$};
+  \pgfplotsinvokeforeach{0.5,1}{
+    \node[anchor=south east,xshift=-3pt,yshift=3pt] at (axis cs:0,#1) {$#1$};
+  }
+  \node[anchor=north east,xshift=-3pt,yshift=-3pt] at (axis cs:0,1.5) {$1.5$};
+  \node[anchor=south east,xshift=-3pt,yshift=3pt] at (axis cs:0,-0.5) {$-0.5$};
+\end{scope}
 
-\node[
-  below right,
-  text=blue!70!black
-] at (axis cs:0.2,0.23) {soft-collinear};
+% Momentum arrow p_1 only.
+\addplot[red!75!blue,line width=1.0pt,->]
+  coordinates {(0,0) (0,1)}
+  node[midway,right,text=red!75!blue,font=\normalsize] {$\vec{p}_1$};
 
-\node[
-  below right,
-  text=green!40!black
-] at (axis cs:0.2,-0.08) {soft-anti-collinear};
-
-\node[
-  below right,
-  text=black!75
-] at (axis cs:0.26,0.6) {collinear};
+% Labels.
+\node[below right,text=orange!70!black,font=\large]
+  at (axis cs:0,-0.15) {soft};
 
 \node[
   below right,
-  text=black!75
-] at (axis cs:0.26,-0.5) {anti-collinear};
+  text=blue!70!black,
+  font=\large,
+  rotate=30
+] at (axis cs:0.2,0.17) {soft-collinear};
 
-% Origin marker
+\node[below right,text=black!75,font=\large]
+  at (axis cs:0.28,0.6) {collinear};
+
+% Threshold label at the requested location.
+\node[text=black,font=\large]
+  at (axis cs:-0.82,0.95) {threshold};
+
+
+% Origin marker.
 \addplot[
   only marks,
   mark=*,
@@ -138,5 +211,3 @@
 
 \end{axis}
 \end{tikzpicture}
-
-
