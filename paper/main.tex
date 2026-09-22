@@ -19,6 +19,9 @@
 %  3)  latex apssamp.tex
 %  4)  latex apssamp.tex
 %
+\RequirePackage{fix-cm}
+% Preserve the modern hook-aware label command across REVTeX's older override.
+\let\latexKernelLabel\label
 \documentclass[%
  reprint,
 %superscriptaddress,
@@ -44,7 +47,7 @@ floatfix,
 ]{revtex4-2}
 
 
-\newcommand{\timesbox}{%
+\DeclareRobustCommand{\timesbox}{%
   \mathbin{%
     \scalebox{0.8}{
     \ooalign{%
@@ -61,15 +64,45 @@ floatfix,
 \usepackage{graphicx}% Include figure files
 \usepackage{dcolumn}% Align table columns on decimal point
 \usepackage{bm}% bold math
+% REVTeX places footnotes in the bibliography, so its footnote patch is unused.
+\usepackage[nopatch=footnote]{microtype}
+\hyphenation{had-ro-pro-duc-tion}
 
 \usepackage{braket}
+\usepackage{etoolbox}
+\makeatletter
+\IfFormatAtLeastTF{2023-06-01}{%
+  \let\label\latexKernelLabel
+  \let\ltx@label\label
+}{}
+% Supply REVTeX's effective author flags explicitly and retain textual years.
+% The author control is hexadecimal: 48 = initials (08) + journal order (40).
+\newcommand{\patchAPSBibControl}[2]{%
+  \patchcmd{\@bibdataout@aps}{#1}{#2}{}{%
+    \PackageError{ludy-paper}{REVTeX bibliography control patch failed}%
+      {Check the installed REVTeX bibliography control definition.}%
+  }%
+}
+% Patch both the long- and short-bibliography branches.
+\patchAPSBibControl{author="08"}{author="48"}
+\patchAPSBibControl{author="08"}{author="48"}
+\patchAPSBibControl{year="1"}{year="0"}
+\patchAPSBibControl{year="1"}{year="0"}
+\makeatother
 \usepackage{hyperref}
-\usepackage{xcolor}
+% Let arXiv labels wrap after the prefix without changing their link targets.
+\newcommand{\Eprint}[2]{%
+  \begingroup
+  \def\eprintText{#2}%
+  \patchcmd{\eprintText}{arXiv:}{arXiv:\allowbreak}{}{}%
+  \href{#1}{\eprintText}%
+  \endgroup
+}
+\usepackage[table]{xcolor}
 \usepackage{pgfplots}
-\usepackage{subcaption}
+\pgfplotsset{compat=1.18}
 \usepackage{cleveref}
 \usepackage{fancyvrb}
-\usepackage[table]{xcolor}
 \usepackage{ragged2e}
 \newcommand{\topblackrule}{%
   \noalign{\color{black}\hrule height 0.65pt}%
@@ -89,7 +122,7 @@ floatfix,
 \begin{document}
 
 
-\title{The KLN theorem meets collinear factorisation: \\ Local Unitarity for Hadronic Cross-Sections}%
+\title{The KLN theorem meets collinear factorisation: \texorpdfstring{\\}{ }Local Unitarity for Hadronic Cross-Sections}%
 
 
 \author{Zeno Capatti}
@@ -131,7 +164,8 @@ This work sets the foundations for a next-generation computational approach for 
 
 %\tableofcontents
 
-\section{\label{sec:level1}Introduction}
+\section{Introduction}
+\label{sec:introduction}
 
 Precise predictions for high-energy hadron collider experiments require theoretical control over a wide spectrum of energy scales.
 %At short distances, Quantum Chromodynamics (QCD) is perturbative, whereas hadronic structure is intrinsically low-energy and non-perturbative. 
@@ -176,7 +210,8 @@ Then, the numerical cross-section is converted to the $\overline{\text{MS}}$ sch
 
 
 
-\section{\label{sec:level2}Simplest clustering criterion}
+\section{Simplest clustering criterion}
+\label{sec:clustering}
 
 In order to relate the scattering of many partons with that of hadrons, we introduce the \emph{simplest clustering criterion}, which answers the question: ``What is the most analytically tractable definition of jet clustering?'', thus guaranteeing that calculations within our formalism may be done analytically with existing techniques.
 
@@ -209,7 +244,7 @@ Each initial-state parton belongs to one or both clusters.
 The momenta and quark numbers of all partons belonging to the $i$-th cluster must sum up to the momentum $p_i$ and quark number $\mathfrak{a}_i$.
 As $p_i^2$ becomes small, the momentum of a parton contained within the $i$-th cluster will be either a) collinear to $p_i$, if it is not contained in any other cluster,or  b) soft, if it is contained in both clusters.
 
-\section{\label{sec:level2}Cross-sections with many initial-state partons}
+\section{Cross-sections with many initial-state partons}
 \label{sec:formalism}
 
 In DIS, a high energy hadron scatters against an electron.
@@ -274,7 +309,8 @@ The hadronic cross-section is the convolution
 \end{equation}
 The $t\bar{t}$ cross-section is obtained by simply swapping the final-state photon with a $t\bar{t}$ pair and changing the final-state phase-space measure $\mathrm{d}\Pi_f$ accordingly.
 
-\section{\label{sec:level2}Diagrammatics and a generalised optical theorem}
+\section{Diagrammatics and a generalised optical theorem}
+\label{sec:diagrammatics}
 
 The newly-defined partonic cross sections expand into sums of disconnected interference diagrams with many incoming legs.
 This diagrammatic proliferation has long complicated initial-state implementations of the KLN theorem~\cite{Axelrod:1985yi,Frye:2018xjj,Lavelle_2006,Capatti:2025gqj,khalil2017completediagrammaticimplementationkinoshitaleenauenberg}.
@@ -331,7 +367,7 @@ For DY, the NLO, LP cross-section reads:
 \frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}}{\mathrm{d}q^2}&= \hspace{-0.2cm}\sum_{G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}} \hspace{-0.15cm} \text{Re}\hspace{-0.05cm}\left[\prod_{i=1}^2\int_0^{\Lambda^2}\hspace{-0.1cm}\frac{\mathrm{d}p_i^2}{2\pi}\text{disc}_{p_i^2}\right] \! \frac{N_{ee}I_{ G}^{\mathfrak{q}\mathfrak{q}'}}{4\pi \hat{s}\langle\mathfrak{q}\rangle \langle\mathfrak{q}'\rangle}
 \end{align}
 {\color{red} $\pi^2$ term}
-where the set  $\Gamma_{\mathfrak{q}\mathfrak{q}'}$, are is given in the appendix~\ref{sec:integrals_DIS_DY}.
+where the set $\Gamma_{\mathfrak{q}\mathfrak{q}'}$ is given in the \hyperref[sec:integrals_DIS_DY]{End Matter}.
 There is one discontinuity for each incoming hadron. Since the discontinuity of a finite integral is still finite, we obtain that each individual graph summand is IR-finite.
 
 \begin{figure*}[t]
@@ -382,7 +418,8 @@ D_{\mathfrak{q}\mathfrak{q}'}^{(1)}(\xi)=
  Reverse Unitarity calculations require them, whereas Local Unitarity's are organised with $b_{\partial}^{\mathfrak{q}\mathfrak{q}'}=0$.
 
 
-\section{\label{sec:level2}Reverse Unitarity computation}
+\section{Reverse Unitarity computation}
+\label{sec:reverse-unitarity}
 
 We now compute the NLO DIS and DY cross sections in the LU scheme using Reverse Unitarity, providing two benchmark tests of the correctness and universality of the splitting counter-terms of eq.~\eqref{eq:splitting_cts_nlo}.
 In the following, we will use $f=f^{(0)}+\tfrac{\alpha_s}{2\pi}f^{(1)}+\mathcal{O}(\alpha_s^2)$ for the coupling expansion of the observable $f$.
@@ -441,7 +478,8 @@ which uses $D_{qq}$ and $D_{qg}$ as defined by eq.~\eqref{eq:splitting_cts_nlo}.
 
 These computations confirm that, at NLO, LU and $\overline{\text{MS}}$ cross-sections carry the same scale dependence and are related to each other by a universal scheme redefinition.
 
-\section{\label{sec:level2}Local Unitarity computation}
+\section{Local Unitarity computation}
+\label{sec:local-unitarity}
 
 
 We exploit the IR finiteness of $\text{LU}$-scheme hadronic cross-sections to compute them in $d=4$ using Monte Carlo methods.
@@ -488,25 +526,25 @@ Finally, we should note that ultraviolet singularities are renormalised locally 
 
 
 \begin{figure}[!t]
-\begin{subfigure}{0.45\textwidth}
+\begin{minipage}{\columnwidth}
 \input{paper/histogram_dy}
-\end{subfigure}
+\end{minipage}
 \phantom{g}\\[0.1cm]
-\begin{subfigure}{0.45\textwidth}
+\begin{minipage}{0.45\textwidth}
 \begin{minipage}{1\textwidth}
 \input{paper/table_partonic_tt}
 \end{minipage}
-\end{subfigure}
-\begin{subfigure}{0.45\textwidth}
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
 \begin{minipage}{1\textwidth}
 \input{paper/table_hadronic_tt}
 \end{minipage}
-\end{subfigure}
-\begin{subfigure}{0.45\textwidth}
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
 \begin{minipage}{1\textwidth}
 \input{paper/parameters}
 \end{minipage}
-\end{subfigure}
+\end{minipage}
 
 \caption{\justifying Results for the Drell-Yan and $t\bar{t}$-production processes, using Local Unitarity (\texttt{LUDY}), converted to the $\overline{\text{MS}}$ scheme. Results for \textbf{A} are obtained with 24M points for the full histogram and 2M refinements for the first three bins, with evaluation time at $\sim$4ms. Results for \textbf{B} are obtained with 100M points per channel and $\sqrt{\hat{s}}$, 400M for $gg$, 400GeV, with typical evaluation times at $\sim$1-10ms, depending on the channel. Results for \textbf{C} are obtained with 200M points per $\sqrt{s}$, 100M for $\sqrt{s}=400$GeV, with typical evaluation times at $\sim$20ms. See \emph{End Matter} for a discussion of numerical performance.}
 {\color{gray!50}\rule{0.8\linewidth}{0.6pt}}
@@ -535,9 +573,8 @@ Beyond DIS, comparisons with operator~\cite{Qiu:1990xxa,Feige2017SubleadingFacto
 
 \end{itemize}
 
-Finally, the infrared interplay between the multi-partonic contributions and the parton model diagrams could be a basis for studies of factorisation and factorisation-breaking~\cite{Collins:2007nk,Rogers:2010dm,Catani:2011st,Forshaw:2012bi,Gaunt:2014ska,Zeng:2015iba,Rothstein:2016bsq,Schwartz:2017nmr,Becher:2023lmy,Becher:2024vdk}, especially due to our inclusion of spectator particles.
+Finally, the infrared interplay between the multi-partonic contributions and the parton model diagrams could be a basis for studies of factorisation and factor\-isation-breaking~\cite{Collins:2007nk,Rogers:2010dm,Catani:2011st,Forshaw:2012bi,Gaunt:2014ska,Zeng:2015iba,Rothstein:2016bsq,Schwartz:2017nmr,Becher:2023lmy,Becher:2024vdk}, especially due to our inclusion of spectator particles.
 Our framework is uniquely positioned to simultaneously attack these questions.
-\\
 
 
 \begin{acknowledgments}
@@ -576,7 +613,7 @@ The numerators including graph factors are
 
 
 \begin{figure}
-\includegraphics[width=0.49\textwidth]{paper/soft-triangle.pdf}
+\includegraphics[width=\linewidth]{paper/soft-triangle.pdf}
 \caption{\justifying An example of a non-trivial identification, at leading power, of cut diagrams with discontinuities. In this case, the interference diagram where the gluon belongs to both jets at the same time is equated to the double discontinuity of the sum of the soft and soft-collinear regions of the integral $I_{\triangle}^{q\bar{q}}$, represented as an embedding.{\color{red} reverse p1 arrow}
 }
 \label{fig:triangle_soft}
@@ -585,7 +622,7 @@ The numerators including graph factors are
 \end{figure}
 
 
-\textbf{DY, zero bin:} For DY, we have $\Gamma_{q\bar{q}}=\{\triangle, \text{lsz}_1,\text{lsz}_2,\Box_1,\Box_2, \timesbox\}$ and $\Gamma_{qg}=\{\slashed{\triangle},\bigcirc, \Box\}$.
+\textbf{DY, zero bin:} For DY, we have $\Gamma_{q\bar{q}}=\{\triangle,\allowbreak \text{lsz}_1,\allowbreak\text{lsz}_2,\allowbreak\Box_1,\allowbreak\Box_2,\allowbreak \timesbox\}$ and $\Gamma_{qg}=\{\slashed{\triangle},\allowbreak\bigcirc,\allowbreak \Box\}$.
 The $q\bar{q}$ channel contributions that are localised at $\hat{s}=q^2$ read:
 \begin{align}
 \frac{I_{G}^{q\bar{q}}}{e_q^2 g_s^2}&=\bar{\mu}^{2\epsilon}C_FN_c\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{G}^{q\bar{q}} \, \delta_{q^2}^+(p_{12})}{\prod_{j=1}^5 D_j^{\alpha_j^G}},
@@ -599,7 +636,7 @@ N_{\text{lsz}_1}^{q\bar{q}}&=\text{Tr}[\slashed{p}_1\gamma^\sigma \slashed{k} \g
 and $N_{\text{lsz}_2}^{q\bar{q}}=N_{\text{lsz}_1}^{q\bar{q}}|_{p_1\leftrightarrow p_2}$.
 The factor of $2$ for $N_{\triangle}^{q\bar{q}}$ accounts for the complex conjugate graph.
 
-\textbf{DY, spectrum:} For the diagrams that contribute to the entire $z=q^2/\hat{s}$ spectrum, namely $G\in\{\slashed{\triangle},\Box,\Box_1,\Box_2, \timesbox,\bigcirc\}$, we have
+\textbf{DY, spectrum:} For the diagrams that contribute to the entire $z=q^2/\hat{s}$ spectrum, namely $G\in\{\slashed{\triangle},\allowbreak\Box,\allowbreak\Box_1,\allowbreak\Box_2,\allowbreak \timesbox,\allowbreak\bigcirc\}$, we have
 \begin{equation}
 \frac{I_{G}^{\mathfrak{q}\mathfrak{q}'}}{e_q^2 g_s^2}=\bar{\mu}^{2\epsilon}C_FN_c\int \frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{G}^{\mathfrak{q}\mathfrak{q}'} \, \delta_{q^2}^+(p_{12}-k)\delta^+_0(k)}{\prod_{j=1}^5 D_j^{\alpha_j^G}}
 \end{equation}
@@ -622,12 +659,12 @@ and $N_{\Box_2}^{q\bar{q}}=N_{\Box_1}^{q\bar{q}}|_{p_1\leftrightarrow p_2}$.
 \onecolumngrid
 
 \begin{figure}
-\begin{subfigure}{0.45\textwidth}
+\begin{minipage}{0.45\textwidth}
 \scalebox{0.8}{\input{region_xbox.tex}}
-\end{subfigure}
-\begin{subfigure}{0.45\textwidth}
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
 \scalebox{0.8}{\input{region_triangle.tex}}
-\end{subfigure}
+\end{minipage}
 \end{figure}
 \fi
 

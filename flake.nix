@@ -55,6 +55,7 @@
               cleveref
               cm-super
               latexmk
+              multirow
               pgfplots
               revtex
               scheme-small
