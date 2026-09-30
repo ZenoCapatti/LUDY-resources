@@ -322,7 +322,7 @@ At NLO and LP, the DIS partonic tensors read:
  The integrals $I_{\mathfrak{q} G}^{\mu\nu}$ are given as \emph{End Matter} material.
  The discontinuities in $p^2$ and $1-x$ account for the sums over initial- and final-state cuts, respectively.
  % The measure $\mathrm{d}p^2/(8\pi^2)=[\mathrm{d}p^2/(2\pi)](1/4\pi)$ contains one observable-normalisation factor.
- $\text{disc}_{\tilde{s}}$ is both understood as a sum over Cutkosky cuts~\cite{Cutkosky:1960sp} in the $\tilde{s}$ channel (see fig.~\ref{fig:xbox-sum}) or as the difference of the function it operates on evaluated at $\tilde{s}-i\varepsilon$ and $\tilde{s}+i\varepsilon$ (at LP, no subtleties such as those of ref.~\cite{Bourjaily:2020wvq} arise).
+ $\text{disc}_{\tilde{s}}$ is both understood as a sum over Cutkosky cuts~\cite{Cutkosky:1960sp} in the $\tilde{s}$ channel (see fig.~\ref{fig:xbox-sum}) or as the difference of the function it operates on evaluated at $\tilde{s}-i\varepsilon$ and $\tilde{s}+i\varepsilon$ (at LP, no subtleties such as those of refs.~\cite{Bourjaily:2020wvq,Hannesdottir:2022xki,Abreu:2014cla,Abreu:2017enx} arise).
 
 For hadronic collisions, the situation is analogous.
 For DY, the NLO, LP cross-section reads:
@@ -330,6 +330,7 @@ For DY, the NLO, LP cross-section reads:
 \label{eq:disc_dy}
 \frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}}{\mathrm{d}q^2}&= \hspace{-0.2cm}\sum_{G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}} \hspace{-0.15cm} \text{Re}\hspace{-0.05cm}\left[\prod_{i=1}^2\int_0^{\Lambda^2}\hspace{-0.1cm}\frac{\mathrm{d}p_i^2}{2\pi}\text{disc}_{p_i^2}\right] \! \frac{N_{ee}I_{ G}^{\mathfrak{q}\mathfrak{q}'}}{4\pi \hat{s}\langle\mathfrak{q}\rangle \langle\mathfrak{q}'\rangle}
 \end{align}
+{\color{red} $\pi^2$ term}
 where the set  $\Gamma_{\mathfrak{q}\mathfrak{q}'}$, are is given in the appendix~\ref{sec:integrals_DIS_DY}.
 There is one discontinuity for each incoming hadron. Since the discontinuity of a finite integral is still finite, we obtain that each individual graph summand is IR-finite.
 
@@ -507,7 +508,7 @@ Finally, we should note that ultraviolet singularities are renormalised locally 
 \end{minipage}
 \end{subfigure}
 
-\caption{\justifying Results for the Drell-Yan and $t\bar{t}$-production processes, using Local Unitarity (\texttt{LUDY}), converted to the $\overline{\text{MS}}$ scheme. Results for \textbf{A} are obtained with 24M points for the full histogram and 2M refinements for the first three bins, with evaluation time at $\sim$4ms. Results for \textbf{B} are obtained with 100M points per channel and $\sqrt{\hat{s}}$, 400M for $gg$, 400GeV, with typical evaluation times at $\sim$1-10ms, depending on the channel. Results for \textbf{C} are obtained with 1B points per $\sqrt{s}$, 100M for $\sqrt{s}=400$GeV, with typical evaluation times at $\sim$6ms. See \emph{End Matter} for a discussion of numerical performance.}
+\caption{\justifying Results for the Drell-Yan and $t\bar{t}$-production processes, using Local Unitarity (\texttt{LUDY}), converted to the $\overline{\text{MS}}$ scheme. Results for \textbf{A} are obtained with 24M points for the full histogram and 2M refinements for the first three bins, with evaluation time at $\sim$4ms. Results for \textbf{B} are obtained with 100M points per channel and $\sqrt{\hat{s}}$, 400M for $gg$, 400GeV, with typical evaluation times at $\sim$1-10ms, depending on the channel. Results for \textbf{C} are obtained with 200M points per $\sqrt{s}$, 100M for $\sqrt{s}=400$GeV, with typical evaluation times at $\sim$20ms. See \emph{End Matter} for a discussion of numerical performance.}
 {\color{gray!50}\rule{0.8\linewidth}{0.6pt}}
 \label{fig:results}
 \phantom{g}\\[-0.5cm]
@@ -576,7 +577,8 @@ The numerators including graph factors are
 
 \begin{figure}
 \includegraphics[width=0.49\textwidth]{paper/soft-triangle.pdf}
-\caption{\justifying An example of a non-trivial identification, at leading power, of cut diagrams with discontinuities. In this case, the interference diagram where the gluon belongs to both jets at the same time is equated to the double discontinuity of the sum of the soft and soft-collinear regions of the integral $I_{\triangle}^{q\bar{q}}$, represented as an embedding.}
+\caption{\justifying An example of a non-trivial identification, at leading power, of cut diagrams with discontinuities. In this case, the interference diagram where the gluon belongs to both jets at the same time is equated to the double discontinuity of the sum of the soft and soft-collinear regions of the integral $I_{\triangle}^{q\bar{q}}$, represented as an embedding.{\color{red} reverse p1 arrow}
+}
 \label{fig:triangle_soft}
 {\color{gray!50}\rule{0.8\linewidth}{0.6pt}}
 \phantom{g}\\[-0.3cm]
