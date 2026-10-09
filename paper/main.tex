@@ -106,6 +106,16 @@ floatfix,
 \DeclareRobustCommand{\valentin}[1]{%
   \textcolor{ValentinComment}{[\textbf{Valentin:} #1]}%
 }
+
+\definecolor{LucienComment}{RGB}{35,125,95}
+\DeclareRobustCommand{\lucien}[1]{%
+  \textcolor{LucienComment}{[\textbf{Lucien:} #1]}%
+}
+
+\definecolor{ZenoComment}{RGB}{35,110,135}
+\DeclareRobustCommand{\zeno}[1]{%
+  \textcolor{ZenoComment}{[\textbf{Zeno:} #1]}%
+}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \usepackage{cleveref}
@@ -166,7 +176,7 @@ By virtue of the KLN theorem, the partonic cross-section is infrared finite with
 \valentin{I would rather say “without the need for the introduction of any IR regulator”}
 It can therefore be computed analytically using Reverse Unitarity or directly in four dimensions by Monte Carlo methods, within the Local Unitarity approach, which realises infrared finiteness locally.
 % Valentin PDF: page 1, annotation 436.
-\valentin{Also weird, your precedure is not a pre-requisite to compute things in reverse-unitarity, which is fine with a dim regulator. I mean the Higgs x-sec was computed at N3LO with reverse unitarity.}
+\valentin{Also weird, your precedure is not a pre-requisite to compute things in reverse-unitarity, which is fine with a dim regulator. I mean the Higgs x-sec was computed at N3LO with reverse unitarity.}\lucien{my fault!}
 % Valentin PDF: page 1, annotation 438.
 \valentin{ok now THAT (numerical d=4 MC approach) on the other hand actually requires KLN/LU for iSR!}
 We explicitly perform analytic and numerical computations of the Next-To-Leading Order, Leading-Power partonic cross-sections for the Deep Inelastic Scattering, Drell-Yan and $t\bar{t}$ production processes within this framework and show that they turn into their $\overline{\text{MS}}$ counter-parts by universal scheme changing counter-terms.
