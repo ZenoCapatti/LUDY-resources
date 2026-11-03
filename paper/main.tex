@@ -148,9 +148,10 @@ floatfix,
 \begin{document}
 
 
-\title{The KLN theorem meets collinear factorisation: \texorpdfstring{\\}{ }Local Unitarity for Hadronic Cross-Sections 
-\texorpdfstring{\\}{ } or Finite hadronic cross-sections without PDF renormalisation
-\texorpdfstring{\\}{ } or A new mechanism for infrared cancellation in hadronic cross-sections
+\title{%The KLN theorem meets collinear factorisation: \texorpdfstring{\\}{ }Local Unitarity for Hadronic Cross-Sections 
+%\texorpdfstring{\\}{ } 
+Infrared-finite hadronic cross-sections without dimensional regularisation
+%\texorpdfstring{\\}{ } or A new mechanism for infrared cancellation in hadronic cross-sections
 }
 %
 
@@ -183,10 +184,10 @@ CERN, Theory Department, 1211 Geneva 23, Switzerland
 \begin{abstract}
 We present an initial-state implementation of the Kinoshita--Lee--Nauenberg (KLN) theorem that is compatible with collinear factorisation.
 In this formulation, hadronic cross-sections are expressed as convolutions of parton distribution functions with partonic cross-sections obtained by summing over the number of incoming partons.
-By virtue of the KLN theorem, the partonic cross-sections are infrared finite without requiring infrared renormalisation.
+By virtue of the KLN theorem, the partonic cross-sections are by construction infrared finite, and never need to be dimensionally regularised..
 The Local Unitarity formalism provides a local realisation of this infrared finiteness, allowing partonic cross-sections to be evaluated directly in four dimensions by Monte Carlo integration.
 We demonstrate the framework at next-to-leading order and leading power.
-Using Local Unitarity, we compute the Drell--Yan and $t\bar{t}$ production cross-sections numerically; using Reverse Unitarity, we obtain the deep inelastic scattering and Drell--Yan cross-sections analytically. In all cases, a universal scheme conversion relates our results to those obtained in the conventional \(\overline{\mathrm{MS}}\) parton model.
+Using Local Unitarity, we compute the Drell--Yan and $t\bar{t}$ production cross-sections numerically; using Reverse Unitarity, we obtain the deep inelastic scattering and Drell--Yan cross-sections analytically. In all cases, a universal scheme conversion relates our results to those obtained in the conventional \(\overline{\mathrm{MS}}\) parton model. Dimensional regularisation enters only through this conversion and ultraviolet renormalisation.
 
 \end{abstract}
 
@@ -205,8 +206,8 @@ In conventional calculations of hadronic cross-sections, infrared finiteness rel
 
 In this paper, we investigate an initial-state implementation of the KLN theorem in which partonic cross-sections are defined by summing over degenerate initial- and final-state configurations of different massless-parton multiplicities, ensuring KLN-driven cancellation of infrared singularities in both states. Within the Local Unitarity (LU) framework~\cite{Capatti:2020xjc,Capatti:2021bsm,Capatti:2022tit,Capatti:2025khs}, these cancellations can be realised locally, enabling direct Monte Carlo integration of partonic cross-sections in four dimensions. We demonstrate our framework at next-to-leading order (NLO), computing the deep inelastic scattering (DIS) and Drell--Yan (DY) cross-sections analytically using Reverse Unitarity~\cite{Anastasiou:2002qz,Anastasiou:2002yz,Anastasiou:2003yy,Anastasiou:2013mca,Anastasiou:2013srw}, while Drell--Yan and $t\bar{t}$ production cross-sections are computed numerically using Local Unitarity.
 
-At leading power in a virtuality expansion unique to our framework, partonic cross-sections are IR-finite without the need for a renormalisation procedure, evolve according to DGLAP equations~\cite{Altarelli:1977zs,Dokshitzer:1977sg,Gribov:1968ia,Gribov:1972ri} and turn into their $\overline{\text{MS}}$ parton model counterparts by a universal redefinition of the PDFs. Hence, we reconcile for the first time an initial-state implementation of the KLN theorem with collinear factorisation.
-In turn, this framework provides a new way to compute $\overline{\text{MS}}$ hadronic cross-sections, and offers a systematic method for studying subleading power contributions.
+At leading power in a virtuality expansion unique to our framework, partonic cross-sections are IR-finite, evolve according to DGLAP equations~\cite{Altarelli:1977zs,Dokshitzer:1977sg,Gribov:1968ia,Gribov:1972ri} and turn into the $\overline{\text{MS}}$ counterparts by a universal redefinition of the PDFs. Hence, we reconcile for the first time an initial-state implementation of the KLN theorem with collinear factorisation.
+In turn, this framework provides a new way to compute $\overline{\text{MS}}$ hadronic cross-sections, and offers a systematic method to study subleading power effects.
 % Valentin PDF: page 1, annotation 454.
 %\valentin{“natural” is a weird word here.
 %Maybe “in the particular virtuality \ldots{}” instead?}
@@ -223,15 +224,13 @@ In turn, this framework provides a new way to compute $\overline{\text{MS}}$ had
 \section{Simplest clustering criterion}
 \label{sec:clustering}
 
-In order to relate the scattering of many partons with that of hadrons, we introduce the \emph{simplest clustering criterion}, which answers the question: ``What is the most analytically tractable definition of jet clustering?'', thus guaranteeing that calculations within our formalism may be done analytically with existing techniques.
-%
+To relate the scattering of many partons to that of hadrons, we use the \emph{simplest clustering criterion}, which arises naturally from an infrared-safe density matrix description of the initial state~\cite{Capatti:2025gqj}.
+It gives an analytically tractable definition of jet clustering, allowing calculations to be performed with existing analytic techniques.
 
 Consider $n$ massless partons and the usual Lorentz-invariant phase-space measure ($d=4-2\epsilon$):
 \begin{equation}
 \mathrm{d}\Pi_n=\prod_{i=1}^{n} \frac{\mathrm{d}^d q_i}{(2\pi)^{d-1}} \delta(q_i^2)\Theta(q_i^0).
 \end{equation}
-% Valentin PDF: page 1, annotation 460.
-\valentin{Funnily enough I think that technically $\Theta(q_i^0)$ is only Lorentz invariant because the partons are massless. But no need to stress that ofc.} {\color{red} Lorentz group is not simply connected. This measure is invariant under the ortochronous lorentz group.}
 %
 The $n$ partons are clustered in a compound object with momentum $p$ by the following integration measure~\cite{Capatti:2025gqj}:
 \begin{equation}
@@ -239,25 +238,18 @@ The $n$ partons are clustered in a compound object with momentum $p$ by the foll
 \mathrm{d}\Pi_n^\mathbf{p}=\mathrm{d}\Pi_n\frac{\delta(q_{1n}-p)\delta_{\mathfrak{a},\mathfrak{q}_{1n}}}{4\pi\langle\mathfrak{a}\rangle},
 \end{equation}
 with $q_{1n}=q_1+...+q_n$ and $\mathfrak{q}_{1n}=\mathfrak{q}_1+...+\mathfrak{q}_n$.
-Here, $\mathbf{p}=(p,\mathfrak{a})$ is the tuple of the momentum $p$ of the cluster and its quark number $\mathfrak{a}\in\mathbb{Z}$.
-The quark number of the $i$-th parton is $\mathfrak{q}_i=1$ for a quark, $\mathfrak{q}_i=-1$ for an anti-quark, and $\mathfrak{q}_i=0$ for a gluon.
-% Valentin PDF: page 2, annotation 562.
-\valentin{“quark number” is a bit clunky no? Can’t you use an actual QCD-conserved charge / quantum number of the theory (e.g. hypercharge?)}{\color{red} this matches with the name used in the DIS paper. I don't see any conventional charge.}
+$\mathbf{p}=(p,\mathfrak{a})$ is the tuple of the momentum $p$ of the cluster and its quark number $\mathfrak{a}\in\mathbb{Z}$, i.e. the conserved QCD
+charge equal to three times the baryon number.
+For the $i$-th parton, $\mathfrak{q}_i=1$ for a quark,
+$\mathfrak{q}_i=-1$ for an antiquark, and $\mathfrak{q}_i=0$
+for a gluon.
 %
+Hence, $\langle\mathfrak{a}\rangle=2N_c$ for $\mathfrak{a}= \pm 1$, and $\langle\mathfrak{a}\rangle=(d-2)(N_c^2-1)$ for $\mathfrak{a}=0$.
 %
-%
-Explicitly, $\langle\mathfrak{a}\rangle=2N_c$ for $\mathfrak{a}= \pm 1$ ($q,\bar{q}$), and $\langle\mathfrak{a}\rangle=(d-2)(N_c^2-1)$ for $\mathfrak{a}=0$ ($g$).
-% Valentin PDF v2: page 2, annotation 1456.
-\valentin{You shoudl add ghost here.}
-{\color{red} we don't have ghosts in the initial state}
-%
-%
-Equation~\eqref{eq:1_clustering} imposes that the momenta and quark numbers of the $n$ initial-state partons must sum up to the cluster's momentum $p$ and quark number $\mathfrak{a}$.
+Eq.~\eqref{eq:1_clustering} imposes that the momenta and quark numbers of the $n$ initial-state partons sum to the cluster momentum $p$ and quark number $\mathfrak{a}$.
 %
 
 We cluster $n$ partons into two compound objects with momenta $p_1$ and $p_2$ by distributing them according to:
-% Valentin PDF: page 2, annotation 564.
-\valentin{why not “with configurations P\_bold\_1 and P\_bold\_2...” instead?}{\color{red} see new change below}
 %
 \begin{equation}
 \label{eq:2_clustering}
@@ -271,28 +263,15 @@ with $[n]=\{1,...,n\}$, and $\mathbf{p}_i=(p_i,\mathfrak{a}_i)$.
 Each initial-state parton belongs to one or both clusters.
 The momenta and quark numbers of all partons belonging to the $i$-th cluster must sum up to the momentum $p_i$ and quark number $\mathfrak{a}_i$.
 As $p_i^2$ becomes small, the momentum of a parton contained within the $i$-th cluster will be either a) collinear to $p_i$, if it is contained only in one cluster,or  b) soft, if it is contained in both clusters.
-% Valentin PDF: page 2, annotation 566.
-\valentin{maybe rephrase:
-“\ldots{}, the momentum of a parton becomes collinear when exclusively within a single cluster, and necessarily soft when part of both clusters.”}{\color{red} ok changed}
-%
-%
-%
 
 \section{Cross-sections with many initial-state partons}
 \label{sec:formalism}
 
-In DIS, a high-energy electron scatters against a proton.
-% Valentin PDF: page 2, annotation 568.
-\valentin{It’s more natural to me to state that a “high-energy electron scatters against a proton”}{\color{red} ok}
-%
-In the single-photon-exchange approximation used here {\color{red} prefer QCD corrections}, the interaction is mediated by a virtual photon with momentum $q$ emitted by the electron with momentum $p_e$.
+We consider QCD corrections to photon-mediated DIS, where the incoming electron with momentum $p_e$ emits a virtual photon with momentum $q$.
 %
 The partonic cross-section is the contraction of the leptonic tensor $L_{\mu\nu}(p_e,q)$ and the partonic tensor $W_{\mathfrak{a}}^{\mu\nu}(x,q^2;\Lambda^2)$ that depends on the Bjorken variable $x$, on $q^2$, and an infrared scale $\Lambda^2$.
 %
 Given the collections of all partonic combinations:
-% Valentin PDF: page 2, annotation 572.
-\valentin{There is no ordering here, so “sequences” $\to$ “combinations”}{\color{red} ok}
-%
 %
 \begin{equation}
  \mathfrak{S}_n=\bigcup_{j=1}^n \{q,\bar{q},g\}^j,
@@ -309,36 +288,24 @@ For fixed initial-state multiplicities:
 \label{eq:partonic_tensor_MP_fixed_mult}
 W_{\mathfrak{a},\vec{\mathfrak{s}}}^{\mu\nu}=\text{disc}_{1-x}\int \mathrm{d}\Pi_{|\vec{\mathfrak{s}}|}^\mathbf{p}\mathcal{A}(\vec{\mathfrak{s}} \, \gamma^\star_\mu(q)\rightarrow \vec{\mathfrak{s}} \, \gamma^\star_\nu(q)),
 \end{equation}
-%\begin{equation}
-%\label{eq:partonic_tensor_MP_fixed_mult}
-%W_{\mathfrak{a},\vec{\mathfrak{s}}}^{\mu\nu}=\int \mathrm{d}\Pi_{|\vec{\mathfrak{s}}|}^\mathbf{p}\int \mathrm{d}\Pi_{|\vec{\mathfrak{s}'}|}^{\mathbf{p}_X}|\mathcal{A}(\mathfrak{s} \, \gamma^\star_\mu(q)\rightarrow \mathfrak{s} ')|^2.
-%\end{equation}
-%[Turn into square amplitude]
-
-\lucien{disc comment origin}
-where $\mathbf{p}=(p,\mathfrak{a})$.
+where $\mathbf{p}=(p,\mathfrak{a})$. The discontinuity operator arises from the application of the optical theorem to DIS.
 All partonic spins and colours are summed over, and $\mathcal{A}$ is the forward-scattering amplitude, including disconnected diagrams.
 The parton-model partonic cross-section is the $\mathfrak{S}_1$ term of the sum in Eq.~\eqref{eq:partonic_tensor_MP}.
 %
-The hadronic tensor $W_{H}^{\mu\nu}$ is obtained as:
+The hadronic tensor $W_{H}^{\mu\nu}$ is:
 \begin{equation}
 W_{H}^{\mu\nu}=\sum_{\mathfrak{q}\in\mathfrak{S}_1}\int_x^1 \frac{\mathrm{d}\xi}{\xi} f_{\mathfrak{q}}(\xi;\Lambda^2)W_{\mathfrak{q}}^{\mu\nu}(x/\xi,q^2;\Lambda^2).
 \end{equation}
 %We will see that at Leading Power (LP) in $\Lambda^2$ and NLO in $\alpha_s$, $W_{H}^{\mu\nu}$ is indendent on $\Lambda^2$.
 
 In DY, instead, two protons scatter and produce QCD radiation and a lepton pair, whose invariant mass $q^2$ is measured.
-For the photon-mediated process considered here, at leading order in the electromagnetic coupling, the leptonic phase space is integrated exactly and factorises multiplicatively.
+At leading order in the electromagnetic coupling, the leptonic phase space is integrated exactly and factorises multiplicatively.
 Hence we may consider a final-state photon with mass $q^2$ instead.
 %
 In our extension, the partonic cross-section reads:
 \begin{equation}
 \frac{\mathrm{d}\sigma_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}(\hat{s};\Lambda^2)= \! \sum_{\substack{\mathfrak{s}\in\mathfrak{S}_{\infty} \\ \mathfrak{s}'\in\tilde{\mathfrak{S}}_{\infty} }}\left[\prod_{i=1}^2\int_0^{\Lambda^2}\frac{\mathrm{d}p_i^2}{2\pi}\right]\frac{\mathrm{d}\sigma^{\mathfrak{s}\mathfrak{s}'}_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}(p_1,p_2),
 \end{equation}
-% Valentin PDF: page 2, annotation 574.
-\valentin{Of course in that notation the correlation between s and s’ at given perturbative orders is lost.
-In general, I like this concise, yet precise, exposé, but I find it a bit unfortunate that this section does not have a more “common starting point” borrowed from your previous paper, i.e. the vacuum construction.
-I do get that you want to write the more explicit construction for DIS, DY and ttbar, but I would first state (even in just words) that the systematic construction would come from vacuum graph and embedding enumeration, from which the forumales you’re about to write naturally arise.}{\color{red} no it's the reverse the embeddings arise from this.}
-%
 %
 where $p_1=x_1\frac{\sqrt{s}}{2}\eta_++\frac{p_1^2}{2x_1\sqrt{s}}\eta_-$, $p_2=x_2\frac{\sqrt{s}}{2}\eta_-+\frac{p_2^2}{2x_2\sqrt{s}}\eta_+$ and $\hat{s}=x_1 x_2 s$.
 The partonic cross-section at fixed multiplicities reads:
@@ -346,11 +313,6 @@ The partonic cross-section at fixed multiplicities reads:
 \label{eq:DY_partonic_fixed}
 \frac{\mathrm{d}\sigma^{\mathfrak{s}\mathfrak{s}'}_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}=\frac{1}{\hat{s}}\int \mathrm{d}\Pi_{|\mathfrak{s}|}^{\mathbf{p}_1\mathbf{p}_2}\int \mathrm{d}\Pi_f |\mathcal{A}(\mathfrak{s}  \rightarrow \mathfrak{s}' \gamma^\star(k))|^2.
 \end{equation}
-% Valentin PDF: page 2, annotation 578.
-\valentin{So instead of the forward-scattering amplitude you now have the squared amplitude here, and no more the discontinuity to identify the cuts.
-I understand why you presented it all like this, to presence concise, yet complete, expressions that are more familiar to the reader. I also understand that you sort of go back to that vacuum connection later.
-But still, one danger is that it looks like airdroppig different starting expressions for DIS vs DY, and sort-of hiding one of the very appealing elegance of your formalism which connects DIS and DY in a unifying vacuum picture.
-I’m really not arguing for changing any of these expression, but just adding a preamble paragraph to that section that clearly state that all these expression follow directly from the construction you presented in the DIS paper.}{\color{red} all these expressions don't follow from the DIS paper. Use of optical theorem in DIS is standard, but can be clarified if there's a very compact way to do so.}
 %
 Here, $\mathbf{p}_1=(p_1,\mathfrak{a})$, $\mathbf{p}_2=(p_2,\mathfrak{b})$ are the momenta and quark numbers of the two colliding clusters.
 Letting $q_{\mathfrak{s}}$ and $q_{\mathfrak{s}'}$ be the sum of the partonic momenta in the initial and final state, final states are distributed according to:
@@ -368,11 +330,6 @@ The hadronic cross-section is the convolution
 \begin{equation}
 \hspace{-0.05cm}\frac{\mathrm{d}\sigma}{\mathrm{d}q^2}\!=\! \! \left[\prod_{i=1}^2\sum_{\mathfrak{q}_i \in\mathfrak{S}_1}\hspace{-0.075cm}\int_0^1 \mathrm{d}x_i f_{\mathfrak{q}_i}(x_i;\Lambda ^2)\right] \!  \frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}}{\mathrm{d}q^2} \!\left(\hat{s};\Lambda^2\right)\! .
 \end{equation}
-% Valentin PDF: page 2, annotation 576.
-\valentin{I find this double-loaded meaning of `fancy-G\_n` a bit unfortunate.
-Indeed with G\_1 you want to refer to the enumeration of all quantum numbers / (i.e. “quark” numbers in your language) that the parton model decomposes the PDF over.
-This enumeration is in principle distinct from the list of possible partons, and it would be cleaner to keep those distinct. A simple counter-example of that difference would be the ghost and gluon in the initial state in the feynman gauge.
-Essentially conserved charges enumeration and parton enumeration are really physically two distinctive things and conflating here is a bit dangerous and may mud the picture unnecessarily.} 
 %
 The $t\bar{t}$ cross-section is obtained by simply swapping the final-state photon with a $t\bar{t}$ pair and changing the final-state phase-space measure $\mathrm{d}\Pi_f$ accordingly.
 %
@@ -383,76 +340,28 @@ The $t\bar{t}$ cross-section is obtained by simply swapping the final-state phot
 
 The newly defined partonic cross-sections expand into sums of disconnected interference diagrams with many incoming legs.
 This diagrammatic proliferation has long complicated initial-state implementations of the KLN theorem~\cite{Axelrod:1985yi,Frye:2018xjj,Lavelle_2006,Capatti:2025gqj,khalil2017completediagrammaticimplementationkinoshitaleenauenberg}.
-% Valentin PDF: page 3, annotation 337.
-\valentin{Yes, something like that paragraph could be moved before the exposé of the explicit expressions.} {\color{red} which explicit expressions?}
 %
 We conjecture that, at leading power (LP) in $\Lambda^2$, the sum over all interference diagrams with more than one initial-state parton per hadron gives a \emph{“blown-up” integral representation of PDF counterterms in a certain scheme}.
-% Valentin PDF: page 3, annotation 339.
-\valentin{“blown-up” $\to$ unintegrated local}{\color{red} no}
 %
 Hence, the diagrammatic outburst may be systematically re-absorbed in a PDF redefinition.
 The conjecture is backed by a calculation of a large gauge-invariant subset of the DIS diagrams~\cite{Capatti:2025gqj}, showing that the longitudinal structure function is insensitive to the multi-partonic contributions. It is also motivated by the following broader argument.
-% Valentin PDF: page 3, annotation 341.
-\valentin{supported}
 %
-% Valentin PDF: page 3, annotation 343.
-\valentin{reads weird: Rephrase and use a new sentence.
-It is also motivated by a broad argument we now lay out in the next paragraph.}
-{\color{red} compromise}
-%
-%
-
-%This only happens if, at any fixed order, the sum over the additional diagrams \emph{factorises exactly} at LP.
 
 At NLO, the multi-partonic contributions to the cross-section, Eq.~\eqref{eq:partonic_tensor_MP_fixed_mult} ($|\mathfrak{s}|>1$) and Eq.~\eqref{eq:DY_partonic_fixed} $(|\mathfrak{s}|>2)$ are integrals of tree-level amplitudes.
 As $p_i^2\to 0$, the external partons become soft or collinear, and the tree-level amplitudes factorise at leading power into universal soft and collinear factors multiplying the leading-order cross-section, with \emph{no hard remainder}~\footnote{Due to the clustering, hard contributions can only arise from parton-model diagrams, $|\mathfrak{s}|=1$ for DIS and $|\mathfrak{s}|=2$ for DY}.
 The corresponding cross-section contributions factorise as convolutions of the born cross-sections with the collinear and soft factors.
 Under the non-trivial assumption that soft double logarithms vanish, we obtain the conjectured statement.
-% Valentin PDF: page 3, annotation 345.
-\valentin{In the assumption that, 
-$\to$
-Under that non-trivial assumption that singularities of soft origin do not contribute, we obtain the conjectured statement.}{\color{red}soft double logarithms vanish}
 %
 %
-%
-
-%Here, we give an intuitive argument suggesting the above is true.
-%A more detailed proof will be available in a revised version of ref.~\cite{Capatti:2025gqj}.
-%For $|\mathfrak{s}|>1$ and at NLO, the multi-partonic contributions to the cross-section, eq.~\eqref{eq:partonic_tensor_MP_fixed_mult} and eq.~\eqref{eq:DY_partonic_fixed} are integrals of tree level amplitudes.
-%When $p_i^2\rightarrow 0$, the external partons are pushed into collinear/soft configurations, and the corresponding tree level amplitudes factorise, at leading power in the $p_i^2$ virtualities, into the product of universal pieces describing collinear, anti-collinear and soft dynamics with the leading-order cross-section, \emph{with no finite remainder}.
-%Correspondingly, the integrated amplitudes factorises as convolutions of the above ingredients.
-%In the assumption that soft effects vanish, the contribution of the additional diagrams amounts to a universal scheme redefinition.
 
 Hence, the $\overline{\text{MS}}$ result amounts to absorbing in the PDFs both the multi-partonic contributions and the $\overline{\text{MS}}$ poles of the bare parton-model cross-section.
-% Valentin PDF: page 3, annotation 347.
-\valentin{is recovered by\ldots{}
-$\to$
-amounts to\ldots{}}
-{\color{red} ok}
 %
 We instead define PDFs $f_{\mathfrak{q}}^{\text{LU}}$ that absorb all those interference diagrams that are not strictly required for IR finiteness of the bare parton model.
-% Valentin PDF: page 3, annotation 349.
-\valentin{This is potentially confusing, I would be explicitly here and state that $f^{(\mathrm{LU})}$ re-absorbs *not only* the diagrams necessary for the IR finiteness of the parton model contributions, *but also* all other interference diagram contributions stemming from the systematic vacuum+embedding-based construction first introduced in your previous paper.}
 %
-%
-  %\includegraphics{thrown-out.pdf}
 The remaining calculation consists of the bare parton model together with the \emph{minimal} set of multi-partonic contributions needed for IR finitess.
-% Valentin PDF: page 3, annotation 351.
-\valentin{I would rather say, the calculations presented in this paper, and at variance with those of your previous DIS paper, instead limit themselves to computing the minimal set\ldots{}}
 %
 %
 
-%In this perspective, the $\overline{\text{MS}}$ PDFs $f_{\mathfrak{q}}^{\overline{\text{MS}}}$ re-absorb the contribution of all diagrams with many partons in the initial state, on top of the $\overline{\text{MS}}$ poles of the bare parton model cross-section.
-%Another choice is to consider PDFs $f_{\mathfrak{q}}^{\text{LU}}$ that re-absorb the contribution of all and only the diagrams that are not strictly necessary to make the parton model finite.
-%This leaves the computation of the parton model diagrams plus the minimal set of multi-partonic diagrams that make them IR finite, which is a gauge invariant subset of diagrams that independently factorises (as shown below).
-%This is the LU scheme.
-
-%{\color{red} $p_1^2,p_2^2$ diagrams}
-
-%In the LU-scheme, the contribution of the additional diagrams may be packaged in an especially compact form.
-%Take the $\overline{\text{MS}}$ parton model diagrams for DIS and collect them in a set $\Gamma_{\mathfrak{q}}$.
-%Then, allow initial-state partons to have any virtuality, meaning they can be off-shell.
-%Then at NLO and LP, the DIS partonic tensors read:
 In the LU scheme, the contributing interference diagrams are packaged compactly (see, e.g., Fig.~\ref{fig:xbox-sum}).
 Let $\Gamma_{\mathfrak{q}}$ denote the set of $\overline{\text{MS}}$ parton-model diagrams for DIS, and allow the initial-state partons to carry arbitrary virtualities.
 At NLO and LP, the DIS partonic tensors read:
@@ -464,9 +373,6 @@ At NLO and LP, the DIS partonic tensors read:
  The discontinuities in $p^2$ and $1-x$ account for the sums over initial- and final-state cuts, respectively.
  % The measure $\mathrm{d}p^2/(8\pi^2)=[\mathrm{d}p^2/(2\pi)](1/4\pi)$ contains one observable-normalisation factor.
  The operator $\text{disc}_{\tilde{s}}$ is both understood as a sum over Cutkosky cuts~\cite{Cutkosky:1960sp} in the $X$ channel (see Fig.~\ref{fig:xbox-sum}) or as the difference of the function it operates on evaluated at $X-i\varepsilon$ and $X+i\varepsilon$ (at LP, no subtleties such as those of Refs.~\cite{Bourjaily:2020wvq,Hannesdottir:2022xki,Abreu:2014cla,Abreu:2017enx} arise).
-% Valentin PDF: page 3, annotation 353.
-\valentin{is $\tilde{s}$ supposed to be a placeholder here? I would use capitalize X then.}{\color{red} ok}
-%
 %
 
 For hadronic collisions, the situation is analogous.
@@ -475,11 +381,8 @@ For DY, the NLO, LP cross-section reads:
 \label{eq:disc_dy}
 \frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}}{\mathrm{d}q^2}&= \hspace{-0.2cm}\sum_{G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}} \hspace{-0.15cm} \text{Re}\hspace{-0.05cm}\left[\prod_{i=1}^2\int_0^{\Lambda^2}\hspace{-0.1cm}\frac{\mathrm{d}p_i^2}{2\pi}\text{disc}_{p_i^2}\right] \! \frac{N_{ee}I_{ G}^{\mathfrak{q}\mathfrak{q}'}}{4\pi \hat{s}\langle\mathfrak{q}\rangle \langle\mathfrak{q}'\rangle},
 \end{align}
-{\color{red} $\pi^2$ term}
 where the set $\Gamma_{\mathfrak{q}\mathfrak{q}'}$ is given in the \hyperref[sec:integrals_DIS_DY]{End Matter}.
 There is one discontinuity for each incoming hadron. Since the discontinuity of a finite integral is still finite, we obtain that each individual graph summand is IR finite.
-% Valentin PDF: page 3, annotation 355.
-\valentin{This comment may not exactly fit here, but in general you could essentially recycle the original LU proof (i.e. ref [19]) to immediately argue that this sum of contributions is locally finite at any order. It may be nice to establish that connection more explicitly than it has been done alreayd in this text.}{\color{red} the original LU proof only works for final states}
 %
 %
 %
@@ -489,22 +392,7 @@ There is one discontinuity for each incoming hadron. Since the discontinuity of 
    \vspace{-0.5cm}
   \includegraphics{xbox-sum.pdf}
   \vspace{-0.5cm}
-  \caption{ \justifying Contribution of the $G=\timesbox$ cross-box diagram in the sum over $G\in \Gamma_{\mathfrak{q}\mathfrak{q}'}$ in \eqref{eq:disc_dy}, written as an (infrared-finite) discontinuity and as a sum of interference diagrams forming an infrared-finite class. The first diagram is the parton model's, while the additional ones form the minimal set of multi-partonic diagrams needed for its IR finiteness. Coloured shadings denote belonging to the $p_1$ (blue) jet or the $p_2$ (orange) jet, compatibly with the simplest-clustering criterion. The red line identifies the final-state cut. All initial- and final-state particles receive cut Feynman rules. On the right-hand side, we represent the integral $I_{\hspace{-0.075cm}\timesbox}^{\mathfrak{q}\mathfrak{q}'}$ as a vacuum graph embedding~\cite{Capatti:2025gqj}.
-% Valentin PDF: page 4, annotation 397.
-\valentin{This just one option, containing the collinear limits, but you should at least mention that one still needs to sum over all of them in principle (unless demonstratd to be non LP) and in particular remind again of the overlapping ones containing the soft, which will be unexpected/unfamiliar to some.}{\color{red} not sure what you mean}
-%
-%
-% Valentin PDF v2: page 4, annotation 1222; updates original annotation 401.
-\valentin{Did you not want to spell out explicitly in an equation what this I-cross-box is? You should refer to the corresponding equation there.
-And I would take a chance in this caption that the very ability to rewrite the l.h.s from the r.h.s as prescribed in your earlier paper is what makes this entire procedure systematic.}{\color{red} I cross-box given in the end matter, that can be referenced. As far as second observation, not sure why that statement would be needed. The "systematicity" should be obvious from the statement, reiterating it without adding anything does not help.}
-%
-% Valentin PDF v2: page 4, annotation 1237.
-\valentin{Why not keeping the flags on the vacuum cut?}
-{\color{red} I'm agnostic}
-%
-% Valentin PDF v2: page 4, annotation 1377.
-\valentin{Also you decayed the photon no? Maybe good to say that for clarity here you ommit the photon decay but you include it in your results later of course.}
-{\color{red} the depicted relation is just true and does not rely on the decay of the photon. Results are consistent with photon decay as previously explained in the text}
+  \caption{ \justifying Contribution of the $G=\timesbox$ cross-box diagram in the sum over $G\in \Gamma_{\mathfrak{q}\mathfrak{q}'}$ in \eqref{eq:disc_dy}, written as an (infrared-finite) discontinuity and as a sum of interference diagrams forming an infrared-finite class. The lepton phase-space factorises and the photon is massive. The first diagram is the parton model's, while the other ones form the minimal set of multi-partonic diagrams needed for its IR finiteness. Coloured shadings denote belonging to the $p_1$ (blue) jet or the $p_2$ (orange) jet, as per the simplest-clustering criterion. The red line identifies the final-state cut. All initial- and final-state particles receive cut Feynman rules. On the right-hand side, we represent the integral $I_{\hspace{-0.075cm}\timesbox}^{\mathfrak{q}\mathfrak{q}'}$ (given in the \hyperref[sec:integrals_DIS_DY]{End Matter}) as a vacuum graph embedding~\cite{Capatti:2025gqj}.
 %
 %
   }
@@ -523,11 +411,6 @@ We introduce the \emph{splitting counterterms} $D_{\mathfrak{q}\mathfrak{q}'}$ b
 \begin{equation}
 f_{\mathfrak{q}'}^{\overline{\text{MS}}}(x;\mu^2)=\hspace{-0.15cm}\sum_{\mathfrak{q}\in\mathfrak{S}_1}\hspace{-0.05cm}\int_x^1 \hspace{-0.05cm}\frac{\mathrm{d}\xi}{\xi} D_{\mathfrak{q}'\mathfrak{q}}\hspace{-0.06cm}\left(\xi,\tfrac{\Lambda^2}{\mu^2}\right)f_{\mathfrak{q}}^{\text{LU}}\hspace{-0.06cm}\left(\tfrac{x}{\xi};\Lambda^2\right).
 \end{equation}
-% Valentin PDF: page 3, annotation 357.
-\valentin{You should maybe formally define the convolution operator “circled\_cross” and then actually use it in your equations to shorten them.
-Though looking at our usual definition (e.g. eq. 2.5 of \url{https://arxiv.org/pdf/2004.04752}) it’s a bit weird that you kept the lower bound of the convolving variable $\xi$ integrated over at 0 instead of x.
-It’s abit weird as it means that your LU PDF should be dfined for an argument larger than one too at NLO?} {\color{red} fixed, as far as otimes symbol it's just above the equation}
-%
 %
 The coupling expansion reads
 \begin{equation}
@@ -550,14 +433,11 @@ D_{\mathfrak{q}\mathfrak{q}'}^{(1)}(\xi)=
 \end{align}
 
 \end{widetext}
-
- Here, $\bar{\xi}'=1-\xi'$, $c_{qg}=T_F$, $c_{qq}=c_{gq}=C_F$ and $c_{gg}=C_A$.
- The function $P_{\mathfrak{q}\mathfrak{q}'}^{(0)}(\xi)$ is the leading-order AP splitting kernel in conventional dimensional regularisation, Eqs.~(32)-(35) of Ref.~\cite{Catani:1996pk}, stripped of colour factors, while $\big|_{\epsilon^0}$ stresses that the pole is discarded.
+Here, $\bar{\xi}'=1-\xi'$, $c_{qg}=T_F$, $c_{qq}=c_{gq}=C_F$ and $c_{gg}=C_A$.
+ The function $P_{\mathfrak{q}\mathfrak{q}'}^{(0)}(\xi)$ is the leading-order AP splitting kernel in conventional dimensional regularisation, Eqs.~(32)-(35) of ref.~\cite{Catani:1996pk}, stripped of colour factors, while $\big|_{\epsilon^0}$ stresses that the pole is discarded.
  The $\delta(\xi-\xi')$ pieces originate from the contribution with an additional QCD emission in the final state.
  Finally, $b_{\partial}^{qg}=1$, $b_{\partial}^{gq}=b_{\partial}^{qq}=1-\epsilon$, $b_{\partial}^{gg}=\tfrac{3(2\epsilon-3)}{4(1-\epsilon)}$ specify the Feynman-gauge boundary terms.
- Reverse Unitarity calculations require them, whereas Local Unitarity's are organised with $b_{\partial}^{\mathfrak{q}\mathfrak{q}'}=0$.
-% Valentin PDF: page 3, annotation 359.
-\valentin{I wonder how much the lower-bound change I suggest in Eq. 16 changes/simplifies things here\ldots{}}{\color{red} what should simplify? also want to remove this last ``Reverse Unitarity calculations require them, whereas Local Unitarity's are organised with $b_{\partial}^{\mathfrak{q}\mathfrak{q}'}=0$.'' sentence.}
+ Reverse Unitarity calculations need them, whereas Local Unitarity's are organised with $b_{\partial}^{\mathfrak{q}\mathfrak{q}'}=0$.
 %
 %
 %
@@ -585,9 +465,6 @@ We obtained in Ref.~\cite{Capatti:2025gqj} that, for a quark:
 \frac{F_{Lq}^{\text{LU},(1)}}{e_q^2C_F x}
 &= 2x+\mathcal{O}\left(\tfrac{\Lambda^2}{q^2_{\text{h}}}\right).
 \end{align}
-% Valentin PDF v2: page 4, annotation 1276.
-\valentin{I know it’s standard, but I’d still spend a line defining the + distribution}{\color{red} overruled}
-%
 %
 For a gluon:
 \begin{align}
@@ -595,11 +472,9 @@ For a gluon:
 \frac{F_{Lg}^{\text{LU},(1)}}{2e_q^2 T_F x}&=4  x(1-x)+\mathcal{O}\left(\tfrac{\Lambda^2}{q^2_{\text{h}}}\right),
 \end{align}
 where $L_x=\log\left(\tfrac{Q^2}{\Lambda^2 x^2}\right)$ and $q_{\mathrm{h}}=\min(Q^2,(p+q)^2)$.
-% Valentin PDF v2: page 4, annotation 1242.
-\valentin{maybe write explicitly $q_h=\min(Q^2,(p+q)^2)$ then simply?}{\color{red} ok}
 %
-The function $\tilde{P}^{(0)}_{\mathfrak{q}\mathfrak{q}'}$ is the regularised Altarelli--Parisi splitting kernel, Eqs.~(C.6)-(C.9) of Ref.~\cite{Catani_1997}, stripped of colour factors.
-The gluon structure functions account for a single quark flavour. 
+$\tilde{P}^{(0)}_{\mathfrak{q}\mathfrak{q}'}$ is the regularised Altarelli--Parisi splitting kernel, Eqs.~(C.6)-(C.9) of Ref.~\cite{Catani_1997}, stripped of colour factors.
+%The gluon structure functions account for a single quark flavour. 
 %
 
 
@@ -631,9 +506,6 @@ Equations~\eqref{eq:qq_DY} and \eqref{eq:qg_DY} are related to the $\overline{\t
 \begin{align}
 \hspace{-0.05cm}\frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\overline{\text{MS}}}}{\mathrm{d}q^2}=\hspace{-0.3cm}\sum_{\mathfrak{q}_1,\mathfrak{q}_2\in\mathfrak{S}_1}\hspace{-0.3cm}D^{-1}_{\mathfrak{q}_1\mathfrak{q}}\otimes\frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}^{\text{LU}}}{\mathrm{d}q^2}\otimes D^{-1}_{\mathfrak{q}_2\mathfrak{q}'}\hspace{-0.05cm}+\mathcal{O}\left(\alpha_s,\tfrac{\Lambda^2}{q^2_{\text{h}}}\right),
 \end{align}
-% Valentin PDF: page 4, annotation 399.
-\valentin{For the sake of clarity, I would also explicit state the definition of that double-convolution notation; precedence rules would be a bit unclear otherwise.}{\color{red}It should be a symmetric commutative product}
-%
 %
 which uses $D_{qq}$ and $D_{qg}$ as defined by Eq.~\eqref{eq:splitting_cts_nlo}.
 %
@@ -695,19 +567,9 @@ where
 \mathrm{d}\Pi_k=\left[\prod_{i=1}^2\frac{\mathrm{d}p_i^2}{2\pi}\Theta(\Lambda^2-p_i^2)\right]\frac{\mathrm{d}^4 k}{(2\pi)^4},
 \end{equation}
 and $N_{\mathfrak{q}\mathfrak{q}'}$ is the numerator, a polynomial in $k, p_1^2, p_2^2$, $D_j=q_j^2-m_j^2$.
-% Valentin PDF v2: page 5, annotation 1296.
-\valentin{In the Feynman gauge only (prolly good to stress). Otherwise a rational polynomial.}
-%
-% Valentin PDF v2: page 5, annotation 1471.
-\valentin{Since this establishes clearly you’re in the feynman gauge you \emph{MUST} really add the ghost to your enumeration of possible initial-state earlier.}{\color{red} external gluons are transverse, internal ones are in the feynman gauge. No need for external ghosts. But feynman gauge can be stressed, which I do in end matter.}
-%
-%
 %
 The sum runs over all tuples $C_\sigma=(\sigma,C)\in\mathcal{C}_G$ of cut sets $C\subset E$ and signs $\sigma\in\{\pm 1\}^{|C|}$, compatible with the energy integration and the expansion of the discontinuity in terms of cut diagrams.
 Each contribution now has, for DY, $|C|=4$ (for $t\bar{t}$, $|C|=5$).
-% Valentin PDF v2: page 5, annotation 1301.
-\valentin{I would really here stress again the general embedding construction of your previous paper, and also refer to Fig.1 again.}{\color{red} don't see the need}
-%
 Whenever a cut crosses a repeated propagator, the generalised cutting rule must be used~\cite{Capatti:2022tit}.
 
 The LP contribution is obtained by an asymptotic expansion in $\Lambda^2$, using the expansion-by-regions method~\cite{Chetyrkin:1988zz,Gorishnii:1989dd,etde_6475136,Beneke:1997zp,Jantzen:2011nz,Gardi:2022khw}. In principle, it is also possible to extract the leading power behaviour without a regions approach via a fitting procedure, similarly to what is done in slicing methods~\cite{Catani_2007}.
@@ -718,36 +580,15 @@ We find that all the regions are of hard, (anti-)collinear, soft, soft-(anti-)co
 where $D_i^R$ and $N_{\mathfrak{q}\mathfrak{q}'}^{G,R}$ are the propagators and numerator approximated in the region $R$.
 The expansion-by-regions of the cut diagrams maps to that of the uncut contribution $I_{ G}^{\mathfrak{q}\mathfrak{q}'}$.
 The bare parton model only selects the hard contribution of $I_{ G}^{\mathfrak{q}\mathfrak{q}'}$. 
-% Valentin PDF v2: page 5, annotation 1307.
-\valentin{Very important to stress that this is in principle NOT NEEDED.
-Indeed, \emph{NOT DOING} so does not break IR finiteness and is STILL verifies Eq. (23), just with different subleading term. This is at variance with the traditional method where one could only obtain IR finiteness when working out resummation.
-In other terms, you only need to do this here because you want to precisely identify and verify the universal scheme conversion term.}{\color{red} ok}
-%
-%
 %
 
-We then introduce an auxiliary scaling variable $t$ in line with Soper's trick~\cite{Soper_2000,Capatti:2020xjc}, rescaling $z\rightarrow t^2 z$ and $\mathbf{k}\rightarrow t \mathbf{k}$, and finally solve the four Dirac delta functions in $p_1^2,p_2^2,k^0,t$.
-% Valentin PDF v2: page 5, annotation 1313.
-\valentin{Why is a radial scaling centered at the coordinate origin always a calid causal flow in this case?}{\color{red} it just is, I don't think I want to spend time on these details in this paper}
-%
+We then introduce an auxiliary scaling variable $t$ in line with Soper's trick~\cite{Soper_2000,Capatti:2020xjc}, rescaling $z\rightarrow t^2 z$ and $\mathbf{k}\rightarrow t \mathbf{k}$, and solve the four Dirac delta functions in $p_1^2,p_2^2,k^0,t$.
 %
 That gives an integrand that is locally free of infrared singularities and can be directly fed to a Monte Carlo integrator.
-%We provide a detailed example of this integrand manipulation as \emph{End Matter} material.
-Finally, we should note that ultraviolet singularities are renormalised locally by the BPHZ-based~\cite{BogoliubowParasiuk1957,Zimmermann1969,Hepp1966} procedure of Ref.~\cite{Capatti:2022tit}, and acquire dependence on a UV renormalisation scale $\mu$, which can be varied independently from the factorisation scale $\Lambda$.
-% Valentin PDF v2: page 5, annotation 1324.
-\valentin{on THE renormalization scale $\mu_r$, i.e. include the \texttt{\_r} here I’d say}
+%
+Finally, we should note that ultraviolet singularities are renormalised locally by the BPHZ-based~\cite{BogoliubowParasiuk1957,Zimmermann1969,Hepp1966} procedure of Ref.~\cite{Capatti:2022tit}, and acquire dependence on a UV renormalisation scale $\mu_r$, which can be varied independently from the factorisation scale $\Lambda$.
 %
 Thresholds of loop diagrams are subtracted by the counterterm procedure of Ref.~\cite{Kermanschah:2021wbk}, being careful to correctly zero their contribution close to soft singularities (see fig.~\ref{fig:triangle_region}).
-% Valentin PDF v2: page 5, annotation 1334.
-\valentin{“zero a contribution” is weird, I’d say “regularize” and also it’d be honest to say that this is a hard problem with no general solution yet.
-Also mention Fig. 4 there!}
-{\color{red} no it's zeroed not regularised. ok with fig.4 references}
-%
-% Valentin PDF v2: page 10, annotation 1501; concerns Fig. 4's counterterm.
-\valentin{Why not writing explicitly the functional form of your threshold CTs?
-I think you really should.}
-{\color{red} no space and technical, that fits to a longer companion paper}
-%
 %
 
 
@@ -755,79 +596,21 @@ I think you really should.}
 
 
 We report in Fig.~\ref{fig:results} Monte Carlo results for the DY (differential in $z$) and $pp\rightarrow t \bar{t}$ (inclusive) hadronic cross-sections at NLO, using our path-finder code \texttt{LUDY}, which uses \href{https://symbolica.io/}{\texttt{Symbolica}} and several libraries developed in the context of \href{https://github.com/alphal00p/gammaloop}{\texttt{gammaloop}}.
-% Valentin PDF v2: page 5, annotation 1339.
-\valentin{It’d be nice to shoutout gammaloop and symbolica (e.g. the website) in main text already?}{\color{red} ok}
-%
-% Figure-specific remarks stay beside its discussion so the composite float fits.
-% Valentin PDF v2: page 5, annotation 1345; Fig. 2, panel A.
-\valentin{Add rel. error subplot, not just pull?}
-{\color{red} also space issue, would choose one of the two}
-%
-% Valentin PDF v2: page 5, annotation 1356; Fig. 2, panel A.
-\valentin{x-axis label}
-{\color{red} somehow layout screwed, not sure why}
-%
-% Valentin PDF v2: page 5, annotation 1361; Fig. 2, panel A.
-\valentin{$\hat{s}$? not $s$?
-Also $>300$ GeV? or $\mathrm{GeV}^2$? You seem to have a datapoint close to $z=0.05$ or so which seems lower if not squared.}
-{\color{red} caption is correct, it's $\hat{s}$}\lucien{sqrt (q^2) not q^2}
-%
-%
-% Valentin PDF v2: page 5, annotation 1371; Fig. 2, panel A.
-\valentin{Also is $q^2$ the off-shellness of your photon?
-If so it’s not true that $q^2=zs$ for the real-emission diagram no? This is confusing.}
-{\color{red} caption is correct for both virtual (z=1) and real (0<z<1)}
-%
-% Valentin PDF v2: page 5, annotation 1398; Fig. 2, panel A legend.
-\valentin{Citation}
-%
-% Valentin PDF v2: page 5, annotation 1419; Fig. 2, panel C.
-\valentin{Big tension here, pull values incorrect. Verify them all!}
-{\color{red} to reverify, but they looked correct}
-%
-%
-% Valentin PDF v2: page 5, annotation 1410; Fig. 2, parameter table.
-\valentin{$\alpha_s(\mu_r^2=m_Z^2)$}
-{\color{red} ok with a minor change}
-%
-%
-% Valentin PDF v2: page 5, annotation 1409; Fig. 2, parameter table.
-\valentin{I would not use Lambda but really the traditional $\mu_f$ here.}
-{\color{red} $\Lambda^2$ would force the reader to understand what's happening in my opinion}
-%
-%
 We use one $d$-quark flavour, $q=d$.
 Agreement with the $\overline{\text{MS}}$ cross-sections for all partonic channels is achieved after the scheme conversion Eq.~\eqref{eq:splitting_cts_nlo} (with $b_\partial^{\mathfrak{q}\mathfrak{q}'}=0$), both at the partonic~\cite{Altarelli:1979ub,Czakon:2008ii, 1988NuPhB.303..607N}, confirming that $D_{gg}$ and $D_{qg}$ are also correct.
 The hadronic result, compared against $\texttt{MG5aMC v3.7.0}$~\cite{Alwall:2014hca}, required the introduction of the decoupling-scheme counterterm to obtain agreement.
-% Valentin PDF v2: page 5, annotation 1388.
-\valentin{Citation and version info for MG.
-Also refer to it as \texttt{MG5aMC}}
-{\color{red} ok}
-%
 %
 
 
 \section{Outlook}
 %
 
-We successfully constructed hadronic cross-sections in terms of partonic cross-sections with an arbitrary number of initial-state partons, that are infrared finite without the need of PDF renormalisation, and compatible with collinear factorisation.
-% Valentin PDF v2: page 6, annotation 1438.
-\valentin{to me “compatible the KLN theorem” sounds weak.
-The real important corollary of this is that you did it in way that you get an IR-finite fixed-order differential cross-section without relying on factorization/resummation, though, as you show, compatible with it of course.
-This is the more striking feature to highlight here in my opinion.}
-{\color{red} ok}
+We successfully constructed hadronic cross-sections in terms of partonic cross-sections with an arbitrary number of initial-state partons, that are infrared finite%without the need of PDF renormalisation
+, and compatible with collinear factorisation.
 %
 We tested the approach through analytic and Monte Carlo computations of three paradigmatic QCD cross-sections, developing in the process a \emph{fully local} approach to the calculation.
-% Valentin PDF v2: page 6, annotation 1433; targets “paradigmatic”.
-\valentin{I don’t like the world} {\color{red} ?}
-%
 %
 Two future research directions arise in particular: 
-%if this organisation remains computationally viable at higher perturbative orders and if its $\Lambda^2$ expansion provides a true description of power corrections.
-% Valentin PDF v2: page 6, annotation 1427.
-\valentin{double iterated colon sentence; weird.}
-{\color{red} ok}
-%
 %
 
 \begin{itemize}
@@ -836,34 +619,20 @@ This program is core to both the Local Unitarity and the ETHZ-Stony Brook subtra
 %
 
 \item[\textit{ii}] \textit{Power corrections} The $\Lambda^2$ expansion in our formalism is controlled, and the subleading-power contributions of any cross-section can be written in terms of cut Feynman integrals.
-% Valentin PDF v2: page 6, annotation 1444.
-\valentin{“in principle” is weird, I would say “formally” or smtg like this}
-{\color{red} ok}
 %
 Importantly, the method is gauge invariant by construction.
-% Valentin PDF v2: page 6, annotation 1451.
-\valentin{I don’t care why this makes sense to highlight here?}
-{\color{red} because massified gluon approaches are not}
 %
 %
 Furthermore, KLN-based approaches have been used to probe linear power corrections~\cite{Akhoury_1996,Akhoury:1995sp}.
 A natural extension is to compute subleading-power corrections for the DIS process, where an Operator Product Expansion is available and understood at subleading twist~\cite{JAFFE1981467,Ellis:1982cd}.
 Beyond DIS, comparisons with operator~\cite{Qiu:1990xxa,Feige2017SubleadingFactorization,Moult:2018jjd,Moult2017SubleadingBasis,Moult2018SubleadingResummation,Moult2019RadiativeFunctions,Beneke2018SubleadingNJet,Beneke2019NLPDrellYan,Beneke2020ThresholdFactorization}, dispersive~\cite{Dokshitzer1998Milan,DokshitzerMarchesiniWebber1996Dispersive,DokshitzerWebber1995PowerCorrections} and massified-gluon/renormalon~\cite{Korchemsky_1995,NasonSeymour1995Renormalons,BenekeBraun1995DrellYan,FerrarioRavasio2019Renormalons,Caola:2021kzt,Caola:2022vea} approaches can be considered.
-% Valentin PDF v2: page 6, annotation 1477.
-\valentin{“should” is weird here.
-I’d say, “can be considered.” perhaps.}
-{\color{red} ok}
 %
 
 \end{itemize}
 
 Finally, the infrared interplay between the multi-partonic contributions and the parton-model diagrams could be a basis for studies of factorisation and factor\-isation-breaking~\cite{Collins:2007nk,Rogers:2010dm,Catani:2011st,Forshaw:2012bi,Gaunt:2014ska,Zeng:2015iba,Rothstein:2016bsq,Schwartz:2017nmr,Becher:2023lmy,Becher:2024vdk}, especially due to our inclusion of spectator particles.
 Our framework is uniquely positioned to simultaneously attack these questions.
-% Valentin PDF v2: page 6, annotation 1483.
-\valentin{“simultaneously” is weird, I’d say “attack these questions within one unifying framework”.}{\color{red} don't agree}
-%
-%
-
+\\[0.5em]
 
 \begin{acknowledgments}
 \paragraph{Acknowledgements} We are grateful to Valentin Hirschi for his invaluable support and input throughout the development of this work.
@@ -882,21 +651,20 @@ The work of Z.C. is also supported by the European Union under the Marie Skłodo
 \subsection{List of integrals for DIS and DY}
 \label{sec:integrals_DIS_DY}
 
-\begin{figure}
-\includegraphics[width=\linewidth]{soft-triangle.pdf}
-\caption{\justifying An example of a non-trivial identification, at leading power, of cut diagrams with discontinuities. In this case, the interference diagram where the gluon belongs to both jets at the same time is equated to the double discontinuity of the sum of the soft and soft-collinear regions of the integral $I_{\triangle}^{q\bar{q}}$, represented as an embedding.{\color{red} reverse p2 arrow}
+%\begin{figure}
+%\includegraphics[width=\linewidth]{soft-triangle.pdf}
+%\caption{\justifying An example of a non-trivial identification, at leading power, of cut diagrams with discontinuities. In this case, the interference diagram where the gluon belongs to both jets at the same time is equated to the double discontinuity of the sum of the soft and soft-collinear regions of the integral $I_{\triangle}^{q\bar{q}}$, represented as an embedding.{\color{red} reverse p2 arrow}
 %
-}
-\label{fig:triangle_soft}
-{\color{gray!50}\rule{0.8\linewidth}{0.6pt}}
-\phantom{g}\\[-0.3cm]
-\end{figure}
+%}
+%\label{fig:triangle_soft}
+%{\color{gray!50}\rule{0.8\linewidth}{0.6pt}}
+%\phantom{g}\\[-0.3cm]
+%\end{figure}
 
 Here we provide a list of the integrals appearing in Eq.~\eqref{eq:disc_dis} and Eq.~\eqref{eq:disc_dy}.
-% Valentin PDF v2: page 9, annotation 1493; targets the End Matter heading.
-\valentin{How about Appendices like everybody else :P}{\color{red} end matter standard for PRL}
 %
-As mentioned, at LP, their discontinuities can be computed either by computing the integrals and then using the usual definition of discontinuity, or by writing the discontinuity as a sum over cut Feynman integrals (corresponding to the original interference diagrams). The equivalence between the two definitions is non-trivial, but can be shown, using the expansion-by-regions method (see, e.g., Fig.~\ref{fig:triangle_soft}), or by direct computation~\cite{Capatti:2025gqj}.   
+As mentioned, at LP, their discontinuities can be computed either by computing the integrals and then using the usual definition of discontinuity, or by writing the discontinuity as a sum over cut Feynman integrals (corresponding to the original interference diagrams). The equivalence between the two definitions is non-trivial, but can be shown, using the expansion-by-regions method %(see, e.g., Fig.~\ref{fig:triangle_soft})
+, or by direct computation~\cite{Capatti:2025gqj}.   
 %
 
 
@@ -944,7 +712,6 @@ The $q\bar{q}$ channel contributions that are localised at $\hat{s}=q^2$ read:
 {2p_1^2p_2^2}+\hspace{-0.1cm}\int \hspace{-0.1cm}\frac{\mathrm{d}^d k}{(2\pi)^d} \frac{N_{G}^{q\bar{q}} }{\prod_{j=1}^5 D_j^{\alpha_j^G}}\Bigg],
 \end{aligned}
 \end{equation}
-{\color{red} $\pi^2$}
 for $G\in\{\triangle,\text{lsz}_1,\text{lsz}_2\}$, with $D_1=k^2$, $D_2=(k+p_1)^2$, $D_3=(k-p_2)^2$, $D_4=p_1^2$, $D_5=p_2^2$.
 We have $\boldsymbol{\alpha}^{\triangle}=[1,1,1,1,1]$, $\boldsymbol{\alpha}^{\text{lsz}_1}=[1,1,0,2,1]$, $\boldsymbol{\alpha}^{\text{lsz}_2}=[1,0,1,1,2]$, and
 \begin{align}
@@ -994,8 +761,6 @@ and $N_{\Box_2}^{q\bar{q}}=N_{\Box_1}^{q\bar{q}}|_{p_1\leftrightarrow p_2}$.
 
 
 The \href{https://github.com/ZenoCapatti/LUDY-resources}{LUDY-resources repository} hosts Python notebooks for the analytic calculations of the NLO DIS and DY cross-sections and the splitting counterterms. It also provides extensive information on installation and usage.
-% Valentin PDF v2: page 10, annotation 1511.
-\valentin{Will you make it public? It’s not accessible from the outside at the moment.}{\color{red} public on day ok}
 %
 
 \textbf{DIS and DY cross-sections}: the DIS and DY cross-sections are computed by generating the routed graphs and their cuts, performing the Dirac and colour algebra and reducing the scalar integrals to master integrals. In line with Reverse Unitarity, only the master integrals possessing the same cuts as the original diagram contribute. The master integrals themselves are simple and are evaluated by direct integration. The integrated results are then expanded in virtuality, to give the LP result. The computation of the parton-model diagrams is benchmarked against the DIS coefficient functions in Chapter~4 of Ref.~\cite{Bardeen:1978yd} and the Drell--Yan cross-sections of Ref.~\cite{Altarelli:1979ub}.
@@ -1011,41 +776,20 @@ The \href{https://github.com/ZenoCapatti/LUDY-resources}{LUDY-resources reposito
 
 
 Our path-finder Local Unitarity implementation \texttt{LUDY}  provides a blueprint for future high-performance implementations, including within the \href{https://github.com/alphal00p/gammaloop}{\texttt{gammaloop}} framework.
-% Valentin PDF v2: page 10, annotation 1516.
-\valentin{link?}
-{\color{red} ok}
-%
 %
 As expected, it underperforms established tools such as \texttt{MG5aMC}, allowing us to clearly identify two performance issues to be addressed in future work.
 
-First, at $\sqrt{s}=2\,\mathrm{TeV}$, typical integrand evaluation times for $pp\rightarrow t\bar{t}$ are approximately $22\,\mathrm{ms}$ per sample on a dual-socket AMD EPYC 9754 compute node, using double precision with rotational stability checks and retries at 32- and 60-digit precision when necessary, making runs resource-intensive and time-consuming. 
-% Valentin PDF v2: page 10, annotation 1527.
-\valentin{Of the integrand of course, you should stress this to avoid confusion. And on what machine?
-At which precision? With what stability monitoring strategy?}{\color{red} ok}
-%
+First, at $\sqrt{s}=2\,\mathrm{TeV}$, typical integrand evaluation times for $pp\rightarrow t\bar{t}$ are approximately $22\,\mathrm{ms}$ per sample on a dual-socket AMD EPYC 9754 compute node per core, using double precision with rotational stability checks and retries at 32- and 60-digit precision when necessary, making runs resource-intensive and time-consuming. 
 %
 This is consistent with a non-optimised workflow that uses efficient Symbolica evaluators but may be limited by inefficient symbolic manipulations and Python orchestration.
-% Valentin PDF v2: page 10, annotation 1533.
-\valentin{But it’s not!!! I think it’s VASTLY misleading to hint at something people could understand as the implementation of the integrand being purely in Python!!!
-You should be a bit more explicit about your use of efficient Symbolica evaluators, but they are stitched together with pythonic things that are slow.}
-{\color{red} ok}
 %
 Based on our experience, using a low-level language such as Rust and carefully managing the size of the symbolic expressions subject to evaluation could lower evaluation times by about an order of magnitude.
 
 The second is slow convergence, which appears largely attributable to two aspects of the diagrams' soft behaviour:
 \begin{itemize}
 \item The variance of the integrand for the hadronic $pp\rightarrow t\bar{t}$ cross-sections increases with $\sqrt{s}$, consistent with the cancellation of double soft logarithms across graphs ($\sim$0 digits at 400~GeV and $\sim$1 digit at 2000~GeV).
-% Valentin PDF v2: page 10, annotation 1542.
-\valentin{I’d say the “variance of the integrand increases with $\sqrt{s}$”, it sounds a bit less superficial.}
-{\color{red} ok}
-%
 %
 A solution would be to realise the cancellation of these soft logarithms locally, by carefully aligning the phase-spaces of virtual and real emission diagrams.
-%Aligning the soft phase-space regions of diagrams with soft singularities would make these cancellations local, prior to integration.
-% Valentin PDF v2: page 10, annotation 1549.
-\valentin{I don’t quite know what you mean or how you’d do that.
-Say fine-tuning routing across graphs and adjusting parameterisation may\ldots{}}
-{\color{red} ok}
 %
 
 \item The soft region, especially for infrared-finite classes containing at least one virtual diagram, involves delicate cancellations between cut diagrams and threshold counterterms (see Fig.~\ref{fig:triangle_region}). Larger weights arise in increasingly narrow regions around the soft point, yielding integrable behaviour but slowing convergence. Future high-performance implementations would need to address this through an appropriate parametrisation around the soft point.
