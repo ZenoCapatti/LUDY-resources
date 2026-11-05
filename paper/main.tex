@@ -148,9 +148,9 @@ floatfix,
 \begin{document}
 
 
-\title{%The KLN theorem meets collinear factorisation: \texorpdfstring{\\}{ }Local Unitarity for Hadronic Cross-Sections 
+\title{The KLN theorem meets collinear factorisation: \texorpdfstring{\\}{ }Local Unitarity for hadronic cross-sections 
 %\texorpdfstring{\\}{ } 
-Infrared-finite hadronic cross-sections without dimensional regularisation
+%Infrared-finite hadronic cross-sections without dimensional regularisation
 %\texorpdfstring{\\}{ } or A new mechanism for infrared cancellation in hadronic cross-sections
 }
 %
@@ -187,7 +187,7 @@ In this formulation, hadronic cross-sections are expressed as convolutions of pa
 By virtue of the KLN theorem, the partonic cross-sections are infrared finite by construction, without relying on dimensional regularisation as an infrared regulator.
 The Local Unitarity formalism provides a local realisation of this infrared finiteness, allowing partonic cross-sections to be evaluated directly in four dimensions by Monte Carlo integration.
 We demonstrate the framework at next-to-leading order and leading power.
-Using Local Unitarity, we compute the Drell--Yan and $t\bar{t}$ production cross-sections numerically; using Reverse Unitarity, we obtain the deep inelastic scattering and Drell--Yan cross-sections analytically. In all cases, a universal scheme conversion relates our results to those obtained in the \(\overline{\mathrm{MS}}\) parton model. Dimensional regularisation only enters through this conversion and the ultraviolet counter-terms.
+Using Local Unitarity, we compute the Drell--Yan and $t\bar{t}$ production cross-sections numerically; using Reverse Unitarity, we obtain the deep inelastic scattering and Drell--Yan cross-sections analytically. In all cases, a universal scheme conversion relates our results to those obtained in the \(\overline{\mathrm{MS}}\) parton model. %Dimensional regularisation only enters through this conversion and the ultraviolet counter-terms.
 
 \end{abstract}
 
@@ -536,7 +536,7 @@ These computations confirm that, at NLO, LU and $\overline{\text{MS}}$ cross-sec
 \end{minipage}
 \end{minipage}
 
-\caption{\justifying Results for the Drell--Yan and $t\bar{t}$-production processes, using Local Unitarity (\texttt{LUDY}), converted to the $\overline{\text{MS}}$ scheme. Results for \textbf{A} are obtained with 25M points for the full histogram and 2M refinements for the first three bins, with evaluation time at $\sim$40ms. Results for \textbf{B} are obtained with 100M points per channel and $\sqrt{\hat{s}}$, 400M for $gg$, 400GeV, with typical evaluation times at $\sim$2-14ms, depending on the channel. Results for \textbf{C} are obtained with 200M points per $\sqrt{s}$, 100M for $\sqrt{s}=400$GeV, with typical evaluation times at $\sim$22ms. See \emph{End Matter} for a discussion of numerical performance.}
+\caption{\justifying Results for the Drell--Yan and $t\bar{t}$-production processes, using Local Unitarity (\texttt{LU}), converted to the $\overline{\text{MS}}$ scheme. Results for \textbf{A} are obtained with 25M points for the full histogram and 2M refinements for the first three bins, with evaluation time at $\sim$40ms. Results for \textbf{B} are obtained with 100M points per channel and $\sqrt{\hat{s}}$, 400M for $gg$, 400GeV, with typical evaluation times at $\sim$2-14ms, depending on the channel. Results for \textbf{C} are obtained with 200M points per $\sqrt{s}$, 100M for $\sqrt{s}=400$GeV, with typical evaluation times at $\sim$22ms. See \hyperref[sec:integrals_DIS_DY]{End Matter} for a discussion of numerical performance.}
 {\color{gray!50}\rule{0.8\linewidth}{0.6pt}}
 \label{fig:results}
 \phantom{g}\\[-0.5cm]
@@ -557,7 +557,7 @@ where
 \begin{equation}
 \Delta_{ab}^G=\!\int_a^b \mathrm{d}z\left[\prod_{i=1}^2\int_0^{\Lambda^2}\frac{\mathrm{d}p_i^2}{2\pi}\text{disc}_{p_i^2}\right] \! I_{ G}^{\mathfrak{q}\mathfrak{q}'}.
 \end{equation}
-Writing discontinuities in terms of cut Feynman diagrams, and performing the residual (if any) energy integrations using the Loop Tree Duality~\cite{Catani:2008xa,Bierenbaum:2010cy,PhysRevLett.122.111603,Capatti:2019ypt} (or equivalent~\cite{JesusAguilera-Verdugo:2020fsn,Capatti:2020ytd,Capatti:2022mly,bobadilla2021lottylooptreeduality}), we obtain the general form:
+Writing discontinuities in terms of cut Feynman diagrams, and performing the residual (if any) energy integrations using the Loop Tree Duality~\cite{Catani:2008xa,Bierenbaum:2010cy,PhysRevLett.122.111603,Capatti:2019ypt} (or equivalent~\cite{JesusAguilera-Verdugo:2020fsn,Capatti:2020ytd,Capatti:2022mly,bobadilla2021lottylooptreeduality,Capatti:2023shz,Sborlini_2021}), we obtain the general form:
 \begin{equation}
 \Delta_{ab}^G=\! \int_{a}^b \mathrm{d}z\int\mathrm{d}\Pi_k \sum_{C_\sigma\in\mathcal{C}_G} \frac{\prod_{j\in C} \delta^{\sigma_j}(D_j)}{\prod_{i\in E\setminus C }D_i}N_{\mathfrak{q}\mathfrak{q}'}^G,
 \end{equation}
@@ -618,13 +618,8 @@ Two future research directions arise in particular:
 This program is core to both the Local Unitarity and the ETHZ-Stony Brook subtraction frameworks~\cite{Anastasiou:2018rib,Anastasiou:2020sdt,Anastasiou:2022eym,Anastasiou:2024xvk,Anastasiou:2026kpm,Capatti:2019ypt,Capatti:2019edf,Kermanschah:2021wbk,Kermanschah:2024utt,Kermanschah:2025wlo}, and has the potential to overcome current computational bottlenecks in the production of precise fixed-order predictions.
 %
 
-\item[\textit{ii}] \textit{Power corrections} The $\Lambda^2$ expansion in the formalism is controlled, and the subleading-power contributions of any cross-section can be written in terms of cut Feynman integrals.
-%
-Importantly, the method is gauge invariant by construction.
-%
-%
-Furthermore, KLN-based approaches have been used to probe linear power corrections~\cite{Akhoury_1996,Akhoury:1995sp,Fontes:2026uji}.
-A natural extension is to compute subleading-power corrections for the DIS process, where the Operator Product Expansion is understood at subleading twist~\cite{JAFFE1981467,Ellis:1982cd}.
+\item[\textit{ii}] \textit{Power corrections} The $\Lambda^2$ expansion in the formalism is controlled, and the subleading-power contributions of any cross-section can be written in terms of cut Feynman integrals. KLN-based approaches have been used to probe linear power corrections~\cite{Akhoury_1996,Akhoury:1995sp,Fontes:2026uji}.
+A natural extension is thus to compute subleading-power corrections for the DIS process, where the Operator Product Expansion is understood at subleading twist~\cite{JAFFE1981467,Ellis:1982cd}.
 Beyond DIS, comparisons with operator~\cite{Qiu:1990xxa,Feige2017SubleadingFactorization,Moult:2018jjd,Moult2017SubleadingBasis,Moult2018SubleadingResummation,Moult2019RadiativeFunctions,Beneke2018SubleadingNJet,Beneke2019NLPDrellYan,Beneke2020ThresholdFactorization}, dispersive~\cite{Dokshitzer1998Milan,DokshitzerMarchesiniWebber1996Dispersive,DokshitzerWebber1995PowerCorrections} and massified-gluon/renormalon~\cite{Korchemsky_1995,NasonSeymour1995Renormalons,BenekeBraun1995DrellYan,FerrarioRavasio2019Renormalons,Caola:2021kzt,Caola:2022vea,Fontes:2026uji} approaches can be considered.
 %
 
