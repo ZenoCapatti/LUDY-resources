@@ -70,6 +70,7 @@ floatfix,
 \usepackage[nopatch=footnote]{microtype}
 \hyphenation{had-ro-pro-duc-tion}
 
+
 \usepackage{braket}
 \usepackage{etoolbox}
 \makeatletter
@@ -203,12 +204,12 @@ Using Local Unitarity, we compute the Drell--Yan and $t\bar{t}$ production cross
 Producing meaningful perturbative predictions for hadronic collisions requires connecting the scattering of asymptotic quarks and gluons to that of hadrons. A consistent framework must ensure infrared (IR) finiteness, allow systematic resummation of large logarithms arising from soft and collinear radiation, and provide a universal description of the nonperturbative structure of hadrons.
 
 In conventional calculations of hadronic cross-sections, infrared finiteness relies on two complementary mechanisms. 
-Final-state infrared singularities cancel upon summing over the number of degenerate final-state massless particles, as guaranteed by the Kinoshita--Lee--Nauenberg (KLN) theorem~\cite{Kinoshita:1962ur,PhysRev.133.B1549}. The number of initial-state partons is instead kept fixed, breaking the KLN \lucien{mechanism appears 3 times in the paragraph, maybe theorem here?}. Collinear factorisation~\cite{PhysRevD.8.3633,DAVIDPOLITZER1974129,Altarelli:1979ub,Collins:1981ta,Collins:1981tt,Collins:1983ju,Collins:1983pk,Collins:1985ue,Collins:1989gx,Bodwin:1984hc,Ellis:1978ty} provides a complementary mechanism: initial-state collinear singularities factorise universally and are absorbed by renormalising parton distribution functions (PDFs), while soft singularities associated with initial--initial and initial--final dipoles cancel separately between real and virtual contributions. This asymmetric treatment raises the question of whether the KLN theorem can also be implemented in the initial state while preserving collinear factorisation.
+Final-state infrared singularities cancel upon summing over the number of degenerate final-state massless particles, as guaranteed by the Kinoshita--Lee--Nauenberg (KLN) theorem~\cite{Kinoshita:1962ur,PhysRev.133.B1549}. The number of initial-state partons is instead kept fixed, breaking KLN cancellations. Collinear factorisation~\cite{PhysRevD.8.3633,DAVIDPOLITZER1974129,Altarelli:1979ub,Collins:1981ta,Collins:1981tt,Collins:1983ju,Collins:1983pk,Collins:1985ue,Collins:1989gx,Bodwin:1984hc,Ellis:1978ty} provides a complementary mechanism: initial-state collinear singularities factorise universally and are absorbed by renormalising parton distribution functions (PDFs), while soft singularities associated with initial--initial and initial--final dipoles cancel separately between real and virtual contributions. This asymmetric treatment raises the question of whether the KLN theorem can also be implemented in the initial state while preserving collinear factorisation.
 
-In this paper,\lucien{we attempt to provide an answer, by} investigating an initial-state implementation of the KLN theorem in which partonic cross-sections are defined by summing over degenerate initial- and final-state configurations of different massless-parton multiplicities, ensuring KLN-driven cancellation of infrared singularities in both states. Within the Local Unitarity (LU) framework~\cite{Capatti:2020xjc,Capatti:2021bsm,Capatti:2022tit,Capatti:2025khs}, these cancellations can be realised locally, enabling direct Monte Carlo integration of partonic cross-sections in four dimensions. \lucien{We just mentioned LU, why not say we compute using it DY and ttbar (swap the two sentences)}We demonstrate our framework at next-to-leading order (NLO), computing the deep inelastic scattering (DIS) and Drell--Yan (DY) cross-sections analytically using Reverse Unitarity~\cite{Anastasiou:2002qz,Anastasiou:2002yz,Anastasiou:2003yy,Anastasiou:2013mca,Anastasiou:2013srw}, while Drell--Yan and $t\bar{t}$ production cross-sections are computed numerically using Local Unitarity.
+In this paper we provide an answer: we investigate an initial-state implementation of the KLN theorem in which partonic cross-sections are defined as sums over degenerate initial- and final-states of varying massless-parton multiplicity, ensuring KLN-driven cancellation of infrared singularities in both states. Within the Local Unitarity (LU) framework~\cite{Capatti:2020xjc,Capatti:2021bsm,Capatti:2022tit,Capatti:2025khs}, these cancellations can be realised locally, enabling direct Monte Carlo integration of partonic cross-sections in four dimensions. We demonstrate our framework at next-to-leading order (NLO), computing the deep inelastic scattering (DIS) and Drell--Yan (DY) cross-sections analytically using Reverse Unitarity~\cite{Anastasiou:2002qz,Anastasiou:2002yz,Anastasiou:2003yy,Anastasiou:2013mca,Anastasiou:2013srw}, while Drell--Yan and $t\bar{t}$ production cross-sections are computed numerically using Local Unitarity.
 
 At leading power in a virtuality expansion unique to our framework, partonic cross-sections are IR-finite, evolve according to DGLAP equations~\cite{Altarelli:1977zs,Dokshitzer:1977sg,Gribov:1968ia,Gribov:1972ri} and turn into the $\overline{\text{MS}}$ counterparts by a universal redefinition of the PDFs. Hence, we reconcile for the first time an initial-state implementation of the KLN theorem with collinear factorisation.
-In turn, this framework provides a new way to compute $\overline{\text{MS}}$ hadronic cross-sections, and offers a systematic method to study subleading power effects.
+In turn, this framework provides a new way to compute $\overline{\text{MS}}$ hadronic cross-sections, and may offer a systematic method to study subleading power effects.
 % Valentin PDF: page 1, annotation 454.
 %\valentin{“natural” is a weird word here.
 %Maybe “in the particular virtuality \ldots{}” instead?}
@@ -299,8 +300,8 @@ W_{H}^{\mu\nu}=\sum_{\mathfrak{q}\in\mathfrak{S}_1}\int_x^1 \frac{\mathrm{d}\xi}
 \end{equation}
 %We will see that at Leading Power (LP) in $\Lambda^2$ and NLO in $\alpha_s$, $W_{H}^{\mu\nu}$ is indendent on $\Lambda^2$.
 
-In DY, instead, two protons scatter and produce QCD radiation and a lepton pair, whose invariant mass $q^2$ is measured.
-At leading order in the electromagnetic coupling, the leptonic phase space is integrated exactly and factorises multiplicatively.
+In DY, instead, two protons scatter and produce QCD radiation and a lepton pair with measured invariant mass $q^2$.
+At leading order in the electromagnetic coupling, the leptonic phase space factorises multiplicatively.
 Hence we may consider a final-state photon with mass $q^2$ instead.
 %
 In our extension, the partonic cross-section reads:
@@ -309,7 +310,7 @@ In our extension, the partonic cross-section reads:
 \end{equation}
 %
 where $p_1=x_1\frac{\sqrt{s}}{2}\eta_++\frac{p_1^2}{2x_1\sqrt{s}}\eta_-$, $p_2=x_2\frac{\sqrt{s}}{2}\eta_-+\frac{p_2^2}{2x_2\sqrt{s}}\eta_+$ and $\hat{s}=x_1 x_2 s$.
-The partonic cross-section at fixed multiplicities reads:
+At fixed multiplicities,
 \begin{equation}
 \label{eq:DY_partonic_fixed}
 \frac{\mathrm{d}\sigma^{\vec{\mathfrak{s}}\vec{\mathfrak{s}}'}_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}=\frac{1}{\hat{s}}\int \mathrm{d}\Pi_{|\vec{\mathfrak{s}}|}^{\mathbf{p}_1\mathbf{p}_2}\int \mathrm{d}\Pi_f |\mathcal{A}(\vec{\mathfrak{s}}  \rightarrow \vec{\mathfrak{s}}' \gamma^\star(k))|^2.
@@ -332,7 +333,7 @@ The hadronic cross-section is the convolution
 \hspace{-0.05cm}\frac{\mathrm{d}\sigma}{\mathrm{d}q^2}\!=\! \! \left[\prod_{i=1}^2\sum_{\mathfrak{q}_i \in\mathfrak{S}_1}\hspace{-0.075cm}\int_0^1 \mathrm{d}x_i f_{\mathfrak{q}_i}(x_i;\Lambda ^2)\right] \!  \frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}}{\mathrm{d}q^2} \!\left(\hat{s};\Lambda^2\right)\! .
 \end{equation}
 %
-The $t\bar{t}$ cross-section is obtained by simply swapping the final-state photon with a $t\bar{t}$ pair and changing the final-state phase-space measure $\mathrm{d}\Pi_f$ accordingly. In the following, we will use $f=f^{(0)}+\tfrac{\alpha_s}{2\pi}f^{(1)}+\mathcal{O}(\alpha_s^2)$ for the coupling expansion of the observable $f$.
+The $t\bar{t}$ cross-section is obtained by simply swapping the final-state photon with a $t\bar{t}$ pair and changing the final-state phase-space measure $\mathrm{d}\Pi_f$ accordingly. In the following, we use $f=f^{(0)}+\tfrac{\alpha_s}{2\pi}f^{(1)}+\mathcal{O}(\alpha_s^2)$ for the coupling expansion of $f$.
 %
 
 \section{Diagrammatics and a generalised optical theorem}
@@ -355,7 +356,7 @@ Under the non-trivial assumption that soft double logarithms vanish, we obtain t
 %
 %
 
-Hence, the \lucien{standard} $\overline{\text{MS}}$ result amounts to absorbing in the PDFs both the multi-partonic contributions and the $\overline{\text{MS}}$ poles of the bare parton-model cross-section.
+Hence, the $\overline{\text{MS}}$ result amounts to absorbing in the PDFs both the multi-partonic contributions and the $\overline{\text{MS}}$ poles of the bare parton-model cross-section.
 %
 We instead define PDFs $f_{\mathfrak{q}}^{\text{LU}}$ that absorb all those interference diagrams that are not strictly required for IR finiteness of the bare parton model.
 %
@@ -383,7 +384,7 @@ For DY, the NLO, LP cross-section reads:
 \frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}}{\mathrm{d}q^2}&= \hspace{-0.2cm}\sum_{G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}} \hspace{-0.15cm} \text{Re}\hspace{-0.05cm}\left[\prod_{i=1}^2\int_0^{\Lambda^2}\hspace{-0.1cm}\frac{\mathrm{d}p_i^2}{2\pi i}\text{disc}_{p_i^2}\right] \! \frac{N_{ee}I_{ G}^{\mathfrak{q}\mathfrak{q}'}}{4\pi \hat{s}\langle\mathfrak{q}\rangle \langle\mathfrak{q}'\rangle},
 \end{align}
 where the set $\Gamma_{\mathfrak{q}\mathfrak{q}'}$ is given in the \hyperref[sec:integrals_DIS_DY]{End Matter}.
-There is one discontinuity for each incoming hadron. Since the discontinuity of a finite integral \lucien{Do we need to explain why it is finite in this case?} is still finite, we obtain that each individual graph summand is IR finite.
+There is one discontinuity for each incoming hadron. Since the discontinuity of a finite integral is still finite, we obtain that each individual graph summand is IR finite.
 %
 %
 %
@@ -438,7 +439,7 @@ Here, $\bar{\xi}'=1-\xi'$, $c_{qg}=T_F$, $c_{qq}=c_{gq}=C_F$ and $c_{gg}=C_A$.
  The function $P_{\mathfrak{q}\mathfrak{q}'}^{(0)}(\xi)$ is the leading-order AP splitting kernel in conventional dimensional regularisation, Eqs.~(32)-(35) of Ref.~\cite{Catani:1996pk}, stripped of colour factors, while $\big|_{\epsilon^0}$ stresses that the pole is discarded.
  The $\delta(\xi-\xi')$ pieces originate from the contribution with an additional QCD emission in the final state.
  Finally, $b_{\partial}^{qg}=1$, $b_{\partial}^{gq}=b_{\partial}^{qq}=1-\epsilon$, $b_{\partial}^{gg}=\tfrac{3(2\epsilon-3)}{4(1-\epsilon)}$ specify the Feynman-gauge boundary terms.
- Reverse Unitarity calculations need them, whereas we organise Local Unitarity ones so that $b_{\partial}^{\mathfrak{q}\mathfrak{q}'}=0$.
+ Reverse Unitarity calculations need them, whereas Local Unitarity use $b_{\partial}^{\mathfrak{q}\mathfrak{q}'}=0$.
 %
 %
 %
@@ -579,7 +580,7 @@ We find that all the regions are of hard, (anti-)collinear, soft, soft-(anti-)co
 \end{equation}
 where $D_i^R$ and $N^{\mathfrak{q}\mathfrak{q}'}_{G,R}$ are the propagators and numerator approximated in the region $R$.
 The expansion-by-regions of the cut diagrams maps to that of the uncut contribution $I_{ G}^{\mathfrak{q}\mathfrak{q}'}$.
-The bare parton model only selects the hard contribution of $I_{ G}^{\mathfrak{q}\mathfrak{q}'}$. 
+The bare parton model coincides with the hard region of $I_{ G}^{\mathfrak{q}\mathfrak{q}'}$. 
 %
 
 We then introduce an auxiliary scaling variable $t$ in line with Soper's trick~\cite{Soper_2000,Capatti:2020xjc}, rescaling $z\rightarrow t^2 z$ and $\mathbf{k}\rightarrow t \mathbf{k}$, and solve the four Dirac delta functions in $p_1^2,p_2^2,k^0,t$.
@@ -598,7 +599,7 @@ Thresholds of loop diagrams are subtracted using the procedure of Ref.~\cite{Ker
 We report in Fig.~\ref{fig:results} Monte Carlo results for the DY (differential in $z$) and $pp\rightarrow t \bar{t}$ (inclusive) hadronic cross-sections at NLO, using a path-finder code, which uses \href{https://symbolica.io/}{\texttt{Symbolica}} and several libraries developed in the context of \href{https://github.com/alphal00p/gammaloop}{\texttt{gammaloop}}.
 We use one $d$-quark flavour, $q=d$.
 Agreement with the $\overline{\text{MS}}$ partonic cross-sections~\cite{Altarelli:1979ub,Czakon:2008ii, 1988NuPhB.303..607N} for all channels is achieved after the scheme conversion Eq.~\eqref{eq:splitting_cts_nlo} (with $b_\partial^{\mathfrak{q}\mathfrak{q}'}=0$), confirming that $D_{gg}$ and $D_{gq}$ are also correct.
-The hadronic result, compared against $\texttt{MG5aMC v3.7.0}$~\cite{Alwall:2014hca}, also required the decoupling-scheme counterterm to obtain agreement.
+The hadronic result, compared against $\texttt{MG5aMC v3.7.0}$~\cite{Alwall:2014hca}, required the decoupling-scheme counterterm to obtain agreement.
 %
 
 
@@ -608,9 +609,9 @@ The hadronic result, compared against $\texttt{MG5aMC v3.7.0}$~\cite{Alwall:2014
 We successfully constructed hadronic cross-sections in terms of partonic cross-sections with an arbitrary number of initial-state partons, that are infrared finite%without the need of PDF renormalisation
 , and compatible with collinear factorisation.
 %
-We tested the approach through analytic and Monte Carlo computations of three paradigmatic QCD cross-sections, developing in the process a \emph{fully local} approach to the calculation.
+We tested the approach through analytic and Monte Carlo computations of three QCD cross-sections, developing in the process a \emph{fully local} approach to the calculation.
 %
-Two future research directions arise in particular: 
+Two possible future research directions are: 
 %
 
 \begin{itemize}
@@ -618,15 +619,15 @@ Two future research directions arise in particular:
 This programme is core to both the Local Unitarity and the ETHZ-Stony Brook subtraction frameworks~\cite{Anastasiou:2018rib,Anastasiou:2020sdt,Anastasiou:2022eym,Anastasiou:2024xvk,Anastasiou:2026kpm,Capatti:2019ypt,Capatti:2019edf,Kermanschah:2021wbk,Kermanschah:2024utt,Kermanschah:2025wlo}, and has the potential to overcome current computational bottlenecks in the production of precise fixed-order predictions.
 %
 
-\item[\textit{ii}] \textit{Power corrections}: The $\Lambda^2$ expansion in the formalism is controlled, and the subleading-power contributions of any cross-section can be written in terms of cut Feynman integrals. KLN-based approaches have been used to probe linear power corrections~\cite{Akhoury_1996,Akhoury:1995sp,Fontes:2026uji}.
-A natural extension is thus to compute subleading-power corrections for the DIS process, where the Operator Product Expansion is understood at subleading twist~\cite{JAFFE1981467,Ellis:1982cd}.
+\item[\textit{ii}] \textit{Power corrections}: The $\Lambda^2$ expansion in the formalism is controlled, and the subleading-power cross-section can be written in terms of cut Feynman integrals. KLN-based approaches have been used to probe linear power corrections~\cite{Akhoury_1996,Akhoury:1995sp,Fontes:2026uji}.
+A natural step is to compute subleading-power corrections for DIS, where the Operator Product Expansion is understood at subleading twist~\cite{JAFFE1981467,Ellis:1982cd}.
 Beyond DIS, comparisons with operator~\cite{Qiu:1990xxa,Feige2017SubleadingFactorization,Moult:2018jjd,Moult2017SubleadingBasis,Moult2019RadiativeFunctions,Beneke2018SubleadingNJet,Beneke2019NLPDrellYan,Beneke2020ThresholdFactorization}, dispersive~\cite{Dokshitzer1998Milan,DokshitzerMarchesiniWebber1996Dispersive,DokshitzerWebber1995PowerCorrections} and massified-gluon/renormalon~\cite{Korchemsky_1995,NasonSeymour1995Renormalons,BenekeBraun1995DrellYan,FerrarioRavasio2019Renormalons,Caola:2021kzt,Caola:2022vea,Fontes:2026uji} approaches can be considered.
 %
 
 \end{itemize}
 
 Finally, the infrared interplay between the multi-partonic contributions and the parton-model diagrams could be a basis for studies of factorisation and factor\-isation-breaking~\cite{Collins:2007nk,Rogers:2010dm,Catani:2011st,Forshaw:2012bi,Gaunt:2014ska,Zeng:2015iba,Rothstein:2016bsq,Schwartz:2017nmr,Becher:2023lmy,Becher:2024vdk}, especially due to our inclusion of spectator particles. Our framework is uniquely positioned to simultaneously attack these questions.
-\\[0.5em]
+\\[0.3em]
 
 \begin{acknowledgments}
 \paragraph{Acknowledgements} We are grateful to Valentin Hirschi for his invaluable support and input, and to Michael Ruf for several discussions.
@@ -659,17 +660,7 @@ We provide a list of the integrals appearing in Eq.~\eqref{eq:disc_dis} and Eq.~
 %
 
 
-\begin{figure}[!tp]
-\scalebox{0.6}{
-\input{region_xbox.tex}
-}
-\caption{\justifying For the infrared-finite class of the DY process containing the virtual triangle diagram, the cancelling bulk singularities are located at the soft origin point, on the (anti-)collinear segment (in red), and on the black threshold circle. The parton-model diagram contributes with a hard region, and is non-zero everywhere in the loop momentum ($k$) space. Each additional multi-partonic cut has support only in compact regions (the shaded ``collinear'', ``soft-collinear'', and ``soft'' regions), due to the theta functions in Eq.~\eqref{eq:measure_pik}, while the threshold counterterm has support in the striped region, designed to exclude the collinear segment and so that the principal value of the counterterm is zero.
-In the tiny sliver obtained by subtracting the collinear region from the soft-collinear region, the integrand is unbounded. The sliver narrows toward the soft point, yielding integrable behaviour.}
-%
-{\color{gray!50}\rule{0.8\linewidth}{0.6pt}}
-\phantom{g}\\[-0.3cm]
-\label{fig:triangle_region}
-\end{figure}
+
 
 \textbf{DIS:} For DIS, we have $\Gamma_{q}=\{\triangle,\Box,\bigcirc,\text{lsz}\}$ and $\Gamma_{g}=\{\Box,\timesbox\}$.
 The corresponding integrals have the form
@@ -759,6 +750,18 @@ The \href{https://github.com/ZenoCapatti/LUDY-resources}{LUDY-resources reposito
 
 \textbf{Tools}: graphs are generated with \texttt{Feyngen}~\cite{GammaLoopSoftware}, while numerator algebra is performed with \texttt{Spenso} and \texttt{Idenso}~\cite{SpensoSoftware}. All symbolic manipulations use \texttt{Symbolica}~\cite{SymbolicaSoftware}. IBP reduction is obtained with a custom Python API for \texttt{Kira}~\cite{Klappert_2021}.
 
+
+\begin{figure}[!tp]
+\scalebox{0.6}{
+\input{region_xbox.tex}
+}
+\caption{\justifying For the infrared-finite class of the DY process containing the virtual triangle diagram, the cancelling bulk singularities are located at the soft origin point, on the (anti-)collinear segment (in red), and on the black threshold circle. The parton-model diagram contributes with a hard region, and is non-zero everywhere in the loop momentum ($k$) space. Each additional multi-partonic cut has support only in compact regions (the shaded ``collinear'', ``soft-collinear'', and ``soft'' regions), due to the theta functions in Eq.~\eqref{eq:measure_pik}, while the threshold counterterm has support in the striped region, designed to exclude the collinear segment and so that the principal value of the counterterm is zero.
+In the tiny sliver obtained by subtracting the collinear region from the soft-collinear region, the integrand is unbounded. The sliver narrows toward the soft point, yielding integrable behaviour.}
+%
+{\color{gray!50}\rule{0.8\linewidth}{0.6pt}}
+\phantom{g}\\[-0.3cm]
+\label{fig:triangle_region}
+\end{figure}
 
 \subsection{Numerical performance}
 \label{sec:numerical_performance}
