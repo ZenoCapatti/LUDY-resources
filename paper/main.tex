@@ -202,9 +202,10 @@ Using Local Unitarity, we compute the Drell--Yan and $t\bar{t}$ production cross
 
 Producing meaningful perturbative predictions for hadronic collisions requires connecting the scattering of asymptotic quarks and gluons to that of hadrons. A consistent framework must ensure infrared (IR) finiteness, allow systematic resummation of large logarithms arising from soft and collinear radiation, and provide a universal description of the nonperturbative structure of hadrons.
 
-In conventional calculations of hadronic cross-sections, infrared finiteness relies on two complementary mechanisms. Final-state infrared singularities cancel upon summing over the number of degenerate final-state massless particles, as guaranteed by the Kinoshita--Lee--Nauenberg (KLN) theorem~\cite{Kinoshita:1962ur,PhysRev.133.B1549}. The number of initial-state partons is instead kept fixed, breaking the KLN mechanism. Collinear factorisation~\cite{PhysRevD.8.3633,DAVIDPOLITZER1974129,Altarelli:1979ub,Collins:1981ta,Collins:1981tt,Collins:1983ju,Collins:1983pk,Collins:1985ue,Collins:1989gx,Bodwin:1984hc,Ellis:1978ty} provides a complementary mechanism: initial-state collinear singularities factorise universally and are absorbed by renormalising parton distribution functions (PDFs), while soft singularities associated with initial--initial and initial--final dipoles cancel separately between real and virtual contributions. This asymmetric treatment raises the question of whether the KLN theorem can also be implemented in the initial state while preserving collinear factorisation.
+In conventional calculations of hadronic cross-sections, infrared finiteness relies on two complementary mechanisms. 
+Final-state infrared singularities cancel upon summing over the number of degenerate final-state massless particles, as guaranteed by the Kinoshita--Lee--Nauenberg (KLN) theorem~\cite{Kinoshita:1962ur,PhysRev.133.B1549}. The number of initial-state partons is instead kept fixed, breaking the KLN \lucien{mechanism appears 3 times in the paragraph, maybe theorem here?}. Collinear factorisation~\cite{PhysRevD.8.3633,DAVIDPOLITZER1974129,Altarelli:1979ub,Collins:1981ta,Collins:1981tt,Collins:1983ju,Collins:1983pk,Collins:1985ue,Collins:1989gx,Bodwin:1984hc,Ellis:1978ty} provides a complementary mechanism: initial-state collinear singularities factorise universally and are absorbed by renormalising parton distribution functions (PDFs), while soft singularities associated with initial--initial and initial--final dipoles cancel separately between real and virtual contributions. This asymmetric treatment raises the question of whether the KLN theorem can also be implemented in the initial state while preserving collinear factorisation.
 
-In this paper, we investigate an initial-state implementation of the KLN theorem in which partonic cross-sections are defined by summing over degenerate initial- and final-state configurations of different massless-parton multiplicities, ensuring KLN-driven cancellation of infrared singularities in both states. Within the Local Unitarity (LU) framework~\cite{Capatti:2020xjc,Capatti:2021bsm,Capatti:2022tit,Capatti:2025khs}, these cancellations can be realised locally, enabling direct Monte Carlo integration of partonic cross-sections in four dimensions. We demonstrate our framework at next-to-leading order (NLO), computing the deep inelastic scattering (DIS) and Drell--Yan (DY) cross-sections analytically using Reverse Unitarity~\cite{Anastasiou:2002qz,Anastasiou:2002yz,Anastasiou:2003yy,Anastasiou:2013mca,Anastasiou:2013srw}, while Drell--Yan and $t\bar{t}$ production cross-sections are computed numerically using Local Unitarity.
+In this paper,\lucien{we attempt to provide an answer, by} investigating an initial-state implementation of the KLN theorem in which partonic cross-sections are defined by summing over degenerate initial- and final-state configurations of different massless-parton multiplicities, ensuring KLN-driven cancellation of infrared singularities in both states. Within the Local Unitarity (LU) framework~\cite{Capatti:2020xjc,Capatti:2021bsm,Capatti:2022tit,Capatti:2025khs}, these cancellations can be realised locally, enabling direct Monte Carlo integration of partonic cross-sections in four dimensions. \lucien{We just mentioned LU, why not say we compute using it DY and ttbar (swap the two sentences)}We demonstrate our framework at next-to-leading order (NLO), computing the deep inelastic scattering (DIS) and Drell--Yan (DY) cross-sections analytically using Reverse Unitarity~\cite{Anastasiou:2002qz,Anastasiou:2002yz,Anastasiou:2003yy,Anastasiou:2013mca,Anastasiou:2013srw}, while Drell--Yan and $t\bar{t}$ production cross-sections are computed numerically using Local Unitarity.
 
 At leading power in a virtuality expansion unique to our framework, partonic cross-sections are IR-finite, evolve according to DGLAP equations~\cite{Altarelli:1977zs,Dokshitzer:1977sg,Gribov:1968ia,Gribov:1972ri} and turn into the $\overline{\text{MS}}$ counterparts by a universal redefinition of the PDFs. Hence, we reconcile for the first time an initial-state implementation of the KLN theorem with collinear factorisation.
 In turn, this framework provides a new way to compute $\overline{\text{MS}}$ hadronic cross-sections, and offers a systematic method to study subleading power effects.
@@ -253,7 +254,7 @@ We cluster $n$ partons into two compound objects with momenta $p_1$ and $p_2$ by
 %
 \begin{equation}
 \label{eq:2_clustering}
-\mathrm{d}\Pi_n^{\mathbf{p}_1\mathbf{p}_2}=\sum_{(S_1,S_2)\in J_n}\frac{\mathrm{d}\Pi_n}{4\pi}(-1)^{|S_1\cap S_2|} \prod_{j=1}^2 \frac{\hat{\delta}(q_{S_j}-p_j)\delta_{\mathfrak{a}_j,\mathfrak{q}_{S_j}}}{\langle\mathfrak{a}_j\rangle},
+\mathrm{d}\Pi_n^{\mathbf{p}_1\mathbf{p}_2}=\hspace{-0.4cm}\sum_{(S_1,S_2)\in J_n}\hspace{-0.35cm}\frac{\mathrm{d}\Pi_n (-1)^{|S_1\cap S_2|}}{4\pi} \prod_{j=1}^2 \frac{\hat{\delta}(q_{S_j}-p_j)\delta_{\mathfrak{a}_j,\mathfrak{q}_{S_j}}}{\langle\mathfrak{a}_j\rangle},
 \end{equation}
 with $q_{S_i}=\sum_{j\in S_i} q_j$ and $\mathfrak{q}_{S_i}=\sum_{j\in S_i} \mathfrak{q}_j$, and
 \begin{equation}
@@ -354,7 +355,7 @@ Under the non-trivial assumption that soft double logarithms vanish, we obtain t
 %
 %
 
-Hence, the $\overline{\text{MS}}$ result amounts to absorbing in the PDFs both the multi-partonic contributions and the $\overline{\text{MS}}$ poles of the bare parton-model cross-section.
+Hence, the \lucien{standard} $\overline{\text{MS}}$ result amounts to absorbing in the PDFs both the multi-partonic contributions and the $\overline{\text{MS}}$ poles of the bare parton-model cross-section.
 %
 We instead define PDFs $f_{\mathfrak{q}}^{\text{LU}}$ that absorb all those interference diagrams that are not strictly required for IR finiteness of the bare parton model.
 %
@@ -382,7 +383,7 @@ For DY, the NLO, LP cross-section reads:
 \frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}}{\mathrm{d}q^2}&= \hspace{-0.2cm}\sum_{G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}} \hspace{-0.15cm} \text{Re}\hspace{-0.05cm}\left[\prod_{i=1}^2\int_0^{\Lambda^2}\hspace{-0.1cm}\frac{\mathrm{d}p_i^2}{2\pi i}\text{disc}_{p_i^2}\right] \! \frac{N_{ee}I_{ G}^{\mathfrak{q}\mathfrak{q}'}}{4\pi \hat{s}\langle\mathfrak{q}\rangle \langle\mathfrak{q}'\rangle},
 \end{align}
 where the set $\Gamma_{\mathfrak{q}\mathfrak{q}'}$ is given in the \hyperref[sec:integrals_DIS_DY]{End Matter}.
-There is one discontinuity for each incoming hadron. Since the discontinuity of a finite integral is still finite, we obtain that each individual graph summand is IR finite.
+There is one discontinuity for each incoming hadron. Since the discontinuity of a finite integral \lucien{Do we need to explain why it is finite in this case?} is still finite, we obtain that each individual graph summand is IR finite.
 %
 %
 %
