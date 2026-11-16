@@ -214,7 +214,8 @@ In our extension, the partonic cross-section reads:
 \begin{equation}
 \frac{\mathrm{d}\sigma_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}(\hat{s};\Lambda^2)= \! \sum_{\substack{\vec{\mathfrak{s}}\in\mathfrak{S}_{\infty} \\ \vec{\mathfrak{s}}'\in\tilde{\mathfrak{S}}_{\infty} }}\left[\prod_{i=1}^2\int_0^{\Lambda^2}\frac{\mathrm{d}p_i^2}{2\pi}\right]\frac{\mathrm{d}\sigma^{\vec{\mathfrak{s}}\vec{\mathfrak{s}}'}_{\mathfrak{a}\mathfrak{b}}}{\mathrm{d}q^2}(p_1,p_2),
 \end{equation}
-where $p_1=x_1\frac{\sqrt{s}}{2}\eta_++\frac{p_1^2}{2x_1\sqrt{s}}\eta_-$, $p_2=x_2\frac{\sqrt{s}}{2}\eta_-+\frac{p_2^2}{2x_2\sqrt{s}}\eta_+$ and $\hat{s}=x_1 x_2 s$.
+where $p_1=\frac{\sqrt{s}}{2}(x_1y_1\eta_++x_2\bar{y}_2\eta_-)$, $p_2=\frac{\sqrt{s}}{2}(x_1\bar{y}_1\eta_++x_2y_2\eta_-)$, $\bar{y}_i=1-y_i$, and $y_{1,2}=1+\mathcal{O}(p_{2,1}^2/\hat{s})$ solve $p_1^2=\hat{s}\,y_1\bar{y}_2$, $p_2^2=\hat{s}\,\bar{y}_1y_2$.
+Hence $\hat{s}=(p_1+p_2)^2=x_1 x_2 s$ at any virtuality.
 At fixed multiplicities,
 \begin{equation}
 \label{eq:DY_partonic_fixed}
@@ -264,7 +265,7 @@ At NLO and LP, the DIS partonic tensors read:
 \end{align}
  The integrals $I_{\mathfrak{q} G}^{\mu\nu}$ are given as \hyperref[sec:integrals_DIS_DY]{End Matter} material.
  The discontinuities in $p^2$ and $1-x$ account for the sums over initial- and final-state cuts, respectively.
- The operator $\text{disc}_{X}$ is both understood as a sum over Cutkosky cuts~\cite{Cutkosky:1960sp} in the $X$ channel (see Fig.~\ref{fig:xbox-sum}) and as the difference of the function it operates on evaluated at $X-i\varepsilon$ and $X+i\varepsilon$ (at LP, no subtleties such as those of Refs.~\cite{Bourjaily:2020wvq,Hannesdottir:2022xki,Abreu:2014cla,Abreu:2017enx} arise).
+ The operator $\text{disc}_{X}$ is both understood as a sum over Cutkosky cuts~\cite{Cutkosky:1960sp} in the $X$ channel (see Fig.~\ref{fig:xbox-sum}) and as the difference of the function it operates on evaluated at $X-i\varepsilon$ and $X+i\varepsilon$, with its other arguments held fixed (at LP, the only subtlety of the type discussed in Refs.~\cite{Bourjaily:2020wvq,Hannesdottir:2022xki,Abreu:2014cla,Abreu:2017enx} is the soft-region prescription given in the \hyperref[sec:integrals_DIS_DY]{End Matter}).
 
 For hadronic collisions, the situation is analogous.
 For DY, the NLO, LP cross-section reads:
@@ -273,7 +274,7 @@ For DY, the NLO, LP cross-section reads:
 \frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\text{LU},(1)}}{\mathrm{d}q^2}&= \hspace{-0.2cm}\sum_{G\in\Gamma_{\mathfrak{q}\mathfrak{q}'}} \hspace{-0.15cm} \text{Re}\hspace{-0.05cm}\left[\prod_{i=1}^2\int_0^{\Lambda^2}\hspace{-0.1cm}\frac{\mathrm{d}p_i^2}{2\pi i}\text{disc}_{p_i^2}\right] \! \frac{N_{ee}I_{ G}^{\mathfrak{q}\mathfrak{q}'}}{4\pi \hat{s}\langle\mathfrak{q}\rangle \langle\mathfrak{q}'\rangle},
 \end{align}
 where the set $\Gamma_{\mathfrak{q}\mathfrak{q}'}$ is given in the \hyperref[sec:integrals_DIS_DY]{End Matter}.
-There is one discontinuity for each incoming hadron. Since the discontinuity of a finite integral is still finite, we obtain that each individual graph summand is IR finite.
+There is one discontinuity for each incoming hadron, taken at fixed $\hat{s}$ and $q^2$. Since the discontinuity of a finite integral is still finite, we obtain that each individual graph summand is IR finite.
 
 \begin{figure*}[t]
   \centering
@@ -316,7 +317,7 @@ D_{\mathfrak{q}\mathfrak{q}'}^{(1)}(\xi)=
 
 \end{widetext}
 Here, $\bar{\xi}'=1-\xi'$, $c_{qg}=T_F$, $c_{qq}=c_{gq}=C_F$ and $c_{gg}=C_A$.
- The function $P_{\mathfrak{q}\mathfrak{q}'}^{(0)}(\xi)$ is the leading-order AP splitting kernel in conventional dimensional regularisation, Eqs.~(32)--(35) of Ref.~\cite{Catani:1996pk}, stripped of colour factors, while $\big|_{\epsilon^0}$ stresses that the pole is discarded.
+ The function $P_{\mathfrak{q}\mathfrak{q}'}^{(0)}(\xi)$ is the leading-order AP kernel for the splitting $\mathfrak{q}'\to\mathfrak{q}$ in conventional dimensional regularisation, Eqs.~(32)--(35) of Ref.~\cite{Catani:1996pk} with transposed indices, stripped of colour factors, while $\big|_{\epsilon^0}$ stresses that the pole is discarded.
  The $\delta(\xi-\xi')$ pieces originate from the contribution with an additional QCD emission in the final state.
  Finally, $b_{\partial}^{qg}=1$, $b_{\partial}^{gq}=b_{\partial}^{qq}=1-\epsilon$, $b_{\partial}^{gg}=\tfrac{3(2\epsilon-3)}{4(1-\epsilon)}$ specify the Feynman-gauge boundary terms.
  Reverse Unitarity calculations need them, whereas Local Unitarity uses $b_{\partial}^{\mathfrak{q}\mathfrak{q}'}=0$.
@@ -347,7 +348,7 @@ For a gluon:
 \frac{F_{Lg}^{\text{LU},(1)}}{2e_q^2 T_F x}&=4  x(1-x)+\mathcal{O}\left(\tfrac{\Lambda^2}{q^2_{\text{h}}}\right),
 \end{align}
 where $L_x=\log\left(\tfrac{Q^2}{\Lambda^2 x^2}\right)$ and $q_{\mathrm{h}}^2=\min(Q^2,(p+q)^2)$.
-$\tilde{P}^{(0)}_{\mathfrak{q}\mathfrak{q}'}$ is the regularised Altarelli--Parisi splitting kernel, Eqs.~(C.6)--(C.9) of Ref.~\cite{Catani_1997}, stripped of colour factors.
+$\tilde{P}^{(0)}_{\mathfrak{q}\mathfrak{q}'}$ is the regularised Altarelli--Parisi splitting kernel, Eqs.~(C.6)--(C.9) of Ref.~\cite{Catani_1997} with transposed indices, stripped of colour factors.
 
 
 
@@ -355,7 +356,7 @@ The result is IR finite, owing to the KLN mechanism, and the scale evolution and
 Hence, structure functions can be cast in the $\overline{\text{MS}}$ scheme by a scheme redefinition.
 More precisely, we find that
 \begin{equation}
-F_{2\mathfrak{q}}^{\overline{\text{MS}}}=\sum_{\mathfrak{q}'\in\mathfrak{S}_1}D^{-1}_{\mathfrak{q}'\mathfrak{q}}\otimes F_{2\mathfrak{q}'}^{\text{LU}}+\mathcal{O}\left(\alpha_s^2,\tfrac{\Lambda^2}{q^2_{\text{h}}}\right),
+\frac{F_{2\mathfrak{q}}^{\overline{\text{MS}}}}{x}=\sum_{\mathfrak{q}'\in\mathfrak{S}_1}D^{-1}_{\mathfrak{q}'\mathfrak{q}}\otimes \frac{F_{2\mathfrak{q}'}^{\text{LU}}}{x}+\mathcal{O}\left(\alpha_s^2,\tfrac{\Lambda^2}{q^2_{\text{h}}}\right),
 \end{equation}
 where the $D_{\mathfrak{q} \mathfrak{q}'}$ functions are precisely those of Eq.~\eqref{eq:splitting_cts_nlo}, with the Feynman-gauge boundary terms, and the $\overline{\text{MS}}$ result is given in Ref.~\cite{Bardeen:1978yd}.
 
@@ -373,9 +374,9 @@ The Reverse Unitarity computation gives, using $q^2=z \hat{s}$,
 where $L_z=\log\left(\tfrac{\hat{s}}{\Lambda^2z}\right)$ and $q_{\mathrm{h}}^2=\min(q^2,\hat{s}-q^2)$. 
 Equations~\eqref{eq:qq_DY} and \eqref{eq:qg_DY} are related to the $\overline{\text{MS}}$ results~\cite{Altarelli:1979ub} by
 \begin{align}
-\hspace{-0.05cm}\frac{\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\overline{\text{MS}}}}{\mathrm{d}q^2}=\hspace{-0.3cm}\sum_{\mathfrak{q}_1,\mathfrak{q}_2\in\mathfrak{S}_1}\hspace{-0.3cm}D^{-1}_{\mathfrak{q}_1\mathfrak{q}}\otimes\frac{\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}^{\text{LU}}}{\mathrm{d}q^2}\otimes D^{-1}_{\mathfrak{q}_2\mathfrak{q}'}\hspace{-0.05cm}+\mathcal{O}\left(\alpha_s^2,\tfrac{\Lambda^2}{q^2_{\text{h}}}\right),
+\hspace{-0.1cm}\frac{\hat{s}\,\mathrm{d}\sigma_{\mathfrak{q}\mathfrak{q}'}^{\overline{\text{MS}}}}{\mathrm{d}q^2}\!=\hspace{-0.35cm}\sum_{\mathfrak{q}_1,\mathfrak{q}_2\in\mathfrak{S}_1}\hspace{-0.35cm}D^{-1}_{\mathfrak{q}_1\mathfrak{q}}\!\otimes\!\frac{\hat{s}\,\mathrm{d}\sigma_{\mathfrak{q}_1\mathfrak{q}_2}^{\text{LU}}}{\mathrm{d}q^2}\!\otimes\! D^{-1}_{\mathfrak{q}_2\mathfrak{q}'}\hspace{-0.05cm}+\mathcal{O}\left(\alpha_s^2,\tfrac{\Lambda^2}{q^2_{\text{h}}}\right)\!,
 \end{align}
-which uses $D_{qq}$ and $D_{qg}$ as defined by Eq.~\eqref{eq:splitting_cts_nlo}.
+where the convolutions act on $z$ at fixed $q^2$, and which uses $D_{qq}$ and $D_{qg}$ as defined by Eq.~\eqref{eq:splitting_cts_nlo}.
 
 These computations confirm that, at NLO, LU and $\overline{\text{MS}}$ cross-sections carry the same scale dependence and are related to each other by a universal scheme redefinition.
 
@@ -432,7 +433,7 @@ where
 and $N^{\mathfrak{q}\mathfrak{q}'}_G$ is the numerator, a polynomial in $k, p_1^2, p_2^2$. $E$ is the set of propagators of $G$, with momenta $\ell_j$ and masses $m_j$, $D_j=\ell_j^2-m_j^2$, $\delta^{\pm}(D_j)\equiv\delta^{\pm}_{m_j^2}(\ell_j)$.
 The sum runs over all tuples $C_\sigma=(\sigma,C)\in\mathcal{C}_G$ of cut sets $C\subset E$ and signs $\sigma\in\{\pm 1\}^{|C|}$, compatible with the energy integration and the expansion of the discontinuity in terms of cut diagrams.
 Each contribution now has, for DY, $|C|=4$ (for $t\bar{t}$, $|C|=5$).
-For a cut repeated propagator, the generalised cutting rule applies~\cite{Capatti:2022tit}.
+For a cut repeated propagator, the generalised cutting rule applies~\cite{Capatti:2022tit} with the cutoffs of Eq.~\eqref{eq:measure_pik} left undifferentiated, which corresponds to $b_\partial^{\mathfrak{q}\mathfrak{q}'}=0$ in Eq.~\eqref{eq:splitting_cts_nlo}.
 
 The LP contribution is obtained by an asymptotic expansion in $\Lambda^2$, using the expansion-by-regions method~\cite{Chetyrkin:1988zz,Gorishnii:1989dd,etde_6475136,Beneke:1997zp,Jantzen:2011nz,Gardi:2022khw}. In principle, it is also possible to extract the leading power behaviour without a regions approach via a fitting procedure, similarly to what is done in slicing methods~\cite{Catani_2007}.
 We find that all the regions are of hard, (anti-)collinear, soft or soft-(anti-)collinear~\footnote{We refer to ultrasoft regions as soft-(anti-)collinear since the transverse directions scale to zero faster than the longitudinal directions.} type:
@@ -500,7 +501,7 @@ This work was supported in part by the Swiss National Science Foundation (SNSF) 
 \end{figure}
 
 We provide a list of the integrals appearing in Eq.~\eqref{eq:disc_dis} and Eq.~\eqref{eq:disc_dy}.
-At LP, their discontinuities can be computed either by computing the integrals and then using the usual definition of discontinuity, or by writing the discontinuity as a sum over cut Feynman integrals (corresponding to the original interference diagrams). The equivalence between the two definitions is non-trivial, but can be shown using the expansion-by-regions method (see, e.g., Fig.~\ref{fig:triangle_soft}) or by direct computation.   
+At LP, their discontinuities can be computed either by computing the integrals and then using the usual definition of discontinuity at fixed $x$ or $\hat{s}$, or by writing the discontinuity as a sum over cut Feynman integrals (corresponding to the original interference diagrams). The equivalence between the two definitions is non-trivial, but can be shown using the expansion-by-regions method (see, e.g., Fig.~\ref{fig:triangle_soft}) or by direct computation, up to the boundary terms $b_{\partial}^{\mathfrak{q}\mathfrak{q}'}$ of raised propagators discussed below.
 
 
 
@@ -585,7 +586,7 @@ The \href{https://github.com/ZenoCapatti/LUDY-resources}{LUDY-resources reposito
 
 \textbf{DIS and DY cross-sections}: the DIS and DY cross-sections are computed by generating the routed graphs and their cuts, performing the Dirac and colour algebra and reducing the scalar integrals to master integrals. In line with Reverse Unitarity, only the master integrals possessing the same cuts as the original diagram contribute. The master integrals themselves are simple and are evaluated by direct integration. The integrated results are then expanded in virtuality, to give the LP result. The computation of the parton-model diagrams is benchmarked against the DIS coefficient functions in Chapter~4 of Ref.~\cite{Ellis:1996mzs} and the Drell--Yan cross-sections of Ref.~\cite{Altarelli:1979ub}.
 
-\textbf{Splitting counterterms}: a separate notebook derives the splitting counterterms $D_{qq}$, $D_{gq}$, $D_{qg}$, and $D_{gg}$ in the axial gauge and for arbitrary NLO processes. In the axial gauge, collinear physics is entirely contained in self-energy corrections to external legs or squared t-channel exchanges between a parton and a hard sub-process, independently of the specific initial-state cuts. We start from these singular diagrams, perform the kinematic and colour algebra, expand in $\Lambda^2$ at the integrand level (using the expansion-by-regions method), and perform the $k$ and $p_i^2$ integrations. The Dirac delta functions fix the value of $p_i^2$ and $k_{-}$. When a raised propagator is cut, a derivative in $p_i^2$ has to be taken: the integral corresponding to the derivative hitting on the upper boundary $\Lambda^2$ gives the boundary term $b_{\partial}^{\mathfrak{q}\mathfrak{q}'}$.
+\textbf{Splitting counterterms}: a separate notebook derives the splitting counterterms $D_{qq}$, $D_{gq}$, $D_{qg}$, and $D_{gg}$ in the axial gauge and for arbitrary NLO processes. In the axial gauge, collinear physics is entirely contained in self-energy corrections to external legs or squared t-channel exchanges between a parton and a hard sub-process, independently of the specific initial-state cuts. We start from these singular diagrams, perform the kinematic and colour algebra, expand in $\Lambda^2$ at the integrand level (using the expansion-by-regions method), and perform the $k$ and $p_i^2$ integrations. The Dirac delta functions fix the value of $p_i^2$ and $k_{-}$. When a raised propagator is cut, its discontinuity is the derivative of a Dirac delta function: integrating by parts in $p_i^2$ gives a bulk term, where the derivative acts on the rest of the integrand, and a surface term at $p_i^2=\Lambda^2$. The surface term, evaluated in the Feynman gauge of the DIS and DY calculations (i.e.\ keeping only the metric part of the gluon polarisation sums), gives the boundary term $b_{\partial}^{\mathfrak{q}\mathfrak{q}'}$; it is absent in Local Unitarity, where the cutoff is not differentiated.
 
 \textbf{Tools}: graphs are generated with \texttt{Feyngen}~\cite{GammaLoopSoftware}, while numerator algebra is performed with \texttt{Spenso} and \texttt{Idenso}~\cite{SpensoSoftware}. All symbolic manipulations use \texttt{Symbolica}~\cite{SymbolicaSoftware}. IBP reduction is obtained with a custom Python API for \texttt{Kira}~\cite{Klappert_2021}.
 
